@@ -145,7 +145,7 @@
             measurementId: "G-DT2FYYWJ26"
         };
         
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxxTTwaRZfLgamI6d7tgcTv6dQe44WI5U_oHm1OjW-2eqhF5qSSdjLm_Q8sTlEAF6OM/exec"; 
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwIf_5Ps8MMNLHPXFdCK4ZjgKx232EguXInCDLyiJFx_GN88X4PObxsiWetG4GhURnZ/exec"; 
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -1923,7 +1923,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 <div className="p-6 h-auto min-h-[80px] flex items-center border-b border-slate-100 shrink-0">
                   <h1 className="text-base md:text-lg font-bold flex items-center gap-3 leading-snug whitespace-normal">
                       <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-truck-fast text-xl"></i></div>
-                      <span>Equipment Tracking</span>
+                      <span>[TEST] Equipment Tracking</span>
                   </h1>
                 </div>
                 
