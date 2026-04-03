@@ -89,9 +89,9 @@
 
     <script type="text/babel">
         // ==========================================
-        // APP VERSION: v1.0.39 (Fixed Crash & Full Features)
+        // APP VERSION: v1.0.40 (Fixed ReferenceError & Full Features)
         // ==========================================
-        const APP_VERSION = "1.0.39";
+        const APP_VERSION = "1.0.40";
 
         if (typeof ChartDataLabels !== 'undefined') {
             Chart.register(ChartDataLabels);
@@ -1141,6 +1141,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           };
 
           let currentColumnsTable = tasksSubTab === 'subcontract' ? [...columns] : [...nsColumns];
+          const currentTasksTable = tasksSubTab === 'subcontract' ? tasks : nsTasks;
           
           // 🟢 เพิ่มคอลัมน์จำลอง Region_Respon ในหน้า Subcontract
           if (tasksSubTab === 'subcontract' && currentColumnsTable.length > 0 && !currentColumnsTable.includes('Region_Respon')) {
