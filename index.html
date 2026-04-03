@@ -1090,11 +1090,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
           const [isPendingTransition, startTransition] = useTransition();
 
+          // ... โค้ดเดิม ...
           const [autoAssignData, setAutoAssignData] = useState(null);
+
+          // 🟢 1. เพิ่ม State สำหรับเช็คข้อมูลซ้ำ
+          const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
 
           const pendingUpdatesRef = useRef([]);
           const syncTimerRef = useRef(null);
-
+          // ... โค้ดเดิม ...
           // 🔥 Custom Alerts & Confirms State
           const [appAlert, setAppAlert] = useState({ show: false, message: '', type: 'success' });
           const [appConfirm, setAppConfirm] = useState({ show: false, message: '', onConfirm: null });
@@ -1453,6 +1457,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               return left;
           };
 
+          // ... โค้ดเดิม ...
           const handleSort = (key) => setSortConfig({ key, direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc' });
 
           const resetFilters = () => {
@@ -1460,9 +1465,59 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               setTableFilterDate([]); setTableFilterYear([]); setTableFilterStatus([]);
               setTableFilterOverdue([]); setSortConfig({ key: null, direction: null });
               setCurrentPage(1);
+              setShowDuplicatesOnly(false); // 🟢 รีเซ็ตค่าเช็คข้อมูลซ้ำ
+          };
+
+          // 🟢 2. เพิ่มฟังก์ชันลบข้อมูล (รองรับการลบแบบกลุ่มในหน้า NS ด้วย)
+          const handleDeleteTask = (taskObj) => {
+              const docIds = taskObj._groupDocs || [taskObj.id];
+              const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
+
+              customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
+                  const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
+                  const targetCollection = tasksSubTab === 'subcontract' ? collectionRef : nsCollectionRef;
+
+                  // Optimistic UI Update (ลบออกจากหน้าเว็บทันทีให้ดูเร็ว)
+                  if (tasksSubTab === 'subcontract') {
+                      setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
+                  } else {
+                      setNsTasks(prev => prev.filter(t => !docIds.includes(t.id)));
+                  }
+
+                  try {
+                      // ลบออกจาก Firebase
+                      const batch = db.batch();
+                      docIds.forEach(id => {
+                          batch.delete(targetCollection.doc(id));
+                      });
+                      await batch.commit();
+
+                      // ส่งคำสั่งไปลบแถวใน Google Sheet
+                      if (GAS_WEB_APP_URL) {
+                          const payloadData = JSON.stringify({
+                              action: 'deleteRows',
+                              sheetName: targetSheetName,
+                              rows: rowIndices
+                          });
+
+                          fetch(GAS_WEB_APP_URL, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                              body: payloadData
+                          }).catch(e => console.error("Failed to delete from sheet:", e));
+                      }
+
+                      customAlert('ลบข้อมูลสำเร็จ', 'success');
+                  } catch (error) {
+                      console.error("Error deleting task:", error);
+                      customAlert('เกิดข้อผิดพลาดในการลบข้อมูล', 'error');
+                  }
+              });
           };
 
           const handleCellDoubleClick = (e, cellId) => {
+          // ... โค้ดเดิม ...
+              
               setEditingCell(cellId); const el = e.target;
               setTimeout(() => {
                   el.focus();
@@ -1606,21 +1661,23 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const finalTableTasks = useMemo(() => {
               let tableTasks = [...(currentTasksTable || [])]; 
 
-              if (tableFilterTeams?.length > 0 && t_teamCol) tableTasks = tableTasks.filter(t => tableFilterTeams.includes(getCleanTeam(t[t_teamCol])));
-              if (tableFilterCID !== 'All' && t_cidCol) tableTasks = tableTasks.filter(t => (t[t_cidCol] ? String(t[t_cidCol]).trim() : '') === tableFilterCID);
-              if (tableFilterYear?.length > 0 && t_equipYearCol) tableTasks = tableTasks.filter(t => tableFilterYear.includes(t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : ''));
-              if (tableFilterStatus?.length > 0 && t_statusCol) tableTasks = tableTasks.filter(t => tableFilterStatus.includes(getCleanStatus(t[t_statusCol])));
-              if (tableFilterDate?.length > 0) { tableTasks = tableTasks.filter(t => { const d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null); return d && tableFilterDate.includes(monthNames[d.getMonth()]); }); }
-              if (tableFilterOverdue?.length > 0 && t_overDueCol) {
+              // 🟢 3. เพิ่ม Logic กรองเฉพาะ CID ที่ซ้ำกัน
+              if (showDuplicatesOnly && t_cidCol) {
+                  const cidCounts = {};
+                  tableTasks.forEach(t => {
+                      const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
+                      if (cid && cid !== '-' && cid.toLowerCase() !== 'n/a') {
+                          cidCounts[cid] = (cidCounts[cid] || 0) + 1;
+                      }
+                  });
                   tableTasks = tableTasks.filter(t => {
-                      const cleanVal = getCleanStatus(t[t_overDueCol] || '').toLowerCase(); if (cleanVal === 'ไม่ระบุสถานะ' || !cleanVal) return false;
-                      const match = cleanVal.match(/-?\d+/); const num = match ? parseInt(match[0], 10) : NaN;
-                      const isOverdue = cleanVal.includes('เกิน') || cleanVal.includes('over') || num < 0;
-                      const isDue = !isOverdue && (num === 0 || cleanVal === '0' || cleanVal.includes('ครบกำหนด'));
-                      const statusStr = isOverdue ? 'เกินกำหนด' : (isDue ? 'ครบกำหนด' : 'ยังไม่ครบกำหนด');
-                      return tableFilterOverdue.includes(statusStr);
+                      const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
+                      return cidCounts[cid] > 1;
                   });
               }
+
+              if (tableFilterTeams?.length > 0 && t_teamCol) tableTasks = tableTasks.filter(t => tableFilterTeams.includes(getCleanTeam(t[t_teamCol])));
+              // ... โค้ดเดิม ...
               
               if (sortConfig.key && sortConfig.direction) {
                   tableTasks.sort((a, b) => sortConfig.direction === 'asc' ? String(a[sortConfig.key] || '').localeCompare(String(b[sortConfig.key] || ''), 'th', { numeric: true }) : String(b[sortConfig.key] || '').localeCompare(String(a[sortConfig.key] || ''), 'th', { numeric: true }));
@@ -2079,14 +2136,27 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             {t_teamCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueTeams} selected={tableFilterTeams} onChange={setTableFilterTeams} placeholder="ทีมงาน" /></div>}
                             {t_collectionDateCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueColMonths.map(m => monthNames[m-1])} selected={tableFilterDate} onChange={setTableFilterDate} placeholder="เดือน" /></div>}
                             {t_equipYearCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueYears} selected={tableFilterYear} onChange={setTableFilterYear} placeholder="ปี" /></div>}
+                            // ... โค้ดเดิม ...
                             {t_statusCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueStatuses} selected={tableFilterStatus} onChange={setTableFilterStatus} placeholder="Status" /></div>}
                             {t_overDueCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={['ครบกำหนด', 'ยังไม่ครบกำหนด', 'เกินกำหนด']} selected={tableFilterOverdue} onChange={setTableFilterOverdue} placeholder="นัดหมายลูกค้า" /></div>}
                             <div className="ml-auto flex flex-wrap items-center gap-2 mt-2 md:mt-0 w-full sm:w-auto">
+                                
+                                {/* 🟢 4. ปุ่มเช็ค CID ซ้ำ (แสดงเฉพาะแท็บ Subcontract) */}
+                                {tasksSubTab === 'subcontract' && t_cidCol && (
+                                    <button 
+                                        onClick={() => setShowDuplicatesOnly(!showDuplicatesOnly)} 
+                                        className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs md:text-sm font-bold px-3 py-1.5 rounded-lg border h-[38px] transition-colors ${showDuplicatesOnly ? 'bg-amber-500 text-white border-amber-600 shadow-inner' : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'}`}
+                                    >
+                                        <i className="fa-solid fa-copy"></i> {showDuplicatesOnly ? 'แสดงทั้งหมด' : 'เช็ค CID ซ้ำ'}
+                                    </button>
+                                )}
+
                                 <ColumnToggle columns={currentColumnsTable} hiddenColumns={hiddenColumns} setHiddenColumns={setHiddenColumns} />
                                 <button onClick={resetFilters} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs md:text-sm font-bold text-red-600 bg-red-50 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg border h-[38px]">ล้างตัวกรอง</button>
                             </div>
                         </div>
                     </div>
+                    // ... โค้ดเดิม ...
 
                     <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col min-h-0 overflow-hidden relative">
                       <div className="flex-1 overflow-auto table-container relative">
@@ -2128,7 +2198,17 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                           <div onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e, col); }} onClick={(e) => e.stopPropagation()} className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-10 hover:bg-blue-500 flex flex-col justify-center items-center transition-colors opacity-0 group-hover:opacity-100"><div className="w-[2px] h-4 bg-white/60 rounded-full pointer-events-none"></div></div>
                                       </th>
                                   );
+                              // ... โค้ดเดิม ...
                               }) : <th className="p-4 text-white sticky top-0 bg-slate-800 z-30">ตารางงาน</th>}
+                              
+                              {/* 🟢 5.1 เปลี่ยนคอลัมน์ขวาสุดเป็น "จัดการ" (แสดงทุกแท็บ) */}
+                              <th className="bg-slate-800 border-l border-slate-700 p-0 align-middle sticky right-0 z-40 w-24 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.2)]">
+                                  <div className="px-2 py-2 text-center text-xs md:text-sm font-semibold text-white whitespace-nowrap">
+                                      <i className="fa-solid fa-gear text-slate-300"></i> จัดการ
+                                  </div>
+                              </th>
+                            </tr>
+                          </thead>
                               
                               {/* คอลัมน์พิเศษสำหรับปุ่มจ่ายงาน (แสดงเฉพาะฝั่ง NS) */}
                               {tasksSubTab === 'ns' && <th className="bg-slate-800 border-l border-slate-700 p-0 align-middle sticky right-0 z-40 w-28 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.2)]"><div className="px-2 py-2 text-center text-xs md:text-sm font-semibold text-white whitespace-nowrap"><i className="fa-solid fa-bolt text-amber-400"></i> จ่ายงาน</div></th>}
@@ -2287,21 +2367,25 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     }
                                 })}
                                 
-                                {/* ปุ่มจ่ายงานด่วน (โชว์เฉพาะแท็บ NS) */}
-                                {tasksSubTab === 'ns' && (() => {
-                                    return (
-                                        <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-10 text-center shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)]">
-                                            <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="w-full h-full min-h-[32px] px-2 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 rounded-md text-[11px] md:text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1 group whitespace-nowrap" title="คลิกเพื่อส่ง CID นี้ไปหน้าจ่ายงาน (Assign Job)">
-                                                <span>🚀 จ่ายงาน</span> <i className="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                                // ... โค้ดเดิม ...
+                                })}
+                                
+                                {/* 🟢 5.2 ปุ่มจัดการ (จ่ายงาน / ลบข้อมูล) */}
+                                <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-10 text-center shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)]">
+                                    <div className="flex flex-col gap-1.5 h-full justify-center px-1">
+                                        {tasksSubTab === 'ns' && (
+                                            <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="w-full py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 rounded text-[10px] font-bold transition-all shadow-sm flex items-center justify-center gap-1" title="ส่ง CID นี้ไปหน้าจ่ายงาน">
+                                                <i className="fa-solid fa-bolt"></i> จ่ายงาน
                                             </button>
-                                        </td>
-                                    );
-                                })()}
+                                        )}
+                                        <button onClick={() => handleDeleteTask(task)} className="w-full py-1.5 bg-red-50 border border-red-200 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 rounded text-[10px] font-bold transition-all shadow-sm flex items-center justify-center gap-1" title="ลบข้อมูลแถวนี้">
+                                            <i className="fa-solid fa-trash"></i> ลบ
+                                        </button>
+                                    </div>
+                                </td>
                               </tr>
                             ))}
                           </tbody>
-                        </table>
-                      </div>
                       
                       {/* Pagination UI */}
                       <div className="shrink-0 bg-slate-50 border-t border-slate-200 p-2 md:p-3 px-3 md:px-5 flex flex-col sm:flex-row items-center justify-between z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] gap-3">
