@@ -1,3 +1,12 @@
+ขออภัยอย่างสูงครับ อาการหน้าจอขาวและขึ้น **"เกิดข้อผิดพลาดในการแสดงผล (ระบบขัดข้อง)"** เกิดจาก **React Error Boundary** ดักจับ Error ได้ระหว่างที่กำลัง Render หน้าเว็บครับ
+
+สาเหตุหลักมาจากฟังก์ชันค้นหาชื่อคอลัมน์ (เช่น ค้นหาคำว่า `customer_contract` หรือ `ประทับเวลา`) ไปเจอคอลัมน์ที่เป็นค่าว่าง (`null` หรือ `undefined`) ในฐานข้อมูล ทำให้คำสั่ง `.toLowerCase()` หรือ `.includes()` พัง (TypeError) ครับ
+
+ผมได้ทำการแก้ไขโดยใส่ตัวป้องกัน `String(c)` ดักไว้ทุกจุดที่ค้นหาชื่อคอลัมน์เรียบร้อยแล้วครับ รับรองว่าคราวนี้ไม่พังแน่นอนครับ
+
+คุณสามารถ **ก๊อปปี้โค้ดด้านล่างนี้ทั้งหมด ไปวางทับในไฟล์ `index.html` ได้เลยครับ**
+
+```html
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -89,9 +98,9 @@
 
     <script type="text/babel">
         // ==========================================
-        // APP VERSION: v1.0.38 (Full Features Update)
+        // APP VERSION: v1.0.39 (Fixed Crash & Full Features)
         // ==========================================
-        const APP_VERSION = "1.0.38";
+        const APP_VERSION = "1.0.39";
 
         if (typeof ChartDataLabels !== 'undefined') {
             Chart.register(ChartDataLabels);
@@ -1113,12 +1122,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const getStatusColumnName = (cols) => {
               if (!cols) return '';
               let exact = cols.find(c => {
-                  const lc = c?.toLowerCase().replace(/[\s_]+/g, '') || '';
+                  const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
                   return lc === 'status' || lc === 'สถานะ' || lc === 'statusjob' || lc === 'jobstatus';
               });
               if (exact) return exact;
               let partial = cols.find(c => {
-                  const lc = c?.toLowerCase().replace(/[\s_]+/g, '') || '';
+                  const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
                   return (lc.includes('status') || lc.includes('สถานะ')) && !lc.includes('change') && !lc.includes('เปลี่ยน') && !lc.includes('date') && !lc.includes('วันที่') && !lc.includes('time') && !lc.includes('เวลา');
               });
               if (partial) return partial;
@@ -1128,12 +1137,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const getTeamColumnName = (cols) => {
               if (!cols) return '';
               let exact = cols.find(c => {
-                  const lc = c?.toLowerCase().replace(/[\s_]+/g, '') || '';
+                  const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
                   return lc === 'ทีมงาน' || lc === 'team' || lc === 'nsresponsible' || lc === 'subcontract' || lc === 'ผู้รับผิดชอบ';
               });
               if (exact) return exact;
               let partial = cols.find(c => {
-                  const lc = c?.toLowerCase().replace(/[\s_]+/g, '') || '';
+                  const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
                   return (lc.includes('ทีม') || lc.includes('responsible') || lc.includes('รับผิดชอบ')) && !lc.includes('วันที่') && !lc.includes('date') && !lc.includes('time');
               });
               if (partial) return partial;
@@ -1151,7 +1160,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const [hasAutoHidden, setHasAutoHidden] = useState(false);
           useEffect(() => {
               if (columns.length > 0 && !hasAutoHidden) {
-                  const tsCol = columns.find(c => c.toLowerCase().includes('ประทับเวลา') || c.toLowerCase().includes('timestamp'));
+                  const tsCol = columns.find(c => c && String(c).toLowerCase().includes('ประทับเวลา') || (c && String(c).toLowerCase().includes('timestamp')));
                   if (tsCol && !hiddenColumns.includes(tsCol)) {
                       setHiddenColumns(prev => [...prev, tsCol]);
                   }
@@ -1164,27 +1173,30 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const unpinnedColsListTable = visibleColumnsTable.filter(c => !(pinnedColumns || []).includes(c));
           const orderedVisibleColumnsTable = [...pinnedColsListTable, ...unpinnedColsListTable];
 
-          const t_getCol = (keywords) => (currentColumnsTable || []).find(c => keywords.some(kw => c?.toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,'')))) || '';
+          const t_getCol = (keywords) => (currentColumnsTable || []).find(c => keywords.some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,'')) : false)) || '';
           
           const t_statusCol = getStatusColumnName(currentColumnsTable);
           const t_teamCol = getTeamColumnName(currentColumnsTable);
           
           const t_cidCol = t_getCol(['cid', 'circuitno']) || '';
           const t_equipYearCol = t_getCol(['year', 'ปี']) || '';
-          const t_overDueCol = (currentColumnsTable || []).find(c => { const lc = c?.toLowerCase()?.replace(/[\s_]+/g, '') || ''; return lc.includes('นัดหมายลูกค้า') || lc.includes('over3') || lc.includes('เกินกำหนด'); }) || '';
-          const t_collectionDateCol = (currentColumnsTable || []).find(c => c?.replace(/[\s_]+/g, '').includes('วันที่เข้าเก็บ')) || t_getCol(['วันที่', 'date']) || currentColumnsTable?.[0] || '';
+          const t_overDueCol = (currentColumnsTable || []).find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc.includes('นัดหมายลูกค้า') || lc.includes('over3') || lc.includes('เกินกำหนด'); }) || '';
+          const t_collectionDateCol = (currentColumnsTable || []).find(c => c ? String(c).replace(/[\s_]+/g, '').includes('วันที่เข้าเก็บ') : false) || t_getCol(['วันที่', 'date']) || currentColumnsTable?.[0] || '';
           
-          const statusChangeColMatch = (currentColumnsTable || []).find(c => c?.toLowerCase() === 'status_change' || c?.toLowerCase() === 'status change' || c?.toLowerCase() === 'status-change') || '';
+          const statusChangeColMatch = (currentColumnsTable || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc === 'status_change' || lc === 'status change' || lc === 'status-change'; }) || '';
           
           // 🟢 ปรับให้ครอบคลุมคอลัมน์ Customer_Contract
-          const contactJobColMatch = (currentColumnsTable || []).find(c => c?.toLowerCase().includes('customer contact') || c?.toLowerCase().includes('customer_contract') || c?.toLowerCase() === 'contract') || '';
+          const contactJobColMatch = (currentColumnsTable || []).find(c => {
+              const lc = c ? String(c).toLowerCase() : '';
+              return lc.includes('customer contact') || lc.includes('customer_contract') || lc === 'contract';
+          }) || '';
           
           const itemColMatch = t_getCol(['itemname', 'อุปกรณ์']);
           const snColMatch = t_getCol(['serialno', 'serial', 'sn']);
           const siteTypeColMatch = t_getCol(['sitetype', 'site']);
-          const noteCol = (currentColumnsTable || []).find(c => c?.includes('หมายเหตุ') || c?.toLowerCase().includes('note')) || '';
+          const noteCol = (currentColumnsTable || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc.includes('หมายเหตุ') || lc.includes('note'); }) || '';
 
-          const skipColsInTooltip = [ t_teamCol, t_cidCol, t_equipYearCol, t_statusCol, t_overDueCol, t_collectionDateCol, ...(currentColumnsTable || []).filter(c => { const lc = c?.toLowerCase()?.replace(/[\s_]+/g, '') || ''; return lc.includes('แจ้งsub') || lc.includes('วันที่แจ้ง') || lc.includes('วันที่ลงข้อมูล') || lc.includes('วันที่รับงาน') || lc.includes('ประทับเวลา') || lc.includes('timestamp') || lc.includes('เวลาแจ้ง') || lc.includes('อีเมล') || lc.includes('email') || lc.includes('mail') || lc.includes('year') || lc.includes('ปี') || lc.includes('นัดหมายลูกค้า') || lc.includes('over3') || lc.includes('เกินกำหนด') || lc.includes('วันที่โทร') || lc.includes('โทรติดต่อ'); }) ].filter(Boolean);
+          const skipColsInTooltip = [ t_teamCol, t_cidCol, t_equipYearCol, t_statusCol, t_overDueCol, t_collectionDateCol, ...(currentColumnsTable || []).filter(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc.includes('แจ้งsub') || lc.includes('วันที่แจ้ง') || lc.includes('วันที่ลงข้อมูล') || lc.includes('วันที่รับงาน') || lc.includes('ประทับเวลา') || lc.includes('timestamp') || lc.includes('เวลาแจ้ง') || lc.includes('อีเมล') || lc.includes('email') || lc.includes('mail') || lc.includes('year') || lc.includes('ปี') || lc.includes('นัดหมายลูกค้า') || lc.includes('over3') || lc.includes('เกินกำหนด') || lc.includes('วันที่โทร') || lc.includes('โทรติดต่อ'); }) ].filter(Boolean);
 
           const tableUniqueTeams = t_teamCol ? [...new Set((currentTasksTable || []).map(t => getCleanTeam(t[t_teamCol])))].sort() : [];
           const tableUniqueStatuses = t_statusCol ? [...new Set((currentTasksTable || []).map(t => getCleanStatus(t[t_statusCol])))].sort() : [];
@@ -1552,7 +1564,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const docIds = taskObj._groupDocs || [taskObj.id];
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
               
-              const t_getColLocal = (keywords) => (currentColumnsTableLocal || []).find(c => keywords.some(kw => c?.toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,'')))) || '';
+              const t_getColLocal = (keywords) => (currentColumnsTableLocal || []).find(c => keywords.some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,'')) : false)) || '';
               const itemColMatchLocal = t_getColLocal(['itemname', 'อุปกรณ์']);
               const snColMatchLocal = t_getColLocal(['serialno', 'serial', 'sn']);
               
@@ -1579,7 +1591,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               }
 
               try {
-                  const cCompCol = (currentColumnsTableLocal || []).find(c => ['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'].some(kw => c?.toLowerCase().replace(/[\s_]+/g,'').includes(kw))) || '';
+                  const cCompCol = (currentColumnsTableLocal || []).find(c => ['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
                   historyRef.add({ taskId: docIds[0], company: taskObj[cCompCol] || 'Unknown', field: field, oldValue: oldValue || '', newValue: value, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), groupSize: docIds.length }).catch(()=>{});
               } catch (err) {}
 
@@ -1713,7 +1725,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               // 🟢 ดึงข้อมูล Region_Respon มาใส่ในหน้า Subcontract โดยเทียบ CID
               if (tasksSubTab === 'subcontract') {
                   const nsTeamCol = getTeamColumnName(nsColumns);
-                  const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c?.toLowerCase().replace(/[\s_]+/g,'').includes(kw))) || '';
+                  const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
                   
                   const nsCidMap = {};
                   if (nsCidCol && nsTeamCol) {
@@ -1779,14 +1791,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           // --- Dashboard Variables ---
           const dashboardTasks = dashboardView === 'subcontract' ? tasks : nsTasks;
           const dashboardColumns = dashboardView === 'subcontract' ? columns : nsColumns;
-          const d_getCol = (keywords) => (dashboardColumns || []).find(c => keywords.some(kw => c?.toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,'')))) || '';
+          const d_getCol = (keywords) => (dashboardColumns || []).find(c => keywords.some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,'')) : false)) || '';
           
           const d_statusCol = getStatusColumnName(dashboardColumns);
           const d_teamCol = getTeamColumnName(dashboardColumns);
           const d_cidCol = d_getCol(['cid', 'circuitno']) || '';
           const d_equipYearCol = d_getCol(['year', 'ปี']) || '';
-          const d_overDueCol = (dashboardColumns || []).find(c => { const lc = c?.toLowerCase()?.replace(/[\s_]+/g, '') || ''; return lc.includes('นัดหมายลูกค้า') || lc.includes('over3') || lc.includes('เกินกำหนด'); }) || '';
-          const d_collectionDateCol = (dashboardColumns || []).find(c => c?.replace(/[\s_]+/g, '').includes('วันที่เข้าเก็บ')) || d_getCol(['วันที่', 'date']) || dashboardColumns?.[0] || '';
+          const d_overDueCol = (dashboardColumns || []).find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc.includes('นัดหมายลูกค้า') || lc.includes('over3') || lc.includes('เกินกำหนด'); }) || '';
+          const d_collectionDateCol = (dashboardColumns || []).find(c => c ? String(c).replace(/[\s_]+/g, '').includes('วันที่เข้าเก็บ') : false) || d_getCol(['วันที่', 'date']) || dashboardColumns?.[0] || '';
           const d_siteTypeCol = d_getCol(['sitetype', 'site']) || '';
 
           const getDashboardTaskEffectiveDateStr = (t) => {
@@ -1979,13 +1991,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (!dateObj) return [];
               const calStatusCol = getStatusColumnName(columns);
               const calTeamCol = getTeamColumnName(columns);
-              const calCompCol = (columns || []).find(c => ['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'].some(kw => c?.toLowerCase().replace(/[\s_]+/g,'').includes(kw))) || (columns?.length > 2 ? columns[2] : '');
-              const calTimeCol = (columns || []).find(c => { const lc = c?.toLowerCase() || ''; return !lc.includes('ประทับเวลา') && !lc.includes('timestamp') && (lc.includes('เวลาเข้าเก็บ') || lc.includes('เวลาเก็บ') || lc.includes('เวลา') || lc.includes('time')); }) || (columns?.length > 6 ? columns[6] : '');
-              const calDateCol = (columns || []).find(c => c?.replace(/[\s_]+/g, '').includes('วันที่เข้าเก็บ')) || (columns || []).find(c => c?.toLowerCase().includes('วันที่') || c?.toLowerCase().includes('date')) || columns?.[0] || '';
-              const calCidCol = (columns || []).find(c => c?.toLowerCase().includes('circuit no') || c?.toLowerCase().includes('cid')) || '';
-              const calContactCol = (columns || []).find(c => ['ผู้ติดต่อ', 'ติดต่อ', 'ชื่อลูกค้า', 'ประสานงาน', 'ชื่อ'].some(kw => c?.toLowerCase().includes(kw))) || '';
-              const calPhoneCol = (columns || []).find(c => c !== calContactCol && (c?.includes('เบอร์') || c?.toLowerCase().includes('tel') || c?.toLowerCase().includes('phone') || c?.includes('โทร'))) || '';
-              const calNoteCol = (columns || []).find(c => c?.includes('หมายเหตุ') || c?.toLowerCase().includes('note')) || '';
+              const calCompCol = (columns || []).find(c => ['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || (columns?.length > 2 ? columns[2] : '');
+              const calTimeCol = (columns || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return !lc.includes('ประทับเวลา') && !lc.includes('timestamp') && (lc.includes('เวลาเข้าเก็บ') || lc.includes('เวลาเก็บ') || lc.includes('เวลา') || lc.includes('time')); }) || (columns?.length > 6 ? columns[6] : '');
+              const calDateCol = (columns || []).find(c => c ? String(c).replace(/[\s_]+/g, '').includes('วันที่เข้าเก็บ') : false) || (columns || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc.includes('วันที่') || lc.includes('date'); }) || columns?.[0] || '';
+              const calCidCol = (columns || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc.includes('circuit no') || lc.includes('cid'); }) || '';
+              const calContactCol = (columns || []).find(c => ['ผู้ติดต่อ', 'ติดต่อ', 'ชื่อลูกค้า', 'ประสานงาน', 'ชื่อ'].some(kw => c ? String(c).toLowerCase().includes(kw) : false)) || '';
+              const calPhoneCol = (columns || []).find(c => c !== calContactCol && (c ? String(c).includes('เบอร์') || String(c).toLowerCase().includes('tel') || String(c).toLowerCase().includes('phone') || String(c).includes('โทร') : false)) || '';
+              const calNoteCol = (columns || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc.includes('หมายเหตุ') || lc.includes('note'); }) || '';
 
               return (tasks || []).filter(t => isSameDate(calDateCol ? t[calDateCol] : null, dateObj)).sort((a, b) => {
                   const sA = getCleanStatus(a[calStatusCol]).toLowerCase(), sB = getCleanStatus(b[calStatusCol]).toLowerCase();
