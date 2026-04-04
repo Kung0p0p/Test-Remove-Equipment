@@ -89,9 +89,9 @@
 
     <script type="text/babel">
         // ==========================================
-        // APP VERSION: v1.0.40 (Fixed ReferenceError & Full Features)
+        // APP VERSION: v2.0.0 (Unlimited Free Tier Mode)
         // ==========================================
-        const APP_VERSION = "1.0.40";
+        const APP_VERSION = "2.0.0";
 
         if (typeof ChartDataLabels !== 'undefined') {
             Chart.register(ChartDataLabels);
@@ -145,15 +145,11 @@
             measurementId: "G-VB3VDMQ9D1"
         };
         
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwIf_5Ps8MMNLHPXFdCK4ZjgKx232EguXInCDLyiJFx_GN88X4PObxsiWetG4GhURnZ/exec"; 
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxTX-V8W9wpn976AHY5_45hS-4yNQrYUoPlOwGIXJYGtWaMWbuNSSDdKtA1KUCnER05/exec"; 
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         db.settings({ experimentalForceLongPolling: true, useFetchStreams: false });
-
-        db.enablePersistence().catch(function(err) {
-            console.warn("Firebase Persistence Error:", err.code);
-        });
 
         const collectionRef = db.collection('tasks');
         const nsCollectionRef = db.collection('ns_tasks'); 
@@ -1152,7 +1148,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const [hasAutoHidden, setHasAutoHidden] = useState(false);
           useEffect(() => {
               if (columns.length > 0 && !hasAutoHidden) {
-                  const tsCol = columns.find(c => c && String(c).toLowerCase().includes('ประทับเวลา') || (c && String(c).toLowerCase().includes('timestamp')));
+                  const tsCol = columns.find(c => (c && String(c).toLowerCase().includes('ประทับเวลา')) || (c && String(c).toLowerCase().includes('timestamp')));
                   if (tsCol && !hiddenColumns.includes(tsCol)) {
                       setHiddenColumns(prev => [...prev, tsCol]);
                   }
@@ -1195,32 +1191,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const tableUniqueColMonths = [...new Set((currentTasksTable || []).map(t => { const d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null); return d ? d.getMonth() + 1 : null; }).filter(Boolean))].sort((a,b)=>a-b);
           const tableUniqueYears = t_equipYearCol ? [...new Set((currentTasksTable || []).map(t => t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : '').filter(Boolean))].sort() : [];
 
-          // ================== FIREBASE FETCHING ==================
-          useEffect(() => {
-              setIsLoading(true); setFirebaseError(null);
-              
-              let initialCols = [];
-              let initialNsCols = [];
+          // ================== FIREBASE FETCHING (โหมดประหยัดโควต้า ฟรี 100%) ==================
+          const fetchAllDataFromServer = async () => {
+              setIsLoading(true);
+              setFirebaseError(null);
               
               try {
-                  const savedCols = localStorage.getItem('equip_tracker_columns');
-                  if (savedCols && savedCols !== "undefined" && savedCols !== "null") {
-                      const parsed = JSON.parse(savedCols);
-                      if (Array.isArray(parsed)) { initialCols = parsed; setColumns(parsed); }
-                  }
-              } catch(e) { console.error(e); }
-
-              try {
-                  const savedNsCols = localStorage.getItem('equip_tracker_ns_columns');
-                  if (savedNsCols && savedNsCols !== "undefined" && savedNsCols !== "null") {
-                      const parsed = JSON.parse(savedNsCols);
-                      if (Array.isArray(parsed)) { initialNsCols = parsed; setNsColumns(parsed); }
-                  }
-              } catch(e) { console.error(e); }
-
-              const unsubMaster = masterDataRef.onSnapshot(doc => {
-                  if (doc.exists && doc.data().zones) {
-                      const data = doc.data();
+                  // 1. ดึง Master Data จาก Firebase (เสีย 1 โควต้า)
+                  const masterDoc = await masterDataRef.get();
+                  if (masterDoc.exists && masterDoc.data().zones) {
+                      const data = masterDoc.data();
                       setMasterData({
                           zones: data.zones || defaultMasterData.zones,
                           teams: Array.isArray(data.teams) ? data.teams : defaultMasterData.teams,
@@ -1228,174 +1208,68 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           nsStatuses: Array.isArray(data.nsStatuses) ? data.nsStatuses.map(s => typeof s === 'string' ? {name: s, bg: '#fef3c7', text: '#b45309'} : s) : []
                       });
                       if (data.queue) setQueueState(data.queue);
-                  } else {
-                      masterDataRef.set({ ...defaultMasterData, queue: {} }, { merge: true });
                   }
-              }, (error) => {
-                  console.error("MasterData Error:", error);
-                  if (error.code === 'resource-exhausted') db.disableNetwork().catch(console.error);
-              });
 
-              const unsubscribeTasks = collectionRef.onSnapshot((snapshot) => {
-                  if (snapshot.empty) return;
-                  let allCols = new Set(initialCols);
-                  let metadataCols = null;
-                  let isSyncingStatus = false;
-                  const newTasks = [];
-                  const assignTasks = [];
-                  const now = Date.now();
+                  // 2. ดึงข้อมูล 2000 แถวจาก Google Sheet (GAS) ฟรี ไม่เสียโควต้า Firebase
+                  const response = await fetch(GAS_WEB_APP_URL + "?action=getAllData");
+                  const data = await response.json();
 
-                  snapshot.forEach((doc) => {
-                      if (doc.id === '_metadata') { metadataCols = doc.data().columns; return; }
-                      if (doc.id === '_sync_status') {
-                          const data = doc.data();
-                          const ts = parseInt(data.timestamp?.integerValue) || 0;
-                          if (data.status?.stringValue === 'syncing' && (now - ts < 15000)) {
-                              isSyncingStatus = true;
-                          }
-                          return;
-                      }
-
-                      if (doc.id.startsWith('task_assign_')) {
-                          const timestampStr = doc.id.replace('task_assign_', '');
-                          const timestamp = parseInt(timestampStr);
-                          if (!isNaN(timestamp) && (now - timestamp > 15000)) {
-                              collectionRef.doc(doc.id).delete().catch(()=>{});
-                              return; 
-                          }
-                      }
-
-                      const data = doc.data();
-                      const cleanData = { id: doc.id };
-                      Object.keys(data).forEach(key => {
-                          if (key !== '_rowIndex') {
-                              let rawValue = typeof data[key] === 'object' && data[key] !== null && 'stringValue' in data[key] ? data[key].stringValue : data[key] ?? '';
-                              cleanData[key] = formatSheetDate(rawValue);
-                              allCols.add(key);
-                          }
-                      });
-                      
-                      let rIndex = 0;
-                      if (data['_rowIndex'] && data['_rowIndex'].integerValue) rIndex = parseInt(data['_rowIndex'].integerValue);
-                      else if (data['_rowIndex'] !== undefined) rIndex = parseInt(data['_rowIndex']);
-                      else { const parsed = parseInt(doc.id.replace('task_', '').replace('task_assign_', '')); rIndex = isNaN(parsed) ? 999999 : parsed; }
-                      
-                      if (rIndex >= 50000 && !doc.id.startsWith('task_assign_')) {
-                          console.warn('🗑️ Auto-purging stuck ghost task:', doc.id);
-                          doc.ref.delete().catch(()=>{});
-                          return;
-                      }
-
-                      cleanData._rowIndex = rIndex || 0;
-                      if (doc.id.startsWith('task_assign_')) assignTasks.push(cleanData);
-                      else newTasks.push(cleanData);
-                  });
-
-                  assignTasks.forEach(assignT => {
-                      const isDuplicate = newTasks.some(realT => {
-                          const keysToCompare = Object.keys(assignT).filter(k => k !== 'id' && k !== '_rowIndex' && assignT[k] && assignT[k] !== '-');
-                          if (keysToCompare.length === 0) return false;
-                          return keysToCompare.every(k => realT[k] === assignT[k]);
-                      });
-                      const timestamp = parseInt(assignT.id.replace('task_assign_', ''));
-                      const isExpired = !isNaN(timestamp) && (now - timestamp > 15000);
-                      if (isDuplicate || isExpired) collectionRef.doc(assignT.id).delete().catch(()=>{});
-                      else newTasks.push(assignT);
-                  });
-
-                  const validTasks = newTasks.filter(isValidTaskHelper);
-                  validTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex));
-                  
-                  if (isSyncingStatus) {
-                      setIsBackgroundSyncing(true);
-                  } else {
-                      setIsBackgroundSyncing(false);
-                      startTransition(() => { setTasks(validTasks); });
-                      setFirebaseError(null); 
-                      if (metadataCols && Array.isArray(metadataCols)) {
-                          setColumns(metadataCols); localStorage.setItem('equip_tracker_columns', JSON.stringify(metadataCols));
-                          initialCols = metadataCols;
-                      } else if (allCols.size > (initialCols?.length || 0)) {
-                          const colsArray = Array.from(allCols);
-                          setColumns(colsArray); localStorage.setItem('equip_tracker_columns', JSON.stringify(colsArray));
-                          initialCols = colsArray;
-                      }
+                  if (data.subcontract) {
+                      setColumns(data.subcontract.columns);
+                      localStorage.setItem('equip_tracker_columns', JSON.stringify(data.subcontract.columns));
+                      const validTasks = data.subcontract.tasks.filter(isValidTaskHelper);
+                      setTasks(validTasks);
                       localStorage.setItem('equip_tracker_tasks', JSON.stringify(validTasks));
-                      setIsLoading(false);
                   }
-              }, (error) => {
-                  console.error("Firestore Error:", error);
-                  if (error.code === 'resource-exhausted') {
-                      setFirebaseError('โควต้า Firebase รายวันเต็ม (Resource Exhausted) ระบบกำลังแสดงข้อมูลล่าสุดที่ถูกแคชไว้ในเครื่อง');
-                      db.disableNetwork().catch(console.error);
-                  } else {
-                      setFirebaseError(`Firebase Error: ${error.message}`);
+                  
+                  if (data.ns) {
+                      setNsColumns(data.ns.columns);
+                      localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(data.ns.columns));
+                      const validNsTasks = data.ns.tasks.filter(isValidTaskHelper);
+                      setNsTasks(validNsTasks);
+                      localStorage.setItem('equip_tracker_ns_tasks', JSON.stringify(validNsTasks));
                   }
-                  try { const savedTasks = localStorage.getItem('equip_tracker_tasks'); if (savedTasks) setTasks(JSON.parse(savedTasks) || []); } catch(e){}
-                  setIsLoading(false);
-              });
+
+              } catch (error) {
+                  console.error("Fetch Error:", error);
+                  setFirebaseError('ไม่สามารถโหลดข้อมูลจากระบบได้ (โปรดตรวจสอบอินเทอร์เน็ต)');
+              }
+              setIsLoading(false);
+              setIsBackgroundSyncing(false);
+          };
+
+          useEffect(() => {
+              // 1. โหลดข้อมูลจาก Cache ขึ้นมาโชว์ก่อนทันที
+              try {
+                  const cachedTasks = localStorage.getItem('equip_tracker_tasks');
+                  const cachedNsTasks = localStorage.getItem('equip_tracker_ns_tasks');
+                  const cachedCols = localStorage.getItem('equip_tracker_columns');
+                  const cachedNsCols = localStorage.getItem('equip_tracker_ns_columns');
+
+                  if (cachedTasks) setTasks(JSON.parse(cachedTasks));
+                  if (cachedNsTasks) setNsTasks(JSON.parse(cachedNsTasks));
+                  if (cachedCols) setColumns(JSON.parse(cachedCols));
+                  if (cachedNsCols) setNsColumns(JSON.parse(cachedNsCols));
+              } catch(e) {}
               
-              const unsubscribeNS = nsCollectionRef.onSnapshot((snapshot) => {
-                  if (snapshot.empty) return;
-                  let allCols = new Set(initialNsCols);
-                  let metadataCols = null;
-                  const newTasks = [];
+              // 2. ดึงข้อมูลจริงจาก Server
+              fetchAllDataFromServer();
 
-                  snapshot.forEach((doc) => {
-                      if (doc.id === '_metadata') { metadataCols = doc.data().columns; return; }
-                      if (doc.id === '_sync_status') return;
-
+              // 3. ติดตั้ง "กระดิ่ง" แจ้งเตือนจาก Firebase (ใช้แค่ 1 โควต้า)
+              const unsubSync = collectionRef.doc('_sync_status').onSnapshot(doc => {
+                  if (doc.exists) {
                       const data = doc.data();
-                      const cleanData = { id: doc.id };
-                      Object.keys(data).forEach(key => {
-                          if (key !== '_rowIndex') {
-                              let rawValue = typeof data[key] === 'object' && data[key] !== null && 'stringValue' in data[key] ? data[key].stringValue : data[key] ?? '';
-                              cleanData[key] = formatSheetDate(rawValue);
-                              allCols.add(key);
-                          }
-                      });
+                      const ts = parseInt(data.timestamp?.integerValue || data.timestamp || 0);
                       
-                      let rIndex = 0;
-                      if (data['_rowIndex'] && data['_rowIndex'].integerValue) rIndex = parseInt(data['_rowIndex'].integerValue);
-                      else if (data['_rowIndex'] !== undefined) rIndex = parseInt(data['_rowIndex']);
-                      else { const parsed = parseInt(doc.id.replace('task_', '')); rIndex = isNaN(parsed) ? 999999 : parsed; }
-                      
-                      if (rIndex >= 50000) {
-                          console.warn('🗑️ Auto-purging stuck ghost task (NS):', doc.id);
-                          doc.ref.delete().catch(()=>{});
-                          return;
+                      // ถ้าเพิ่งมีคนอัปเดตข้อมูลไปหมาดๆ (ใน 20 วิที่ผ่านมา) ให้แอบไปดึงข้อมูล Sheet ใหม่มาอัปเดต
+                      if (Date.now() - ts < 20000) {
+                          setIsBackgroundSyncing(true);
+                          fetchAllDataFromServer();
                       }
-
-                      cleanData._rowIndex = rIndex || 0;
-                      if(isValidTaskHelper(cleanData)) {
-                          newTasks.push(cleanData);
-                      }
-                  });
-
-                  newTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex));
-                  startTransition(() => { setNsTasks(newTasks); });
-                  localStorage.setItem('equip_tracker_ns_tasks', JSON.stringify(newTasks));
-
-                  if (metadataCols && Array.isArray(metadataCols)) { 
-                      setNsColumns(metadataCols); localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(metadataCols)); 
-                      initialNsCols = metadataCols;
-                  } else if (allCols.size > (initialNsCols?.length || 0)) { 
-                      const colsArray = Array.from(allCols); 
-                      setNsColumns(colsArray); localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(colsArray)); 
-                      initialNsCols = colsArray;
                   }
-              }, (error) => {
-                  console.error("Firestore Error (NS):", error);
-                  if (error.code === 'resource-exhausted') {
-                      setFirebaseError('โควต้า Firebase รายวันเต็ม (Resource Exhausted) ระบบกำลังแสดงข้อมูลล่าสุดที่ถูกแคชไว้ในเครื่อง');
-                      db.disableNetwork().catch(console.error);
-                  } else {
-                      setFirebaseError(`Firebase Error: ${error.message}`);
-                  }
-                  try { const savedNsTasks = localStorage.getItem('equip_tracker_ns_tasks'); if (savedNsTasks) setNsTasks(JSON.parse(savedNsTasks) || []); } catch(e){}
               });
 
-              return () => { unsubscribeTasks(); unsubscribeNS(); unsubMaster(); };
+              return () => { unsubSync(); };
           }, []);
 
           useEffect(() => {
@@ -1493,7 +1367,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
                   const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
-                  const targetCollection = tasksSubTab === 'subcontract' ? collectionRef : nsCollectionRef;
 
                   if (tasksSubTab === 'subcontract') {
                       setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
@@ -1502,12 +1375,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   }
 
                   try {
-                      const batch = db.batch();
-                      docIds.forEach(id => {
-                          batch.delete(targetCollection.doc(id));
-                      });
-                      await batch.commit();
-
                       if (GAS_WEB_APP_URL) {
                           const payloadData = JSON.stringify({
                               action: 'deleteRows',
@@ -1574,7 +1441,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               }
 
               const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
-              const targetCollection = tasksSubTab === 'subcontract' ? collectionRef : nsCollectionRef;
 
               if (tasksSubTab === 'subcontract') {
                   setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
@@ -1588,13 +1454,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               } catch (err) {}
 
               try {
-                  const batch = db.batch();
-                  docIds.forEach(id => {
-                      const ref = targetCollection.doc(id);
-                      batch.update(ref, { [field]: value });
-                  });
-                  await batch.commit(); 
-                  
                   if (GAS_WEB_APP_URL) {
                       let hasValidUpdate = false;
 
@@ -1646,14 +1505,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                   value: updatesBySheet[sheet][0].value
                               });
                               
-                              console.log('📡 ส่งคำสั่งไป Google Sheet:', payloadData);
-                              
                               fetch(GAS_WEB_APP_URL, {
                                   method: 'POST',
                                   headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                                   body: payloadData
                               }).then(res => res.json()).then(data => {
-                                  console.log('✅ Google Sheet ตอบกลับ:', data);
+                                  // ให้ GAS กดกระดิ่งเตือนเครื่องอื่นว่ามีข้อมูลใหม่
+                                  collectionRef.doc('_sync_status').set({ status: 'syncing', timestamp: Date.now() });
                               }).catch(err => {
                                   console.error('❌ ไม่สามารถอัปเดต Google Sheet ได้:', err);
                               });
@@ -1665,7 +1523,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   return true;
               } catch (e) {
                   console.error("Error updating document: ", e); 
-                  customAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูลลง Firebase', 'error');
+                  customAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
                   return false;
               }
           };
@@ -2105,7 +1963,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 <div className="p-3 bg-slate-50 flex items-center justify-between gap-2 text-xs font-medium shrink-0 border-t border-slate-200">
                   <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${isLoading || isBackgroundSyncing || isPendingTransition ? 'bg-blue-400 animate-pulse' : 'bg-emerald-500'}`}></div>
-                      {isLoading || isBackgroundSyncing || isPendingTransition ? <span className="text-blue-500 font-bold">Syncing...</span> : firebaseError ? <span className="text-red-500 text-center"><i className="fa-solid fa-circle-xmark"></i> Error</span> : <span className="text-emerald-600 font-bold">Live Synced</span>}
+                      {isLoading || isBackgroundSyncing || isPendingTransition ? <span className="text-blue-500 font-bold">Syncing...</span> : firebaseError ? <span className="text-red-500 text-center"><i className="fa-solid fa-circle-xmark"></i> Error</span> : <span className="text-emerald-600 font-bold">Ready (ประหยัดโควต้า)</span>}
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold">v{APP_VERSION}</span>
                 </div>
@@ -2164,14 +2022,18 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <h3 className="text-base md:text-lg font-bold mb-4 flex items-center gap-2"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
                               <div className="relative h-60 md:h-72 w-full"><ChartComponent type="bar" data={barChartData} options={barChartOptions} /></div>
                           </div>
-                          <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
+                          <div className={`bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 ${dashboardView === 'ns' ? 'lg:col-span-3' : 'lg:col-span-2'}`}>
                               <div className="flex justify-between items-center mb-4"><h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานและสถานะแยกตามทีม</h3></div>
                               <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2"><div className="min-w-[500px] md:min-w-[600px] h-full">{chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}</div></div>
                           </div>
-                          <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
-                              <div className="flex justify-between items-center mb-4"><h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> เกินกำหนดนัดหมาย</h3></div>
-                              <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2"><div className="min-w-[300px] h-full">{chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={overdueChartData} options={overdueChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}</div></div>
-                          </div>
+                          
+                          {/* กราฟเกินกำหนดนัดหมาย (แสดงเฉพาะหน้า Subcontract) */}
+                          {dashboardView === 'subcontract' && (
+                              <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
+                                  <div className="flex justify-between items-center mb-4"><h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> เกินกำหนดนัดหมาย</h3></div>
+                                  <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2"><div className="min-w-[300px] h-full">{chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={overdueChartData} options={overdueChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}</div></div>
+                              </div>
+                          )}
                       </div>
                     </div>
                   </div>
