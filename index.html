@@ -1191,13 +1191,18 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const tableUniqueColMonths = [...new Set((currentTasksTable || []).map(t => { const d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null); return d ? d.getMonth() + 1 : null; }).filter(Boolean))].sort((a,b)=>a-b);
           const tableUniqueYears = t_equipYearCol ? [...new Set((currentTasksTable || []).map(t => t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : '').filter(Boolean))].sort() : [];
 
+          // 🟢 1. เพิ่มตัวเก็บเวลาเพื่อแยกแยะว่า "เราแก้เอง" หรือ "คนอื่นแก้จาก Sheet"
+          const lastLocalEditRef = useRef(0);
+
           // ================== FIREBASE FETCHING (โหมดประหยัดโควต้า ฟรี 100%) ==================
-          const fetchAllDataFromServer = async () => {
-              setIsLoading(true);
+          const fetchAllDataFromServer = async (isSilent = false) => {
+              // ถ้าเป็นการโหลดเงียบๆ (Silent) จะไม่ขึ้นหน้าจอ Loading ให้ขัดจังหวะ
+              if (!isSilent) setIsLoading(true);
+              else setIsBackgroundSyncing(true);
+              
               setFirebaseError(null);
               
               try {
-                  // 1. ดึง Master Data จาก Firebase (เสีย 1 โควต้า)
                   const masterDoc = await masterDataRef.get();
                   if (masterDoc.exists && masterDoc.data().zones) {
                       const data = masterDoc.data();
@@ -1210,7 +1215,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       if (data.queue) setQueueState(data.queue);
                   }
 
-                  // 2. ดึงข้อมูล 2000 แถวจาก Google Sheet (GAS) ฟรี ไม่เสียโควต้า Firebase
                   const response = await fetch(GAS_WEB_APP_URL + "?action=getAllData");
                   const data = await response.json();
 
@@ -1232,14 +1236,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
               } catch (error) {
                   console.error("Fetch Error:", error);
-                  setFirebaseError('ไม่สามารถโหลดข้อมูลจากระบบได้ (โปรดตรวจสอบอินเทอร์เน็ต)');
+                  if (!isSilent) setFirebaseError('ไม่สามารถโหลดข้อมูลจากระบบได้ (โปรดตรวจสอบอินเทอร์เน็ต)');
               }
+              
               setIsLoading(false);
               setIsBackgroundSyncing(false);
           };
 
           useEffect(() => {
-              // 1. โหลดข้อมูลจาก Cache ขึ้นมาโชว์ก่อนทันที
               try {
                   const cachedTasks = localStorage.getItem('equip_tracker_tasks');
                   const cachedNsTasks = localStorage.getItem('equip_tracker_ns_tasks');
@@ -1252,19 +1256,22 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   if (cachedNsCols) setNsColumns(JSON.parse(cachedNsCols));
               } catch(e) {}
               
-              // 2. ดึงข้อมูลจริงจาก Server
-              fetchAllDataFromServer();
+              // โหลดครั้งแรก
+              fetchAllDataFromServer(false);
 
-              // 3. ติดตั้ง "กระดิ่ง" แจ้งเตือนจาก Firebase (ใช้แค่ 1 โควต้า)
+              // 🟢 2. รับกระดิ่งแจ้งเตือนจาก Firebase (ใช้ 1 โควต้า แต่คุ้ม)
               const unsubSync = collectionRef.doc('_sync_status').onSnapshot(doc => {
                   if (doc.exists) {
                       const data = doc.data();
                       const ts = parseInt(data.timestamp?.integerValue || data.timestamp || 0);
                       
-                      // ถ้าเพิ่งมีคนอัปเดตข้อมูลไปหมาดๆ (ใน 20 วิที่ผ่านมา) ให้แอบไปดึงข้อมูล Sheet ใหม่มาอัปเดต
-                      if (Date.now() - ts < 20000) {
-                          setIsBackgroundSyncing(true);
-                          fetchAllDataFromServer();
+                      const timeSinceLastPing = Date.now() - ts;
+                      const timeSinceMyLastEdit = Date.now() - lastLocalEditRef.current;
+                      
+                      // ถ้าเพิ่งมีการแจ้งเตือน (ภายใน 20 วิ) และ "เราไม่ได้เป็นคนแก้เอง" (เวลาแก้ของเราเกิน 5 วิ)
+                      // หมายความว่ามีคนแก้ข้อมูลจาก Google Sheet ให้โหลดข้อมูลใหม่แบบเงียบๆ (Silent)
+                      if (timeSinceLastPing < 20000 && timeSinceMyLastEdit > 5000) {
+                          fetchAllDataFromServer(true);
                       }
                   }
               });
@@ -1366,7 +1373,33 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
 
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
-                  const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
+                 
+                  // 🔥 ฟังก์ชันอัปเดตแผ่นงาน
+          const handleCellChangeTable = async (taskObj, field, value, currentColumnsTableLocal) => {
+              const docIds = taskObj._groupDocs || [taskObj.id];
+              const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
+              
+              const t_getColLocal = (keywords) => (currentColumnsTableLocal || []).find(c => keywords.some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,'')) : false)) || '';
+              const itemColMatchLocal = t_getColLocal(['itemname', 'อุปกรณ์']);
+              const snColMatchLocal = t_getColLocal(['serialno', 'serial', 'sn']);
+              
+              if (docIds.length > 1 && (field === itemColMatchLocal || field === snColMatchLocal)) {
+                  customAlert('ไม่สามารถแก้ไขข้อมูลอุปกรณ์/ซีเรียล ที่ถูกจัดกลุ่มรวมกันได้ กรุณาแก้ไขแยกทีละบรรทัดใน Google Sheet แทนครับ', 'error');
+                  return false; 
+              }
+
+              const oldValue = taskObj[field] || '';
+              if(oldValue === value) return true;
+
+              if (docIds.length > 20) {
+                  customAlert(`⚠️ ระบบระงับการทำงานชั่วคราว! ตรวจพบความพยายามอัปเดตข้อมูลพร้อมกันถึง ${docIds.length} แถว คำแนะนำ: กรุณาลบแถวว่างใน Google Sheet ทิ้งก่อนครับ`, 'error');
+                  return false; 
+              }
+
+              // 🟢 บันทึกเวลาที่เราแก้ข้อมูลไว้ เพื่อกันไม่ให้เว็บโหลดดึงข้อมูลซ้ำซ้อนจนค้าง
+              lastLocalEditRef.current = Date.now();
+
+              const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
                   if (tasksSubTab === 'subcontract') {
                       setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
@@ -2147,6 +2180,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     
                                     const isStatusChangeCell = col === statusChangeColMatch;
                                     const isContactJobCell = col === contactJobColMatch;
+                                    // 🟢 เช็คคอลัมน์ที่อยู่
+                                    const isAddressCell = col.toLowerCase().includes('address') || col.toLowerCase().includes('ที่อยู่');
 
                                     const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
                                     
@@ -2187,12 +2222,32 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdStyle.minWidth = colWidth;
                                         tdStyle.maxWidth = colWidth;
                                     } else {
-                                        if (isStatusChangeCell) {
+                                        // 🟢 ปรับขนาดให้ Contact และ Address ใกล้เคียงกัน
+                                        if (isStatusChangeCell || isContactJobCell || isAddressCell) {
+                                            tdStyle.minWidth = '150px';
                                             tdStyle.maxWidth = '250px';
                                         }
-                                        if (isContactJobCell) {
-                                            tdStyle.minWidth = '200px';
-                                        }
+                                    }
+
+                                    if (isPinned) {
+                                        tdStyle.position = 'sticky';
+                                        tdStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
+                                        tdStyle.zIndex = 20;
+                                    }
+
+                                    let tdWhiteSpace = 'nowrap';
+                                    let tdWordBreak = 'normal';
+                                    let tdOverflow = 'hidden';
+
+                                    // 🟢 อนุญาตให้ Contact และ Address ตัดขึ้นบรรทัดใหม่ได้
+                                    if (isGroupedMultiLine) {
+                                        tdWhiteSpace = 'pre-wrap';
+                                        tdWordBreak = 'break-word';
+                                        tdOverflow = 'auto';
+                                    } else if ((isStatusChangeCell || isContactJobCell || isAddressCell) && !hasFixedWidth) {
+                                        tdWhiteSpace = 'normal';
+                                        tdWordBreak = 'break-word';
+                                        tdOverflow = 'visible';
                                     }
 
                                     if (isPinned) {
