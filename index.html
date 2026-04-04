@@ -89,9 +89,9 @@
 
     <script type="text/babel">
         // ==========================================
-        // APP VERSION: v2.0.0 (Unlimited Free Tier Mode)
+        // APP VERSION: v2.1.0 (Unlimited Free Tier + Fixed Lag + UI Improvements)
         // ==========================================
-        const APP_VERSION = "2.0.0";
+        const APP_VERSION = "2.1.0";
 
         if (typeof ChartDataLabels !== 'undefined') {
             Chart.register(ChartDataLabels);
@@ -136,7 +136,7 @@
         // 1. Global Setup & Firebase Config
         // ==========================================
         const firebaseConfig = {
-            apiKey: "AIzaSyAvJPbPWiK632FpuOSlTT6tiEjsk3Rjh7Y",
+            apiKey: "YOUR_FIREBASE_API_KEY",
             authDomain: "test-remove-equipment.firebaseapp.com",
             projectId: "test-remove-equipment",
             storageBucket: "test-remove-equipment.firebasestorage.app",
@@ -145,7 +145,7 @@
             measurementId: "G-VB3VDMQ9D1"
         };
         
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxTX-V8W9wpn976AHY5_45hS-4yNQrYUoPlOwGIXJYGtWaMWbuNSSDdKtA1KUCnER05/exec"; 
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwIf_5Ps8MMNLHPXFdCK4ZjgKx232EguXInCDLyiJFx_GN88X4PObxsiWetG4GhURnZ/exec"; 
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -1373,33 +1373,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
 
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
-                 
-                  // 🔥 ฟังก์ชันอัปเดตแผ่นงาน
-          const handleCellChangeTable = async (taskObj, field, value, currentColumnsTableLocal) => {
-              const docIds = taskObj._groupDocs || [taskObj.id];
-              const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
-              
-              const t_getColLocal = (keywords) => (currentColumnsTableLocal || []).find(c => keywords.some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,'')) : false)) || '';
-              const itemColMatchLocal = t_getColLocal(['itemname', 'อุปกรณ์']);
-              const snColMatchLocal = t_getColLocal(['serialno', 'serial', 'sn']);
-              
-              if (docIds.length > 1 && (field === itemColMatchLocal || field === snColMatchLocal)) {
-                  customAlert('ไม่สามารถแก้ไขข้อมูลอุปกรณ์/ซีเรียล ที่ถูกจัดกลุ่มรวมกันได้ กรุณาแก้ไขแยกทีละบรรทัดใน Google Sheet แทนครับ', 'error');
-                  return false; 
-              }
+                  const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
-              const oldValue = taskObj[field] || '';
-              if(oldValue === value) return true;
-
-              if (docIds.length > 20) {
-                  customAlert(`⚠️ ระบบระงับการทำงานชั่วคราว! ตรวจพบความพยายามอัปเดตข้อมูลพร้อมกันถึง ${docIds.length} แถว คำแนะนำ: กรุณาลบแถวว่างใน Google Sheet ทิ้งก่อนครับ`, 'error');
-                  return false; 
-              }
-
-              // 🟢 บันทึกเวลาที่เราแก้ข้อมูลไว้ เพื่อกันไม่ให้เว็บโหลดดึงข้อมูลซ้ำซ้อนจนค้าง
-              lastLocalEditRef.current = Date.now();
-
-              const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
+                  lastLocalEditRef.current = Date.now(); // ป้องกันเว็บกระตุกโหลดใหม่
 
                   if (tasksSubTab === 'subcontract') {
                       setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
@@ -1472,6 +1448,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   customAlert(`⚠️ ระบบระงับการทำงานชั่วคราว! ตรวจพบความพยายามอัปเดตข้อมูลพร้อมกันถึง ${docIds.length} แถว คำแนะนำ: กรุณาลบแถวว่างใน Google Sheet ทิ้งก่อนครับ`, 'error');
                   return false; 
               }
+
+              // 🟢 บันทึกเวลาที่เราแก้ข้อมูลไว้ เพื่อกันไม่ให้เว็บโหลดดึงข้อมูลซ้ำซ้อนจนค้าง 2-5 วิ
+              lastLocalEditRef.current = Date.now();
 
               const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
@@ -2167,7 +2146,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             : (currentTasksTable?.length || 0) === 0 ? <tr><td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-8 text-center text-slate-500">ฐานข้อมูลว่างเปล่า</td></tr>
                             : (finalTableTasks?.length || 0) === 0 ? <tr><td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-8 text-center text-slate-500">ไม่พบข้อมูล...</td></tr>
                             : (paginatedTasks || []).map((task) => (
-                              <tr key={task.id} className={`transition-colors tr-hover ${isBackgroundSyncing ? 'opacity-70 pointer-events-none' : 'hover:bg-slate-50'}`}>
+                              <tr key={task.id} className="transition-colors tr-hover hover:bg-slate-50">
                                 {(orderedVisibleColumnsTable || []).map((col, idx) => {
                                     const hasFixedWidth = colWidths[col] !== undefined;
                                     
@@ -2180,8 +2159,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     
                                     const isStatusChangeCell = col === statusChangeColMatch;
                                     const isContactJobCell = col === contactJobColMatch;
-                                    // 🟢 เช็คคอลัมน์ที่อยู่
-                                    const isAddressCell = col.toLowerCase().includes('address') || col.toLowerCase().includes('ที่อยู่');
+                                    const colStr = String(col).toLowerCase();
+                                    const isAddressCell = colStr.includes('address') || colStr.includes('ที่อยู่');
 
                                     const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
                                     
@@ -2222,7 +2201,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdStyle.minWidth = colWidth;
                                         tdStyle.maxWidth = colWidth;
                                     } else {
-                                        // 🟢 ปรับขนาดให้ Contact และ Address ใกล้เคียงกัน
                                         if (isStatusChangeCell || isContactJobCell || isAddressCell) {
                                             tdStyle.minWidth = '150px';
                                             tdStyle.maxWidth = '250px';
@@ -2239,32 +2217,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     let tdWordBreak = 'normal';
                                     let tdOverflow = 'hidden';
 
-                                    // 🟢 อนุญาตให้ Contact และ Address ตัดขึ้นบรรทัดใหม่ได้
                                     if (isGroupedMultiLine) {
                                         tdWhiteSpace = 'pre-wrap';
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'auto';
                                     } else if ((isStatusChangeCell || isContactJobCell || isAddressCell) && !hasFixedWidth) {
-                                        tdWhiteSpace = 'normal';
-                                        tdWordBreak = 'break-word';
-                                        tdOverflow = 'visible';
-                                    }
-
-                                    if (isPinned) {
-                                        tdStyle.position = 'sticky';
-                                        tdStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
-                                        tdStyle.zIndex = 20;
-                                    }
-
-                                    let tdWhiteSpace = 'nowrap';
-                                    let tdWordBreak = 'normal';
-                                    let tdOverflow = 'hidden';
-
-                                    if (isGroupedMultiLine) {
-                                        tdWhiteSpace = 'pre-wrap';
-                                        tdWordBreak = 'break-word';
-                                        tdOverflow = 'auto';
-                                    } else if ((isStatusChangeCell || isContactJobCell) && !hasFixedWidth) {
                                         tdWhiteSpace = 'normal';
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'visible';
@@ -2751,4 +2708,3 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
     </script>
 </body>
 </html>
-```
