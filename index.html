@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -89,9 +90,9 @@
 
     <script type="text/babel">
         // ==========================================
-        // APP VERSION: v2.1.0 (Unlimited Free Tier + Fixed Lag + UI Improvements)
+        // APP VERSION: v3.0.0 (100% Free Quota Architecture)
         // ==========================================
-        const APP_VERSION = "2.1.0";
+        const APP_VERSION = "3.0.0";
 
         if (typeof ChartDataLabels !== 'undefined') {
             Chart.register(ChartDataLabels);
@@ -150,6 +151,10 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         db.settings({ experimentalForceLongPolling: true, useFetchStreams: false });
+
+        db.enablePersistence().catch(function(err) {
+            console.warn("Firebase Persistence Error:", err.code);
+        });
 
         const collectionRef = db.collection('tasks');
         const nsCollectionRef = db.collection('ns_tasks'); 
@@ -1173,10 +1178,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           
           const statusChangeColMatch = (currentColumnsTable || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc === 'status_change' || lc === 'status change' || lc === 'status-change'; }) || '';
           
-          // 🟢 ปรับให้ครอบคลุมคอลัมน์ Customer_Contract
+          // 🟢 คอลัมน์ Customer_Contract
           const contactJobColMatch = (currentColumnsTable || []).find(c => {
               const lc = c ? String(c).toLowerCase() : '';
-              return lc.includes('customer contact') || lc.includes('customer_contract') || lc === 'contract';
+              return lc.includes('customer_contact') || lc.includes('customer contact') || lc === 'contract' || lc === 'ผู้ติดต่อ';
           }) || '';
           
           const itemColMatch = t_getCol(['itemname', 'อุปกรณ์']);
@@ -1196,26 +1201,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
           // ================== FIREBASE FETCHING (โหมดประหยัดโควต้า ฟรี 100%) ==================
           const fetchAllDataFromServer = async (isSilent = false) => {
-              // ถ้าเป็นการโหลดเงียบๆ (Silent) จะไม่ขึ้นหน้าจอ Loading ให้ขัดจังหวะ
               if (!isSilent) setIsLoading(true);
               else setIsBackgroundSyncing(true);
               
               setFirebaseError(null);
               
               try {
-                  const masterDoc = await masterDataRef.get();
-                  if (masterDoc.exists && masterDoc.data().zones) {
-                      const data = masterDoc.data();
-                      setMasterData({
-                          zones: data.zones || defaultMasterData.zones,
-                          teams: Array.isArray(data.teams) ? data.teams : defaultMasterData.teams,
-                          nsTeams: Array.isArray(data.nsTeams) ? data.nsTeams.map(t => typeof t === 'string' ? {name: t, bg: '#e0f2fe', text: '#0369a1'} : t) : [],
-                          nsStatuses: Array.isArray(data.nsStatuses) ? data.nsStatuses.map(s => typeof s === 'string' ? {name: s, bg: '#fef3c7', text: '#b45309'} : s) : []
-                      });
-                      if (data.queue) setQueueState(data.queue);
-                  }
-
-                  const response = await fetch(GAS_WEB_APP_URL + "?action=getAllData");
+                  // 1. ลองดึงข้อมูลจาก GAS (ฟรี ไม่เสียโควต้า)
+                  const response = await fetch(GAS_WEB_APP_URL + "?action=getAllData", { redirect: 'follow' });
+                  if (!response.ok) throw new Error("Network response was not ok");
                   const data = await response.json();
 
                   if (data.subcontract) {
@@ -1234,9 +1228,71 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       localStorage.setItem('equip_tracker_ns_tasks', JSON.stringify(validNsTasks));
                   }
 
+                  // 2. ดึง Master Data
+                  try {
+                      const masterDoc = await masterDataRef.get();
+                      if (masterDoc.exists && masterDoc.data().zones) {
+                          const mData = masterDoc.data();
+                          setMasterData({
+                              zones: mData.zones || defaultMasterData.zones,
+                              teams: Array.isArray(mData.teams) ? mData.teams : defaultMasterData.teams,
+                              nsTeams: Array.isArray(mData.nsTeams) ? mData.nsTeams.map(t => typeof t === 'string' ? {name: t, bg: '#e0f2fe', text: '#0369a1'} : t) : [],
+                              nsStatuses: Array.isArray(mData.nsStatuses) ? mData.nsStatuses.map(s => typeof s === 'string' ? {name: s, bg: '#fef3c7', text: '#b45309'} : s) : []
+                          });
+                          if (mData.queue) setQueueState(mData.queue);
+                      }
+                  } catch (e) {}
+
               } catch (error) {
-                  console.error("Fetch Error:", error);
-                  if (!isSilent) setFirebaseError('ไม่สามารถโหลดข้อมูลจากระบบได้ (โปรดตรวจสอบอินเทอร์เน็ต)');
+                  console.warn("GAS fetch failed, falling back to Firebase get()", error);
+                  
+                  // 3. Fallback: ถ้า GAS พัง ให้ดึงจาก Firebase แบบ Get ครั้งเดียว (เสียโควต้าแต่ชัวร์)
+                  try {
+                      if (!isSilent) setFirebaseError('ดึงข้อมูลจาก Sheet ไม่สำเร็จ ระบบสลับมาดึงจากฐานข้อมูลสำรอง (อาจทำงานช้าลง)');
+                      
+                      const subSnap = await collectionRef.get();
+                      const newTasks = [];
+                      let allCols = new Set();
+                      subSnap.forEach((doc) => {
+                          if (doc.id === '_metadata' || doc.id === '_sync_status' || doc.id.startsWith('task_assign_')) return;
+                          const data = doc.data();
+                          const cleanData = { id: doc.id };
+                          Object.keys(data).forEach(key => {
+                              if (key !== '_rowIndex') {
+                                  cleanData[key] = typeof data[key] === 'object' && data[key] !== null && 'stringValue' in data[key] ? data[key].stringValue : data[key] ?? '';
+                                  allCols.add(key);
+                              }
+                          });
+                          cleanData._rowIndex = parseInt(data['_rowIndex']?.integerValue || data['_rowIndex'] || doc.id.replace('task_', '')) || 999999;
+                          if(isValidTaskHelper(cleanData)) newTasks.push(cleanData);
+                      });
+                      newTasks.sort((a, b) => a._rowIndex - b._rowIndex);
+                      setTasks(newTasks);
+                      setColumns(Array.from(allCols));
+
+                      const nsSnap = await nsCollectionRef.get();
+                      const newNsTasks = [];
+                      let allNsCols = new Set();
+                      nsSnap.forEach((doc) => {
+                          if (doc.id === '_metadata' || doc.id === '_sync_status') return;
+                          const data = doc.data();
+                          const cleanData = { id: doc.id };
+                          Object.keys(data).forEach(key => {
+                              if (key !== '_rowIndex') {
+                                  cleanData[key] = typeof data[key] === 'object' && data[key] !== null && 'stringValue' in data[key] ? data[key].stringValue : data[key] ?? '';
+                                  allNsCols.add(key);
+                              }
+                          });
+                          cleanData._rowIndex = parseInt(data['_rowIndex']?.integerValue || data['_rowIndex'] || doc.id.replace('NS_task_', '')) || 999999;
+                          if(isValidTaskHelper(cleanData)) newNsTasks.push(cleanData);
+                      });
+                      newNsTasks.sort((a, b) => a._rowIndex - b._rowIndex);
+                      setNsTasks(newNsTasks);
+                      setNsColumns(Array.from(allNsCols));
+
+                  } catch (fbError) {
+                      if (!isSilent) setFirebaseError('ไม่สามารถเชื่อมต่อระบบได้ กรุณาตรวจสอบอินเทอร์เน็ต');
+                  }
               }
               
               setIsLoading(false);
@@ -1256,10 +1312,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   if (cachedNsCols) setNsColumns(JSON.parse(cachedNsCols));
               } catch(e) {}
               
-              // โหลดครั้งแรก
               fetchAllDataFromServer(false);
 
-              // 🟢 2. รับกระดิ่งแจ้งเตือนจาก Firebase (ใช้ 1 โควต้า แต่คุ้ม)
+              // 🟢 2. รับกระดิ่งแจ้งเตือนจาก Firebase (ใช้ 1 โควต้า)
               const unsubSync = collectionRef.doc('_sync_status').onSnapshot(doc => {
                   if (doc.exists) {
                       const data = doc.data();
@@ -1268,8 +1323,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       const timeSinceLastPing = Date.now() - ts;
                       const timeSinceMyLastEdit = Date.now() - lastLocalEditRef.current;
                       
-                      // ถ้าเพิ่งมีการแจ้งเตือน (ภายใน 20 วิ) และ "เราไม่ได้เป็นคนแก้เอง" (เวลาแก้ของเราเกิน 5 วิ)
-                      // หมายความว่ามีคนแก้ข้อมูลจาก Google Sheet ให้โหลดข้อมูลใหม่แบบเงียบๆ (Silent)
                       if (timeSinceLastPing < 20000 && timeSinceMyLastEdit > 5000) {
                           fetchAllDataFromServer(true);
                       }
@@ -1375,7 +1428,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
                   const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
-                  lastLocalEditRef.current = Date.now(); // ป้องกันเว็บกระตุกโหลดใหม่
+                  lastLocalEditRef.current = Date.now(); 
 
                   if (tasksSubTab === 'subcontract') {
                       setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
@@ -1384,6 +1437,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   }
 
                   try {
+                      const batch = db.batch();
+                      const targetCollection = tasksSubTab === 'subcontract' ? collectionRef : nsCollectionRef;
+                      docIds.forEach(id => {
+                          batch.delete(targetCollection.doc(id));
+                      });
+                      await batch.commit();
+
                       if (GAS_WEB_APP_URL) {
                           const payloadData = JSON.stringify({
                               action: 'deleteRows',
@@ -1453,6 +1513,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               lastLocalEditRef.current = Date.now();
 
               const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
+              const targetCollection = tasksSubTab === 'subcontract' ? collectionRef : nsCollectionRef;
 
               if (tasksSubTab === 'subcontract') {
                   setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
@@ -1466,6 +1527,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               } catch (err) {}
 
               try {
+                  const batch = db.batch();
+                  docIds.forEach(id => {
+                      const ref = targetCollection.doc(id);
+                      batch.update(ref, { [field]: value });
+                  });
+                  await batch.commit(); 
+
                   if (GAS_WEB_APP_URL) {
                       let hasValidUpdate = false;
 
@@ -1482,8 +1550,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === field && u.sheetName === targetSheetName));
                               pendingUpdatesRef.current.push({ row: rNum, field: field, value: value, sheetName: targetSheetName });
                               hasValidUpdate = true;
-                          } else {
-                              console.warn(`⚠️ [Blocked] ข้ามการส่งซิงค์ลง Sheet งาน ${id} เนื่องจากเลขบรรทัดผิดปกติ (${rNum})`);
                           }
                       });
 
@@ -1492,7 +1558,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           return true;
                       }
 
-                      setIsBackgroundSyncing(true);
                       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
 
                       syncTimerRef.current = setTimeout(() => {
@@ -1529,8 +1594,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               });
                           });
 
-                          setTimeout(() => setIsBackgroundSyncing(false), 2000);
-                      }, 1500);
+                      }, 1500); // ดีเลย์ 1.5 วิเพื่อรวบรวมคำสั่งส่งไป Sheet ทีเดียว
                   }
                   return true;
               } catch (e) {
@@ -1785,13 +1849,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   }
               });
               
-              // 🟢 คำนวณ % Complete ของแต่ละเดือน
               for (let i = 1; i <= 12; i++) {
                   const totalMonth = monthlyData[i].collected + monthlyData[i].ongoing;
                   monthlyData[i].percent = totalMonth > 0 ? Math.round((monthlyData[i].collected / totalMonth) * 100) : 0;
               }
 
-              // 🟢 เพิ่ม % ลงใน Labels แกน X
               const monthLabelsWithPercent = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].map((m, i) => [m, `${monthlyData[i+1].percent}%`]);
 
               barChartData = { labels: monthLabelsWithPercent, datasets: [ { label: 'Collected (CIDs)', data: Object.values(monthlyData).map(d => d.collected), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }, { label: 'Ongoing (CIDs)', data: Object.values(monthlyData).map(d => d.ongoing), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } ] };
@@ -1815,7 +1877,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   return a.localeCompare(b, 'en', { numeric: true });
               });
 
-              // 🟢 คำนวณ % Complete ของแต่ละปี
               const yearLabelsWithPercent = sortedYears.map(y => {
                   const totalYear = yearlyData[y].collected + yearlyData[y].ongoing;
                   const pct = totalYear > 0 ? Math.round((yearlyData[y].collected / totalYear) * 100) : 0;
@@ -1975,7 +2036,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 <div className="p-3 bg-slate-50 flex items-center justify-between gap-2 text-xs font-medium shrink-0 border-t border-slate-200">
                   <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${isLoading || isBackgroundSyncing || isPendingTransition ? 'bg-blue-400 animate-pulse' : 'bg-emerald-500'}`}></div>
-                      {isLoading || isBackgroundSyncing || isPendingTransition ? <span className="text-blue-500 font-bold">Syncing...</span> : firebaseError ? <span className="text-red-500 text-center"><i className="fa-solid fa-circle-xmark"></i> Error</span> : <span className="text-emerald-600 font-bold">Ready (ประหยัดโควต้า)</span>}
+                      {isLoading || isBackgroundSyncing || isPendingTransition ? <span className="text-blue-500 font-bold">Syncing...</span> : firebaseError ? <span className="text-red-500 font-bold" title={firebaseError}><i className="fa-solid fa-circle-xmark"></i> Offline</span> : <span className="text-emerald-600 font-bold">Live Synced</span>}
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold">v{APP_VERSION}</span>
                 </div>
@@ -2007,7 +2068,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           </div>
                         </div>
                       </header>
-                      {firebaseError && <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md shadow-sm mb-4"><div className="flex items-center"><i className="fa-solid fa-circle-exclamation text-red-500 text-xl mr-3"></i><div><p className="text-red-700 font-bold">แจ้งเตือนระบบ</p><p className="text-red-600 text-sm mt-1">{firebaseError}</p></div></div></div>}
+                      
+                      {firebaseError && (
+                          <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-md shadow-sm mb-4">
+                              <div className="flex items-center">
+                                  <i className="fa-solid fa-triangle-exclamation text-amber-500 text-xl mr-3"></i>
+                                  <div><p className="text-amber-700 font-bold">แจ้งเตือนจากระบบ</p><p className="text-amber-600 text-sm mt-1">{firebaseError}</p></div>
+                              </div>
+                          </div>
+                      )}
+
                       <div className="flex flex-nowrap overflow-x-auto gap-3 md:gap-4 pb-4 pt-3 px-2 custom-scrollbar w-full">
                           <div className="bg-slate-800 text-white p-3 md:p-4 rounded-xl shadow-md border border-slate-700 flex-shrink-0 min-w-[120px] md:min-w-[160px] flex flex-col items-center justify-center gap-1 md:gap-2"><p className="text-xs md:text-sm font-semibold text-slate-300 text-center w-full">จำนวนงานทั้งหมด</p><p className="text-3xl md:text-5xl font-bold text-center w-full">{totalTasksCount}</p></div>
                           {(sortedStatuses || []).map((status, idx) => {
@@ -2039,7 +2109,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2"><div className="min-w-[500px] md:min-w-[600px] h-full">{chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}</div></div>
                           </div>
                           
-                          {/* กราฟเกินกำหนดนัดหมาย (แสดงเฉพาะหน้า Subcontract) */}
                           {dashboardView === 'subcontract' && (
                               <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                                   <div className="flex justify-between items-center mb-4"><h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> เกินกำหนดนัดหมาย</h3></div>
@@ -2064,7 +2133,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       </button>
                     </header>
 
-                    {firebaseError && <div className="shrink-0 bg-red-50 border-l-4 border-red-500 p-4 rounded-md shadow-sm mb-4"><div className="flex items-center"><i className="fa-solid fa-circle-exclamation text-red-500 text-xl mr-3"></i><div><p className="text-red-700 font-bold">แจ้งเตือนระบบ</p><p className="text-red-600 text-sm mt-1">{firebaseError}</p></div></div></div>}
+                    {firebaseError && (
+                        <div className="shrink-0 bg-amber-50 border-l-4 border-amber-500 p-4 rounded-md shadow-sm mb-4">
+                            <div className="flex items-center">
+                                <i className="fa-solid fa-triangle-exclamation text-amber-500 text-xl mr-3"></i>
+                                <div><p className="text-amber-700 font-bold">แจ้งเตือนจากระบบ</p><p className="text-amber-600 text-sm mt-1">{firebaseError}</p></div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="shrink-0 bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200 space-y-3 md:space-y-4 mb-4">
                         <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4">
@@ -2159,8 +2235,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     
                                     const isStatusChangeCell = col === statusChangeColMatch;
                                     const isContactJobCell = col === contactJobColMatch;
-                                    const colStr = String(col).toLowerCase();
-                                    const isAddressCell = colStr.includes('address') || colStr.includes('ที่อยู่');
 
                                     const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
                                     
@@ -2201,9 +2275,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdStyle.minWidth = colWidth;
                                         tdStyle.maxWidth = colWidth;
                                     } else {
-                                        if (isStatusChangeCell || isContactJobCell || isAddressCell) {
-                                            tdStyle.minWidth = '150px';
+                                        if (isStatusChangeCell) {
                                             tdStyle.maxWidth = '250px';
+                                        }
+                                        if (isContactJobCell) {
+                                            tdStyle.minWidth = '200px';
+                                            tdStyle.maxWidth = '350px';
                                         }
                                     }
 
@@ -2221,7 +2298,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdWhiteSpace = 'pre-wrap';
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'auto';
-                                    } else if ((isStatusChangeCell || isContactJobCell || isAddressCell) && !hasFixedWidth) {
+                                    } else if ((isStatusChangeCell || isContactJobCell) && !hasFixedWidth) {
                                         tdWhiteSpace = 'normal';
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'visible';
@@ -2708,3 +2785,4 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
     </script>
 </body>
 </html>
+```
