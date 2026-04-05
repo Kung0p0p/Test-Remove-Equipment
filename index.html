@@ -7,18 +7,14 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    
-    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <!-- Firebase SDKs -->
@@ -32,26 +28,19 @@
     <style>
         body { font-family: 'Prompt', sans-serif; background-color: #f8fafc; margin: 0; padding: 0; overflow: hidden; }
         #root { height: 100%; }
-        
         .table-container::-webkit-scrollbar { height: 8px; width: 8px; }
         .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
         .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .table-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
         .cell-scrollbar::-webkit-scrollbar { width: 4px; }
-        .cell-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .cell-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .cell-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
         .editable-cell {
             width: 100%; background: transparent; border: 1px solid transparent; padding: 4px 8px;
-            border-radius: 4px; outline: none; transition: all 0.2s; white-space: pre-wrap; word-break: break-word;
-            display: block; cursor: pointer; min-height: 28px;
+            border-radius: 4px; outline: none; transition: all 0.2s; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; display: block; cursor: pointer;
         }
         .editable-cell:hover { border-color: #e2e8f0; background: #f8fafc; }
         .editable-cell.editing { border-color: #3b82f6; background: #ffffff; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); cursor: text; }
@@ -79,9 +68,9 @@
 
     <script type="text/babel">
         // ==========================================
-        // APP VERSION: v3.1.0 (Real-Time + Perf Fixed + UI Update)
+        // APP VERSION: v4.0.0 (Zero-Quota Architecture)
         // ==========================================
-        const APP_VERSION = "3.1.0";
+        const APP_VERSION = "4.0.0";
 
         if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
 
@@ -90,18 +79,15 @@
         class ErrorBoundary extends React.Component {
             constructor(props) { super(props); this.state = { hasError: false, error: null }; }
             static getDerivedStateFromError(error) { return { hasError: true, error }; }
-            componentDidCatch(error, errorInfo) { console.error("React Error Boundary Caught:", error, errorInfo); }
             render() {
-                if (this.state.hasError) {
-                    return (
-                        <div className="flex flex-col items-center justify-center w-full h-screen bg-slate-50 p-8 text-center">
-                            <i className="fa-solid fa-triangle-exclamation text-6xl text-red-500 mb-4"></i>
-                            <h2 className="text-2xl font-bold text-slate-800 mb-2">เกิดข้อผิดพลาดในการแสดงผล (ระบบขัดข้อง)</h2>
-                            <p className="text-slate-500 mb-6 max-w-lg break-words text-sm border p-4 bg-white rounded-lg shadow-inner">{this.state.error && this.state.error.toString()}</p>
-                            <button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-md"><i className="fa-solid fa-rotate-right mr-2"></i> รีเฟรชหน้าเว็บ</button>
-                        </div>
-                    );
-                }
+                if (this.state.hasError) return (
+                    <div className="flex flex-col items-center justify-center w-full h-screen bg-slate-50 p-8 text-center">
+                        <i className="fa-solid fa-triangle-exclamation text-6xl text-red-500 mb-4"></i>
+                        <h2 className="text-2xl font-bold text-slate-800 mb-2">เกิดข้อผิดพลาดในการแสดงผล</h2>
+                        <p className="text-slate-500 mb-6 border p-4 bg-white rounded-lg">{this.state.error && this.state.error.toString()}</p>
+                        <button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg"><i className="fa-solid fa-rotate-right mr-2"></i> รีเฟรชหน้าเว็บ</button>
+                    </div>
+                );
                 return this.props.children; 
             }
         }
@@ -116,17 +102,15 @@
             measurementId: "G-VB3VDMQ9D1"
         };
         
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwIf_5Ps8MMNLHPXFdCK4ZjgKx232EguXInCDLyiJFx_GN88X4PObxsiWetG4GhURnZ/exec"; 
+        // 🔴 ใส่ลิงก์ New Deployment จาก GAS ตรงนี้
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbye-_6F3rztyJpCh4PvmKVNS3Y0cjDGeZ4y4KMDzUQHn0Sx1XyTTrVGxXdgcngG3-4U/exec"; 
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        db.settings({ experimentalForceLongPolling: true, useFetchStreams: false });
-        db.enablePersistence().catch(err => console.warn("Firebase Persistence Error:", err.code));
 
-        const collectionRef = db.collection('tasks');
-        const nsCollectionRef = db.collection('ns_tasks'); 
         const historyRef = db.collection('task_history');
         const masterDataRef = db.collection('master_data').doc('zones_teams');
+        const syncRef = db.collection('system').doc('sync'); // กระดิ่ง Firebase
 
         const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
         const defaultMasterData = { zones: [], teams: [] };
@@ -361,7 +345,13 @@
                     const newTaskData = { "วันที่แจ้ง Subcontract": form.date, "CID Customer": form.cid, "ทีมงาน": form.team, "บริษัทลูกค้า": form.customerName, "ชื่อและเบอร์โทรลูกค้าประสานงาน": form.phone, "วันที่ยกเลิกใช้งาน": form.cancelDate, "สถานะ": "รอเข้าเก็บ", "วันที่เข้าเก็บ": form.getbackDate || '', "เวลาเข้าเก็บ": form.getbackTime || '', "นัดหมายลูกค้า": dynamicFormula, "_rowIndex": 999999 };
                     const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
                     newTaskData["รายละเอียดงาน"] = `[Site Type: ${form.siteType}] \n[เข้าเก็บ: ${form.getbackDate || '-'} เวลา ${form.getbackTime || '-'}] \n\n${form.details}\n\nรายการอุปกรณ์:\n${equipStr}`;
-                    await collectionRef.doc(newTaskId).set(newTaskData);
+                    
+                    // เพิ่มงานใหม่ชั่วคราวลงหน้าจอ
+                    if(GAS_WEB_APP_URL) {
+                        const payloadData = JSON.stringify({ action: 'sendLineNotify', message: generateMessage(), taskData: newTaskData });
+                        fetch(GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: payloadData });
+                    }
+                    
                     if (form.zoneId) {
                         const zone = (masterData.zones || []).find(z => z.id === form.zoneId);
                         if (zone) {
@@ -370,12 +360,8 @@
                             masterDataRef.set({ queue: { ...queueState, [form.zoneId]: newQ } }, { merge: true }); setQueueState({ ...queueState, [form.zoneId]: newQ });
                         }
                     }
-                    const msg = generateMessage(); customAlert('✅ สั่งงานเรียบร้อย (ระบบกำลังจัดการส่ง LINE และลง Sheet ให้อัตโนมัติ)', 'success');
+                    customAlert('✅ สั่งงานเรียบร้อย (ระบบกำลังจัดการส่ง LINE และลง Sheet ให้อัตโนมัติ)', 'success');
                     setForm(getInitialFormState()); setEquipments([{ name: '', serial: '' }]); setSearchCid('');
-                    if (GAS_WEB_APP_URL) {
-                        const payloadData = JSON.stringify({ action: 'sendLineNotify', message: msg, taskData: newTaskData, tempTaskId: newTaskId });
-                        fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: payloadData }).catch(e => console.error("Background sync to Sheet failed:", e));
-                    }
                 } catch (e) { console.error("Failed to send/save:", e); customAlert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์', 'error'); }
                 setIsSending(false);
             };
@@ -469,7 +455,6 @@
           const [historyLogs, setHistoryLogs] = useState([]);
           const [showHistoryModal, setShowHistoryModal] = useState(false);
           const [masterData, setMasterData] = useState(defaultMasterData);
-          const [queueState, setQueueState] = useState({});
           
           const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
           const [isPendingTransition, startTransition] = useTransition();
@@ -480,71 +465,25 @@
           const pendingUpdatesRef = useRef([]);
           const syncTimerRef = useRef(null);
 
-          // 🔥 Custom Alerts & Confirms State
           const [appAlert, setAppAlert] = useState({ show: false, message: '', type: 'success' });
           const [appConfirm, setAppConfirm] = useState({ show: false, message: '', onConfirm: null });
 
-          const customAlert = (message, type = 'success') => {
-              setAppAlert({ show: true, message, type });
-              setTimeout(() => setAppAlert({ show: false, message: '', type: 'success' }), 3500);
-          };
+          const customAlert = (message, type = 'success') => { setAppAlert({ show: true, message, type }); setTimeout(() => setAppAlert({ show: false, message: '', type: 'success' }), 3500); };
+          const customConfirm = (message, onConfirmCallback) => { setAppConfirm({ show: true, message, onConfirm: onConfirmCallback }); };
 
-          const customConfirm = (message, onConfirmCallback) => {
-              setAppConfirm({ show: true, message, onConfirm: onConfirmCallback });
-          };
+          const getStatusColumnName = (cols) => { if (!cols) return ''; let exact = cols.find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc === 'status' || lc === 'สถานะ' || lc === 'statusjob' || lc === 'jobstatus'; }); if (exact) return exact; let partial = cols.find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return (lc.includes('status') || lc.includes('สถานะ')) && !lc.includes('change') && !lc.includes('เปลี่ยน') && !lc.includes('date') && !lc.includes('วันที่') && !lc.includes('time') && !lc.includes('เวลา'); }); if (partial) return partial; return cols[cols.length - 1] || ''; };
+          const getTeamColumnName = (cols) => { if (!cols) return ''; let exact = cols.find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc === 'ทีมงาน' || lc === 'team' || lc === 'nsresponsible' || lc === 'subcontract' || lc === 'ผู้รับผิดชอบ'; }); if (exact) return exact; let partial = cols.find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return (lc.includes('ทีม') || lc.includes('responsible') || lc.includes('รับผิดชอบ')) && !lc.includes('วันที่') && !lc.includes('date') && !lc.includes('time'); }); if (partial) return partial; return cols.length > 1 ? cols[1] : ''; };
 
-          // ================== VARIABLES DEFINITIONS ==================
-          const getStatusColumnName = (cols) => {
-              if (!cols) return '';
-              let exact = cols.find(c => {
-                  const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
-                  return lc === 'status' || lc === 'สถานะ' || lc === 'statusjob' || lc === 'jobstatus';
-              });
-              if (exact) return exact;
-              let partial = cols.find(c => {
-                  const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
-                  return (lc.includes('status') || lc.includes('สถานะ')) && !lc.includes('change') && !lc.includes('เปลี่ยน') && !lc.includes('date') && !lc.includes('วันที่') && !lc.includes('time') && !lc.includes('เวลา');
-              });
-              if (partial) return partial;
-              return cols[cols.length - 1] || '';
-          };
-
-          const getTeamColumnName = (cols) => {
-              if (!cols) return '';
-              let exact = cols.find(c => {
-                  const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
-                  return lc === 'ทีมงาน' || lc === 'team' || lc === 'nsresponsible' || lc === 'subcontract' || lc === 'ผู้รับผิดชอบ';
-              });
-              if (exact) return exact;
-              let partial = cols.find(c => {
-                  const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
-                  return (lc.includes('ทีม') || lc.includes('responsible') || lc.includes('รับผิดชอบ')) && !lc.includes('วันที่') && !lc.includes('date') && !lc.includes('time');
-              });
-              if (partial) return partial;
-              return cols.length > 1 ? cols[1] : '';
-          };
-
-          // 🟢 คืนค่าลำดับคอลัมน์ให้เป็นแบบเดิม 100%
-          const currentColumnsTable = tasksSubTab === 'subcontract' ? columns : nsColumns;
+          let currentColumnsTable = tasksSubTab === 'subcontract' ? [...columns] : [...nsColumns];
           const currentTasksTable = tasksSubTab === 'subcontract' ? tasks : nsTasks;
           
-          // 🟢 สร้างคอลัมน์จำลองเฉพาะตอนแสดงผลเท่านั้น (เพิ่ม Region_Respon ต่อท้าย)
-          const displayColumns = useMemo(() => {
-              let cols = [...currentColumnsTable];
-              if (tasksSubTab === 'subcontract' && cols.length > 0 && !cols.includes('Region_Respon')) {
-                  cols.push('Region_Respon');
-              }
-              return cols;
-          }, [currentColumnsTable, tasksSubTab]);
+          const displayColumns = useMemo(() => { let cols = [...currentColumnsTable]; if (tasksSubTab === 'subcontract' && cols.length > 0 && !cols.includes('Region_Respon')) { cols.push('Region_Respon'); } return cols; }, [currentColumnsTable, tasksSubTab]);
 
-          // 🟢 ซ่อนคอลัมน์ "ประทับเวลา" อัตโนมัติในครั้งแรก
           const [hasAutoHidden, setHasAutoHidden] = useState(false);
           useEffect(() => {
               if (columns.length > 0 && !hasAutoHidden) {
                   const tsCol = columns.find(c => (c && String(c).toLowerCase().includes('ประทับเวลา')) || (c && String(c).toLowerCase().includes('timestamp')));
-                  if (tsCol && !hiddenColumns.includes(tsCol)) {
-                      setHiddenColumns(prev => [...prev, tsCol]);
-                  }
+                  if (tsCol && !hiddenColumns.includes(tsCol)) setHiddenColumns(prev => [...prev, tsCol]);
                   setHasAutoHidden(true);
               }
           }, [columns, hasAutoHidden, hiddenColumns]);
@@ -558,20 +497,12 @@
           
           const t_statusCol = getStatusColumnName(displayColumns);
           const t_teamCol = getTeamColumnName(displayColumns);
-          
           const t_cidCol = t_getCol(['cid', 'circuitno']) || '';
           const t_equipYearCol = t_getCol(['year', 'ปี']) || '';
           const t_overDueCol = (displayColumns || []).find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc.includes('นัดหมายลูกค้า') || lc.includes('over3') || lc.includes('เกินกำหนด'); }) || '';
           const t_collectionDateCol = (displayColumns || []).find(c => c ? String(c).replace(/[\s_]+/g, '').includes('วันที่เข้าเก็บ') : false) || t_getCol(['วันที่', 'date']) || displayColumns?.[0] || '';
-          
           const statusChangeColMatch = (displayColumns || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc === 'status_change' || lc === 'status change' || lc === 'status-change'; }) || '';
-          
-          // 🟢 ครอบคลุมคอลัมน์ Customer_Contract
-          const contactJobColMatch = (displayColumns || []).find(c => {
-              const lc = c ? String(c).toLowerCase() : '';
-              return lc.includes('customer contact') || lc.includes('customer_contract') || lc === 'contract' || lc.includes('ประสานงาน');
-          }) || '';
-          
+          const contactJobColMatch = (displayColumns || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc.includes('customer contact') || lc.includes('customer_contract') || lc === 'contract' || lc.includes('ประสานงาน'); }) || '';
           const itemColMatch = t_getCol(['itemname', 'อุปกรณ์']);
           const snColMatch = t_getCol(['serialno', 'serial', 'sn']);
           const siteTypeColMatch = t_getCol(['sitetype', 'site']);
@@ -584,354 +515,113 @@
           const tableUniqueColMonths = [...new Set((currentTasksTable || []).map(t => { const d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null); return d ? d.getMonth() + 1 : null; }).filter(Boolean))].sort((a,b)=>a-b);
           const tableUniqueYears = t_equipYearCol ? [...new Set((currentTasksTable || []).map(t => t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : '').filter(Boolean))].sort() : [];
 
-          // ================== FIREBASE FETCHING (Real-Time แบบดั้งเดิม 100%) ==================
-          useEffect(() => {
-              setIsLoading(true); setFirebaseError(null);
-              let initialLoad = true; // 🟢 ตัวแปรกันจอกระตุกโหลดใหม่ซ้ำๆ
+          // 🟢 ฟังก์ชันโหลดข้อมูลหลักจาก GAS
+          const fetchAllDataFromServer = async (isSilent = false) => {
+              if (!isSilent) setIsLoading(true);
+              else setIsBackgroundSyncing(true);
               
-              let initialCols = [];
-              let initialNsCols = [];
+              setFirebaseError(null);
               
               try {
-                  const savedCols = localStorage.getItem('equip_tracker_columns');
-                  if (savedCols && savedCols !== "undefined" && savedCols !== "null") {
-                      const parsed = JSON.parse(savedCols);
-                      if (Array.isArray(parsed)) { initialCols = parsed; setColumns(parsed); }
-                  }
-              } catch(e) { console.error(e); }
-
-              try {
-                  const savedNsCols = localStorage.getItem('equip_tracker_ns_columns');
-                  if (savedNsCols && savedNsCols !== "undefined" && savedNsCols !== "null") {
-                      const parsed = JSON.parse(savedNsCols);
-                      if (Array.isArray(parsed)) { initialNsCols = parsed; setNsColumns(parsed); }
-                  }
-              } catch(e) { console.error(e); }
-
-              const unsubMaster = masterDataRef.onSnapshot(doc => {
-                  if (doc.exists && doc.data().zones) {
-                      const data = doc.data();
+                  const masterDoc = await masterDataRef.get();
+                  if (masterDoc.exists && masterDoc.data().zones) {
+                      const data = masterDoc.data();
                       setMasterData({
                           zones: data.zones || defaultMasterData.zones,
                           teams: Array.isArray(data.teams) ? data.teams : defaultMasterData.teams,
                           nsTeams: Array.isArray(data.nsTeams) ? data.nsTeams.map(t => typeof t === 'string' ? {name: t, bg: '#e0f2fe', text: '#0369a1'} : t) : [],
                           nsStatuses: Array.isArray(data.nsStatuses) ? data.nsStatuses.map(s => typeof s === 'string' ? {name: s, bg: '#fef3c7', text: '#b45309'} : s) : []
                       });
-                      if (data.queue) setQueueState(data.queue);
-                  } else {
-                      masterDataRef.set({ ...defaultMasterData, queue: {} }, { merge: true });
                   }
-              }, (error) => {
-                  console.error("MasterData Error:", error);
-                  if (error.code === 'resource-exhausted') db.disableNetwork().catch(console.error);
-              });
 
-              const unsubscribeTasks = collectionRef.onSnapshot((snapshot) => {
-                  if (snapshot.empty) return;
-                  let allCols = new Set(initialCols);
-                  let metadataCols = null;
-                  const newTasks = [];
-                  const assignTasks = [];
-                  const now = Date.now();
+                  const response = await fetch(GAS_WEB_APP_URL + "?action=getAllData");
+                  const data = await response.json();
 
-                  snapshot.forEach((doc) => {
-                      if (doc.id === '_metadata') { metadataCols = doc.data().columns; return; }
-                      if (doc.id === '_sync_status') return; // ไม่สนใจ status กลางแล้ว
-
-                      if (doc.id.startsWith('task_assign_')) {
-                          const timestampStr = doc.id.replace('task_assign_', '');
-                          const timestamp = parseInt(timestampStr);
-                          if (!isNaN(timestamp) && (now - timestamp > 15000)) {
-                              collectionRef.doc(doc.id).delete().catch(()=>{});
-                              return; 
-                          }
-                      }
-
-                      const data = doc.data();
-                      const cleanData = { id: doc.id };
-                      Object.keys(data).forEach(key => {
-                          if (key !== '_rowIndex') {
-                              let rawValue = typeof data[key] === 'object' && data[key] !== null && 'stringValue' in data[key] ? data[key].stringValue : data[key] ?? '';
-                              cleanData[key] = formatSheetDate(rawValue);
-                              allCols.add(key);
-                          }
-                      });
-                      
-                      let rIndex = 0;
-                      if (data['_rowIndex'] && data['_rowIndex'].integerValue) rIndex = parseInt(data['_rowIndex'].integerValue);
-                      else if (data['_rowIndex'] !== undefined) rIndex = parseInt(data['_rowIndex']);
-                      else { const parsed = parseInt(doc.id.replace('task_', '').replace('task_assign_', '')); rIndex = isNaN(parsed) ? 999999 : parsed; }
-                      
-                      if (rIndex >= 50000 && !doc.id.startsWith('task_assign_')) {
-                          console.warn('🗑️ Auto-purging stuck ghost task:', doc.id);
-                          doc.ref.delete().catch(()=>{});
-                          return;
-                      }
-
-                      cleanData._rowIndex = rIndex || 0;
-                      if (doc.id.startsWith('task_assign_')) assignTasks.push(cleanData);
-                      else newTasks.push(cleanData);
-                  });
-
-                  assignTasks.forEach(assignT => {
-                      const isDuplicate = newTasks.some(realT => {
-                          const keysToCompare = Object.keys(assignT).filter(k => k !== 'id' && k !== '_rowIndex' && assignT[k] && assignT[k] !== '-');
-                          if (keysToCompare.length === 0) return false;
-                          return keysToCompare.every(k => realT[k] === assignT[k]);
-                      });
-                      const timestamp = parseInt(assignT.id.replace('task_assign_', ''));
-                      const isExpired = !isNaN(timestamp) && (now - timestamp > 15000);
-                      if (isDuplicate || isExpired) collectionRef.doc(assignT.id).delete().catch(()=>{});
-                      else newTasks.push(assignT);
-                  });
-
-                  const validTasks = newTasks.filter(isValidTaskHelper);
-                  validTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex));
+                  if (data.subcontract) {
+                      setColumns(data.subcontract.columns); localStorage.setItem('equip_tracker_columns', JSON.stringify(data.subcontract.columns));
+                      const validTasks = data.subcontract.tasks.filter(isValidTaskHelper); setTasks(validTasks); localStorage.setItem('equip_tracker_tasks', JSON.stringify(validTasks));
+                  }
                   
-                  // 🟢 อัปเดตข้อมูลแบบไร้รอยต่อ (ใช้ useTransition)
-                  startTransition(() => { setTasks(validTasks); });
-                  setFirebaseError(null); 
-                  
-                  if (metadataCols && Array.isArray(metadataCols)) {
-                      setColumns(metadataCols); localStorage.setItem('equip_tracker_columns', JSON.stringify(metadataCols));
-                      initialCols = metadataCols;
-                  } else if (allCols.size > (initialCols?.length || 0)) {
-                      const colsArray = Array.from(allCols);
-                      setColumns(colsArray); localStorage.setItem('equip_tracker_columns', JSON.stringify(colsArray));
-                      initialCols = colsArray;
+                  if (data.ns) {
+                      setNsColumns(data.ns.columns); localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(data.ns.columns));
+                      const validNsTasks = data.ns.tasks.filter(isValidTaskHelper); setNsTasks(validNsTasks); localStorage.setItem('equip_tracker_ns_tasks', JSON.stringify(validNsTasks));
                   }
-                  localStorage.setItem('equip_tracker_tasks', JSON.stringify(validTasks));
-                  
-                  if (initialLoad) {
-                      setIsLoading(false);
-                      initialLoad = false;
-                  }
-              }, (error) => {
-                  console.error("Firestore Error:", error);
-                  if (error.code === 'resource-exhausted') {
-                      setFirebaseError('โควต้า Firebase รายวันเต็ม (Resource Exhausted) ระบบกำลังแสดงข้อมูลล่าสุดที่ถูกแคชไว้ในเครื่อง');
-                      db.disableNetwork().catch(console.error);
-                  } else {
-                      setFirebaseError(`Firebase Error: ${error.message}`);
-                  }
-                  try { const savedTasks = localStorage.getItem('equip_tracker_tasks'); if (savedTasks) setTasks(JSON.parse(savedTasks) || []); } catch(e){}
-                  setIsLoading(false);
-              });
+              } catch (error) {
+                  console.error("Fetch Error:", error);
+                  if (!isSilent) setFirebaseError('ไม่สามารถโหลดข้อมูลจากระบบได้ (โปรดตรวจสอบอินเทอร์เน็ต)');
+              }
               
-              const unsubscribeNS = nsCollectionRef.onSnapshot((snapshot) => {
-                  if (snapshot.empty) return;
-                  let allCols = new Set(initialNsCols);
-                  let metadataCols = null;
-                  const newTasks = [];
+              setIsLoading(false);
+              setIsBackgroundSyncing(false);
+          };
 
-                  snapshot.forEach((doc) => {
-                      if (doc.id === '_metadata') { metadataCols = doc.data().columns; return; }
-                      if (doc.id === '_sync_status') return;
+          useEffect(() => {
+              try {
+                  const cachedTasks = localStorage.getItem('equip_tracker_tasks'); const cachedNsTasks = localStorage.getItem('equip_tracker_ns_tasks');
+                  const cachedCols = localStorage.getItem('equip_tracker_columns'); const cachedNsCols = localStorage.getItem('equip_tracker_ns_columns');
+                  if (cachedTasks) setTasks(JSON.parse(cachedTasks)); if (cachedNsTasks) setNsTasks(JSON.parse(cachedNsTasks));
+                  if (cachedCols) setColumns(JSON.parse(cachedCols)); if (cachedNsCols) setNsColumns(JSON.parse(cachedNsCols));
+              } catch(e) {}
+              
+              fetchAllDataFromServer(false);
 
+              // 🟢 รับกระดิ่งแจ้งเตือนจาก Firebase
+              const unsubSync = syncRef.onSnapshot(doc => {
+                  if (doc.exists) {
                       const data = doc.data();
-                      const cleanData = { id: doc.id };
-                      Object.keys(data).forEach(key => {
-                          if (key !== '_rowIndex') {
-                              let rawValue = typeof data[key] === 'object' && data[key] !== null && 'stringValue' in data[key] ? data[key].stringValue : data[key] ?? '';
-                              cleanData[key] = formatSheetDate(rawValue);
-                              allCols.add(key);
-                          }
-                      });
-                      
-                      let rIndex = 0;
-                      if (data['_rowIndex'] && data['_rowIndex'].integerValue) rIndex = parseInt(data['_rowIndex'].integerValue);
-                      else if (data['_rowIndex'] !== undefined) rIndex = parseInt(data['_rowIndex']);
-                      else { const parsed = parseInt(doc.id.replace('task_', '')); rIndex = isNaN(parsed) ? 999999 : parsed; }
-                      
-                      if (rIndex >= 50000) {
-                          console.warn('🗑️ Auto-purging stuck ghost task (NS):', doc.id);
-                          doc.ref.delete().catch(()=>{});
-                          return;
-                      }
-
-                      cleanData._rowIndex = rIndex || 0;
-                      if(isValidTaskHelper(cleanData)) {
-                          newTasks.push(cleanData);
-                      }
-                  });
-
-                  newTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex));
-                  startTransition(() => { setNsTasks(newTasks); });
-                  localStorage.setItem('equip_tracker_ns_tasks', JSON.stringify(newTasks));
-
-                  if (metadataCols && Array.isArray(metadataCols)) { 
-                      setNsColumns(metadataCols); localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(metadataCols)); 
-                      initialNsCols = metadataCols;
-                  } else if (allCols.size > (initialNsCols?.length || 0)) { 
-                      const colsArray = Array.from(allCols); 
-                      setNsColumns(colsArray); localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(colsArray)); 
-                      initialNsCols = colsArray;
+                      const ts = parseInt(data.timestamp || 0);
+                      if (Date.now() - ts < 15000) fetchAllDataFromServer(true);
                   }
-              }, (error) => {
-                  console.error("Firestore Error (NS):", error);
-                  if (error.code === 'resource-exhausted') {
-                      setFirebaseError('โควต้า Firebase รายวันเต็ม (Resource Exhausted) ระบบกำลังแสดงข้อมูลล่าสุดที่ถูกแคชไว้ในเครื่อง');
-                      db.disableNetwork().catch(console.error);
-                  } else {
-                      setFirebaseError(`Firebase Error: ${error.message}`);
-                  }
-                  try { const savedNsTasks = localStorage.getItem('equip_tracker_ns_tasks'); if (savedNsTasks) setNsTasks(JSON.parse(savedNsTasks) || []); } catch(e){}
               });
 
-              return () => { unsubscribeTasks(); unsubscribeNS(); unsubMaster(); };
+              return () => { unsubSync(); };
           }, []);
 
           useEffect(() => {
               if (showHistoryModal) {
                   historyRef.orderBy('updatedAt', 'desc').limit(50).get().then(snap => {
-                      const logs = [];
-                      snap.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
-                      setHistoryLogs(logs);
+                      const logs = []; snap.forEach(doc => logs.push({ id: doc.id, ...doc.data() })); setHistoryLogs(logs);
                   });
               }
           }, [showHistoryModal]);
 
-          // ================== CORE HELPERS ==================
-
-          const navigateCalendar = (dir) => { 
-              const nd = new Date(currentDate); 
-              if (calendarView === 'month') nd.setMonth(nd.getMonth() + dir); 
-              else if (calendarView === 'week') nd.setDate(nd.getDate() + (dir * 7)); 
-              else nd.setDate(nd.getDate() + dir); 
-              setCurrentDate(nd); 
-          };
-
+          const navigateCalendar = (dir) => { const nd = new Date(currentDate); if (calendarView === 'month') nd.setMonth(nd.getMonth() + dir); else if (calendarView === 'week') nd.setDate(nd.getDate() + (dir * 7)); else nd.setDate(nd.getDate() + dir); setCurrentDate(nd); };
           const handlePointerDown = (e, col) => {
-              e.preventDefault(); e.stopPropagation(); 
-              const startX = e.pageX || (e.touches ? e.touches[0].pageX : 0); 
-              const th = e.currentTarget.closest('th');
-              const startWidth = th ? th.getBoundingClientRect().width : 150;
-              
-              const onPointerMove = (me) => {
-                  const currentX = me.pageX || (me.touches ? me.touches[0].pageX : 0);
-                  setColWidths(prev => ({ ...prev, [col]: Math.max(50, startWidth + (currentX - startX)) }));
-              };
-              const onPointerUp = () => { 
-                  document.removeEventListener('pointermove', onPointerMove); 
-                  document.removeEventListener('pointerup', onPointerUp); 
-                  document.removeEventListener('touchmove', onPointerMove); 
-                  document.removeEventListener('touchend', onPointerUp); 
-              };
-              
-              document.addEventListener('pointermove', onPointerMove); 
-              document.addEventListener('pointerup', onPointerUp);
-              document.addEventListener('touchmove', onPointerMove, { passive: false }); 
-              document.addEventListener('touchend', onPointerUp);
+              e.preventDefault(); e.stopPropagation(); const startX = e.pageX || (e.touches ? e.touches[0].pageX : 0); const th = e.currentTarget.closest('th'); const startWidth = th ? th.getBoundingClientRect().width : 150;
+              const onPointerMove = (me) => { const currentX = me.pageX || (me.touches ? me.touches[0].pageX : 0); setColWidths(prev => ({ ...prev, [col]: Math.max(50, startWidth + (currentX - startX)) })); };
+              const onPointerUp = () => { document.removeEventListener('pointermove', onPointerMove); document.removeEventListener('pointerup', onPointerUp); document.removeEventListener('touchmove', onPointerMove); document.removeEventListener('touchend', onPointerUp); };
+              document.addEventListener('pointermove', onPointerMove); document.addEventListener('pointerup', onPointerUp); document.addEventListener('touchmove', onPointerMove, { passive: false }); document.addEventListener('touchend', onPointerUp);
           };
 
-          useEffect(() => {
-              setCurrentPage(1);
-          }, [tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, searchTerm]);
+          useEffect(() => { setCurrentPage(1); }, [tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, searchTerm]);
 
-          const handleDirectAssign = (cid, siteType) => {
-              if(!cid || cid.trim() === '') return customAlert('ไม่พบข้อมูล CIDs ในรายการนี้', 'error');
-              setAutoAssignData({ cid, siteType: siteType || 'Terminate' });
-              startTransition(() => { setActiveTab('assign'); });
-              if (window.innerWidth <= 1024) setIsSidebarOpen(false);
-          };
-
+          const handleDirectAssign = (cid, siteType) => { if(!cid || cid.trim() === '') return customAlert('ไม่พบข้อมูล CIDs ในรายการนี้', 'error'); setAutoAssignData({ cid, siteType: siteType || 'Terminate' }); startTransition(() => { setActiveTab('assign'); }); if (window.innerWidth <= 1024) setIsSidebarOpen(false); };
           const clearAutoAssignData = () => { setAutoAssignData(null); };
-
-          const handlePinToggle = (e, col) => {
-              if (!(pinnedColumns || []).includes(col)) {
-                  if (!colWidths[col]) {
-                      const th = e.currentTarget.closest('th');
-                      if (th) {
-                          const w = th.getBoundingClientRect().width;
-                          setColWidths(prev => ({ ...prev, [col]: w }));
-                      }
-                  }
-              }
-              setPinnedColumns(prev => (prev || []).includes(col) ? (prev || []).filter(c => c !== col) : [...(prev || []), col]);
-          };
-
+          const handlePinToggle = (e, col) => { if (!(pinnedColumns || []).includes(col)) { if (!colWidths[col]) { const th = e.currentTarget.closest('th'); if (th) { const w = th.getBoundingClientRect().width; setColWidths(prev => ({ ...prev, [col]: w })); } } } setPinnedColumns(prev => (prev || []).includes(col) ? (prev || []).filter(c => c !== col) : [...(prev || []), col]); };
           const getColWidth = (col) => colWidths[col] || 150; 
-          const getPinnedLeftPos = (colName, colsArray) => {
-              let left = 0;
-              const targetIdx = (colsArray || []).indexOf(colName);
-              for (let i = 0; i < targetIdx; i++) {
-                  if ((pinnedColumns || []).includes(colsArray[i])) left += getColWidth(colsArray[i]);
-              }
-              return left;
-          };
-
+          const getPinnedLeftPos = (colName, colsArray) => { let left = 0; const targetIdx = (colsArray || []).indexOf(colName); for (let i = 0; i < targetIdx; i++) { if ((pinnedColumns || []).includes(colsArray[i])) left += getColWidth(colsArray[i]); } return left; };
           const handleSort = (key) => setSortConfig({ key, direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc' });
 
-          const resetFilters = () => {
-              setFilterMonth('All'); setFilterTeams([]); setSearchTerm(''); setTableFilterTeams([]);
-              setTableFilterDate([]); setTableFilterYear([]); setTableFilterStatus([]);
-              setTableFilterOverdue([]); setSortConfig({ key: null, direction: null });
-              setCurrentPage(1);
-              setShowDuplicatesOnly(false);
-          };
+          const resetFilters = () => { setFilterMonth('All'); setFilterTeams([]); setSearchTerm(''); setTableFilterTeams([]); setTableFilterDate([]); setTableFilterYear([]); setTableFilterStatus([]); setTableFilterOverdue([]); setSortConfig({ key: null, direction: null }); setCurrentPage(1); setShowDuplicatesOnly(false); };
 
           const handleDeleteTask = (taskObj) => {
               const docIds = taskObj._groupDocs || [taskObj.id];
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
-
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
                   const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
-                  const targetCollection = tasksSubTab === 'subcontract' ? collectionRef : nsCollectionRef;
-
-                  if (tasksSubTab === 'subcontract') {
-                      setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
-                  } else {
-                      setNsTasks(prev => prev.filter(t => !docIds.includes(t.id)));
-                  }
-
+                  if (tasksSubTab === 'subcontract') setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
+                  else setNsTasks(prev => prev.filter(t => !docIds.includes(t.id)));
                   try {
-                      const batch = db.batch();
-                      docIds.forEach(id => {
-                          batch.delete(targetCollection.doc(id));
-                      });
-                      await batch.commit();
-
                       if (GAS_WEB_APP_URL) {
-                          const payloadData = JSON.stringify({
-                              action: 'deleteRows',
-                              sheetName: targetSheetName,
-                              rows: rowIndices
-                          });
-
-                          fetch(GAS_WEB_APP_URL, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                              body: payloadData
-                          }).catch(e => console.error("Failed to delete from sheet:", e));
+                          fetch(GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'deleteRows', sheetName: targetSheetName, rows: rowIndices }) }).catch(e => console.error("Failed to delete from sheet:", e));
                       }
-
                       customAlert('ลบข้อมูลสำเร็จ', 'success');
-                  } catch (error) {
-                      console.error("Error deleting task:", error);
-                      customAlert('เกิดข้อผิดพลาดในการลบข้อมูล', 'error');
-                  }
+                  } catch (error) { customAlert('เกิดข้อผิดพลาดในการลบข้อมูล', 'error'); }
               });
           };
 
-          const handleCellDoubleClick = (e, cellId) => {
-              setEditingCell(cellId); const el = e.target;
-              setTimeout(() => {
-                  el.focus();
-                  if (typeof window.getSelection !== "undefined" && typeof document.createRange !== "undefined") {
-                      const range = document.createRange(); range.selectNodeContents(el); range.collapse(false);
-                      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
-                  }
-              }, 10);
-          };
-
-          const handleMouseMove = (e, task) => {
-              const tooltipWidth = 320, tooltipHeight = Math.min(350, window.innerHeight - 40); 
-              let x = e.clientX + 15, y = e.clientY + 15;
-              if (x + tooltipWidth > window.innerWidth) x = e.clientX - tooltipWidth - 15;
-              if (y + tooltipHeight > window.innerHeight) y = e.clientY - tooltipHeight - 15;
-              setTooltipData({ visible: true, task, x: Math.max(10, x), y: Math.max(10, y) });
-          };
-          
+          const handleCellDoubleClick = (e, cellId) => { setEditingCell(cellId); const el = e.target; setTimeout(() => { el.focus(); if (typeof window.getSelection !== "undefined" && typeof document.createRange !== "undefined") { const range = document.createRange(); range.selectNodeContents(el); range.collapse(false); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); } }, 10); };
+          const handleMouseMove = (e, task) => { const tooltipWidth = 320, tooltipHeight = Math.min(350, window.innerHeight - 40); let x = e.clientX + 15, y = e.clientY + 15; if (x + tooltipWidth > window.innerWidth) x = e.clientX - tooltipWidth - 15; if (y + tooltipHeight > window.innerHeight) y = e.clientY - tooltipHeight - 15; setTooltipData({ visible: true, task, x: Math.max(10, x), y: Math.max(10, y) }); };
           const handleMouseLeave = () => setTooltipData({ visible: false, task: null, x: 0, y: 0 });
 
           // 🔥 ฟังก์ชันอัปเดตแผ่นงาน
@@ -943,27 +633,14 @@
               const itemColMatchLocal = t_getColLocal(['itemname', 'อุปกรณ์']);
               const snColMatchLocal = t_getColLocal(['serialno', 'serial', 'sn']);
               
-              if (docIds.length > 1 && (field === itemColMatchLocal || field === snColMatchLocal)) {
-                  customAlert('ไม่สามารถแก้ไขข้อมูลอุปกรณ์/ซีเรียล ที่ถูกจัดกลุ่มรวมกันได้ กรุณาแก้ไขแยกทีละบรรทัดใน Google Sheet แทนครับ', 'error');
-                  return false; 
-              }
-
-              const oldValue = taskObj[field] || '';
-              if(oldValue === value) return true;
-
-              if (docIds.length > 20) {
-                  customAlert(`⚠️ ระบบระงับการทำงานชั่วคราว! ตรวจพบความพยายามอัปเดตข้อมูลพร้อมกันถึง ${docIds.length} แถว คำแนะนำ: กรุณาลบแถวว่างใน Google Sheet ทิ้งก่อนครับ`, 'error');
-                  return false; 
-              }
+              if (docIds.length > 1 && (field === itemColMatchLocal || field === snColMatchLocal)) { customAlert('ไม่สามารถแก้ไขข้อมูลอุปกรณ์/ซีเรียล ที่ถูกจัดกลุ่มรวมกันได้', 'error'); return false; }
+              const oldValue = taskObj[field] || ''; if(oldValue === value) return true;
+              if (docIds.length > 20) { customAlert(`⚠️ ระบบระงับการทำงานชั่วคราว! อัปเดตข้อมูลพร้อมกันเกินกำหนด`, 'error'); return false; }
 
               const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
-              const targetCollection = tasksSubTab === 'subcontract' ? collectionRef : nsCollectionRef;
 
-              if (tasksSubTab === 'subcontract') {
-                  setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
-              } else {
-                  setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
-              }
+              if (tasksSubTab === 'subcontract') setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
+              else setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
 
               try {
                   const cCompCol = (currentColumnsTableLocal || []).find(c => ['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
@@ -971,81 +648,31 @@
               } catch (err) {}
 
               try {
-                  const batch = db.batch();
-                  docIds.forEach(id => {
-                      const ref = targetCollection.doc(id);
-                      batch.update(ref, { [field]: value });
-                  });
-                  await batch.commit(); 
-                  
                   if (GAS_WEB_APP_URL) {
                       let hasValidUpdate = false;
-
                       docIds.forEach((id, idx) => {
                           let rNum = rowIndices[idx];
                           if (!rNum || rNum === 999999 || rNum === 0 || isNaN(parseInt(rNum))) {
-                             const parsedId = String(id).replace('task_', '').replace('NS_task_', '');
-                             const parsed = parseInt(parsedId); 
-                             if(!isNaN(parsed) && parsed > 1 && parsed <= 50000) rNum = parsed;
-                             else rNum = null;
+                             const parsed = parseInt(String(id).replace('task_', '').replace('NS_task_', '')); 
+                             rNum = (!isNaN(parsed) && parsed > 1 && parsed <= 50000) ? parsed : null;
                           }
-
-                          if (rNum && rNum > 1 && rNum <= 50000) {
+                          if (rNum) {
                               pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === field && u.sheetName === targetSheetName));
                               pendingUpdatesRef.current.push({ row: rNum, field: field, value: value, sheetName: targetSheetName });
                               hasValidUpdate = true;
-                          } else {
-                              console.warn(`⚠️ [Blocked] ข้ามการส่งซิงค์ลง Sheet งาน ${id} เนื่องจากเลขบรรทัดผิดปกติ (${rNum})`);
                           }
                       });
+                      if (!hasValidUpdate) { customAlert('เกิดข้อผิดพลาดในการหาเลขบรรทัด', 'warning'); return true; }
 
-                      if (!hasValidUpdate) {
-                          customAlert('ข้อมูลงานนี้กำลังซิงค์อยู่ หรือหาเลขบรรทัดใน Sheet ไม่พบ กรุณารอสักครู่แล้วรีเฟรชหน้าเว็บอีกครั้งครับ', 'warning');
-                          return true;
-                      }
-
-                      // 🟢 เอา setIsBackgroundSyncing(true) ออก เพื่อไม่ให้หน้าจอกระตุก 2-5 วิ ตอนแก้ข้อมูล
                       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-
                       syncTimerRef.current = setTimeout(() => {
                           if (pendingUpdatesRef.current.length === 0) return;
-
-                          const updatesToSync = [...pendingUpdatesRef.current];
-                          pendingUpdatesRef.current = [];
-
-                          const updatesBySheet = {};
-                          updatesToSync.forEach(u => {
-                              if(!updatesBySheet[u.sheetName]) updatesBySheet[u.sheetName] = [];
-                              updatesBySheet[u.sheetName].push(u);
-                          });
-
-                          Object.keys(updatesBySheet).forEach(sheet => {
-                              const payloadData = JSON.stringify({ 
-                                  action: 'updateBatch', 
-                                  sheetName: sheet, 
-                                  updates: updatesBySheet[sheet],
-                                  row: updatesBySheet[sheet][0].row,
-                                  field: updatesBySheet[sheet][0].field,
-                                  value: updatesBySheet[sheet][0].value
-                              });
-                              
-                              fetch(GAS_WEB_APP_URL, {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                                  body: payloadData
-                              }).catch(err => {
-                                  console.error('❌ ไม่สามารถอัปเดต Google Sheet ได้:', err);
-                              });
-                          });
-
+                          const updatesToSync = [...pendingUpdatesRef.current]; pendingUpdatesRef.current = [];
+                          fetch(GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'updateBatch', sheetName: targetSheetName, updates: updatesToSync }) }).catch(err => console.error('❌ ไม่สามารถอัปเดต Google Sheet ได้:', err));
                       }, 1500);
                   }
                   return true;
-              } catch (e) {
-                  console.error("Error updating document: ", e); 
-                  customAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
-                  return false;
-              }
+              } catch (e) { customAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error'); return false; }
           };
 
           // ================== DATA PROCESSING & TABLE ==================
@@ -1054,16 +681,8 @@
 
               if (showDuplicatesOnly && t_cidCol) {
                   const cidCounts = {};
-                  tableTasks.forEach(t => {
-                      const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
-                      if (cid && cid !== '-' && cid.toLowerCase() !== 'n/a') {
-                          cidCounts[cid] = (cidCounts[cid] || 0) + 1;
-                      }
-                  });
-                  tableTasks = tableTasks.filter(t => {
-                      const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
-                      return cidCounts[cid] > 1;
-                  });
+                  tableTasks.forEach(t => { const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : ''; if (cid && cid !== '-' && cid.toLowerCase() !== 'n/a') cidCounts[cid] = (cidCounts[cid] || 0) + 1; });
+                  tableTasks = tableTasks.filter(t => { const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : ''; return cidCounts[cid] > 1; });
               }
 
               if (tableFilterTeams?.length > 0 && t_teamCol) tableTasks = tableTasks.filter(t => tableFilterTeams.includes(getCleanTeam(t[t_teamCol])));
@@ -1077,75 +696,36 @@
                       const match = cleanVal.match(/-?\d+/); const num = match ? parseInt(match[0], 10) : NaN;
                       const isOverdue = cleanVal.includes('เกิน') || cleanVal.includes('over') || num < 0;
                       const isDue = !isOverdue && (num === 0 || cleanVal === '0' || cleanVal.includes('ครบกำหนด'));
-                      const statusStr = isOverdue ? 'เกินกำหนด' : (isDue ? 'ครบกำหนด' : 'ยังไม่ครบกำหนด');
-                      return tableFilterOverdue.includes(statusStr);
+                      return tableFilterOverdue.includes(isOverdue ? 'เกินกำหนด' : (isDue ? 'ครบกำหนด' : 'ยังไม่ครบกำหนด'));
                   });
               }
               
-              if (sortConfig.key && sortConfig.direction) {
-                  tableTasks.sort((a, b) => sortConfig.direction === 'asc' ? String(a[sortConfig.key] || '').localeCompare(String(b[sortConfig.key] || ''), 'th', { numeric: true }) : String(b[sortConfig.key] || '').localeCompare(String(a[sortConfig.key] || ''), 'th', { numeric: true }));
-              } else {
-                  tableTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex));
-              }
-              
+              if (sortConfig.key && sortConfig.direction) { tableTasks.sort((a, b) => sortConfig.direction === 'asc' ? String(a[sortConfig.key] || '').localeCompare(String(b[sortConfig.key] || ''), 'th', { numeric: true }) : String(b[sortConfig.key] || '').localeCompare(String(a[sortConfig.key] || ''), 'th', { numeric: true })); } else { tableTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex)); }
               if (searchTerm) tableTasks = tableTasks.filter(t => Object.values(t).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase())));
               
               let processedTasks = tableTasks;
 
-              // 🟢 ดึงข้อมูล Region_Respon มาใส่ในหน้า Subcontract โดยเทียบ CID
               if (tasksSubTab === 'subcontract') {
                   const nsTeamCol = getTeamColumnName(nsColumns);
                   const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
-                  
                   const nsCidMap = {};
-                  if (nsCidCol && nsTeamCol) {
-                      nsTasks.forEach(nt => {
-                          const cid = nt[nsCidCol] ? String(nt[nsCidCol]).trim() : '';
-                          if (cid) nsCidMap[cid] = nt[nsTeamCol];
-                      });
-                  }
-
-                  processedTasks = processedTasks.map(t => {
-                      const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
-                      return { ...t, 'Region_Respon': nsCidMap[cid] || '-' };
-                  });
+                  if (nsCidCol && nsTeamCol) { nsTasks.forEach(nt => { const cid = nt[nsCidCol] ? String(nt[nsCidCol]).trim() : ''; if (cid) nsCidMap[cid] = nt[nsTeamCol]; }); }
+                  processedTasks = processedTasks.map(t => { const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : ''; return { ...t, 'Region_Respon': nsCidMap[cid] || '-' }; });
               }
 
               if (tasksSubTab === 'ns') {
                   const grouped = new Map();
                   processedTasks.forEach(t => {
-                      const cid = t_cidCol ? t[t_cidCol] : '';
-                      const st = siteTypeColMatch ? t[siteTypeColMatch] : '';
-                      const cleanCid = String(cid).trim();
-                      
-                      if (!cleanCid || cleanCid === '-' || cleanCid.toLowerCase().includes('ไม่ระบุ') || cleanCid.length < 3) {
-                          grouped.set(t.id, { ...t, _groupDocs: [t.id], _groupRows: [t._rowIndex] });
-                          return;
-                      }
-                      
+                      const cid = t_cidCol ? t[t_cidCol] : ''; const st = siteTypeColMatch ? t[siteTypeColMatch] : ''; const cleanCid = String(cid).trim();
+                      if (!cleanCid || cleanCid === '-' || cleanCid.toLowerCase().includes('ไม่ระบุ') || cleanCid.length < 3) { grouped.set(t.id, { ...t, _groupDocs: [t.id], _groupRows: [t._rowIndex] }); return; }
                       const groupKey = `${cleanCid}_${st}`.trim();
-                      if (!grouped.has(groupKey)) {
-                          grouped.set(groupKey, { 
-                              ...t, 
-                              _groupDocs: [t.id],
-                              _groupRows: [t._rowIndex],
-                              _equipList: [{ item: t[itemColMatch]||'', sn: t[snColMatch]||'' }]
-                          });
-                      } else {
-                          const existing = grouped.get(groupKey);
-                          existing._groupDocs.push(t.id);
-                          existing._groupRows.push(t._rowIndex);
-                          existing._equipList.push({ item: t[itemColMatch]||'', sn: t[snColMatch]||'' });
-                      }
+                      if (!grouped.has(groupKey)) { grouped.set(groupKey, { ...t, _groupDocs: [t.id], _groupRows: [t._rowIndex], _equipList: [{ item: t[itemColMatch]||'', sn: t[snColMatch]||'' }] }); } 
+                      else { const existing = grouped.get(groupKey); existing._groupDocs.push(t.id); existing._groupRows.push(t._rowIndex); existing._equipList.push({ item: t[itemColMatch]||'', sn: t[snColMatch]||'' }); }
                   });
 
                   processedTasks = Array.from(grouped.values()).map(group => {
                       if (group._equipList && group._equipList.length > 0) {
-                          group._equipList.sort((a, b) => {
-                              const aHasSn = (a.sn || '').trim() !== '' ? 1 : 0;
-                              const bHasSn = (b.sn || '').trim() !== '' ? 1 : 0;
-                              return bHasSn - aHasSn;
-                          });
+                          group._equipList.sort((a, b) => { const aHasSn = (a.sn || '').trim() !== '' ? 1 : 0; const bHasSn = (b.sn || '').trim() !== '' ? 1 : 0; return bHasSn - aHasSn; });
                           if(itemColMatch) group[itemColMatch] = group._equipList.map((e, i) => `${i+1}. ${e.item} [ SN: ${e.sn||'-'} ]`).join('\n');
                           if(snColMatch) group[snColMatch] = group._equipList.map(e => e.sn).join('\n');
                       }
@@ -1274,7 +854,7 @@
               textStrokeWidth: 4 
           };
 
-          // 🟢 คำนวณ % Complete รวมสำหรับ Doughnut Chart
+          // 🟢 คำนวณ % Complete
           const totalCompletedCount = chartFilteredTasks.filter(t => getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/)).length;
           const overallPercentComplete = totalTasksCount > 0 ? Math.round((totalCompletedCount / totalTasksCount) * 100) : 0;
 
@@ -1293,13 +873,11 @@
                   }
               });
               
-              // 🟢 คำนวณ % Complete ของแต่ละเดือน
               for (let i = 1; i <= 12; i++) {
                   const totalMonth = monthlyData[i].collected + monthlyData[i].ongoing;
                   monthlyData[i].percent = totalMonth > 0 ? Math.round((monthlyData[i].collected / totalMonth) * 100) : 0;
               }
 
-              // 🟢 เพิ่ม % ลงใน Labels แกน X
               const monthLabelsWithPercent = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].map((m, i) => [m, `${monthlyData[i+1].percent}%`]);
 
               barChartData = { labels: monthLabelsWithPercent, datasets: [ { label: 'Collected (CIDs)', data: Object.values(monthlyData).map(d => d.collected), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }, { label: 'Ongoing (CIDs)', data: Object.values(monthlyData).map(d => d.ongoing), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } ] };
@@ -1310,20 +888,16 @@
               chartFilteredTasks.forEach(t => {
                   let yStr = d_equipYearCol && t[d_equipYearCol] ? String(t[d_equipYearCol]).trim() : '';
                   if (!yStr) yStr = 'ไม่ระบุปี';
-                  
                   if (!yearlyData[yStr]) yearlyData[yStr] = { collected: 0, ongoing: 0 };
-                  
                   const isCollected = getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/);
                   if (isCollected) yearlyData[yStr].collected++; else yearlyData[yStr].ongoing++;
               });
               
               const sortedYears = Object.keys(yearlyData).sort((a, b) => {
-                  if (a === 'ไม่ระบุปี') return 1;
-                  if (b === 'ไม่ระบุปี') return -1;
+                  if (a === 'ไม่ระบุปี') return 1; if (b === 'ไม่ระบุปี') return -1;
                   return a.localeCompare(b, 'en', { numeric: true });
               });
 
-              // 🟢 คำนวณ % Complete ของแต่ละปี
               const yearLabelsWithPercent = sortedYears.map(y => {
                   const totalYear = yearlyData[y].collected + yearlyData[y].ongoing;
                   const pct = totalYear > 0 ? Math.round((yearlyData[y].collected / totalYear) * 100) : 0;
@@ -1393,7 +967,6 @@
               <DraggableFAB onClick={() => setIsSidebarOpen(true)} />
               {isSidebarOpen && <div className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
 
-              {/* Global Alert Toast */}
               {appAlert.show && (
                   <div className={`fixed top-5 right-5 z-[9999] px-6 py-3 rounded-xl shadow-lg border flex items-center gap-3 animate-slide-in-down ${appAlert.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : appAlert.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
                       <i className={`fa-solid ${appAlert.type === 'error' ? 'fa-circle-xmark' : appAlert.type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-check'} text-xl`}></i>
@@ -1401,13 +974,10 @@
                   </div>
               )}
 
-              {/* Global Confirm Modal */}
               {appConfirm.show && (
                   <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4 animate-fade-in">
                       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden p-6 text-center">
-                          <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
-                              <i className="fa-solid fa-question text-3xl"></i>
-                          </div>
+                          <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner"><i className="fa-solid fa-question text-3xl"></i></div>
                           <h3 className="text-lg font-bold text-slate-800 mb-2">ยืนยันการดำเนินการ</h3>
                           <p className="text-sm text-slate-600 mb-6 whitespace-pre-wrap">{appConfirm.message}</p>
                           <div className="flex justify-center gap-3 w-full">
@@ -1418,27 +988,18 @@
                   </div>
               )}
 
-              {/* SIDEBAR */}
               <aside className={`bg-white text-slate-800 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.05)] z-50 shrink-0 transition-all duration-300 ease-in-out absolute lg:relative h-full ${isSidebarOpen ? 'w-72 translate-x-0' : 'w-0 -translate-x-full lg:translate-x-0 overflow-hidden'} border-r border-slate-200`}>
                 <div className="p-6 h-auto min-h-[80px] flex items-center border-b border-slate-100 shrink-0">
-                  <h1 className="text-base md:text-lg font-bold flex items-center gap-3 leading-snug whitespace-normal">
-                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-truck-fast text-xl"></i></div>
-                      <span>[TEST] Equipment Tracking</span>
-                  </h1>
+                  <h1 className="text-base md:text-lg font-bold flex items-center gap-3 leading-snug whitespace-normal"><div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-truck-fast text-xl"></i></div><span>[TEST] Equipment Tracking</span></h1>
                 </div>
                 
-                {/* Main Navigation */}
                 <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
                   <div className="space-y-1">
-                    <button onClick={() => { startTransition(() => { setActiveTab('dashboard'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-700 font-bold shadow-sm border border-blue-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>
-                      <i className={`fa-solid fa-chart-pie text-lg w-6 text-center ${activeTab === 'dashboard' ? 'text-blue-600' : 'opacity-70'}`}></i><span className="whitespace-nowrap">ภาพรวม (Dashboard)</span>
-                    </button>
+                    <button onClick={() => { startTransition(() => { setActiveTab('dashboard'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-700 font-bold shadow-sm border border-blue-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}><i className={`fa-solid fa-chart-pie text-lg w-6 text-center ${activeTab === 'dashboard' ? 'text-blue-600' : 'opacity-70'}`}></i><span className="whitespace-nowrap">ภาพรวม (Dashboard)</span></button>
                     {activeTab === 'dashboard' && isSidebarOpen && (
                         <div className="pl-12 pr-4 space-y-2 pb-2 pt-1">
                             <div>
-                                <button onClick={() => { startTransition(() => setDashboardView('subcontract')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${dashboardView === 'subcontract' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-medium'}`}>
-                                    <i className="fa-solid fa-chart-simple w-4"></i> Subcontract
-                                </button>
+                                <button onClick={() => { startTransition(() => setDashboardView('subcontract')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${dashboardView === 'subcontract' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-medium'}`}><i className="fa-solid fa-chart-simple w-4"></i> Subcontract</button>
                                 {dashboardView === 'subcontract' && (
                                     <div className="pl-6 mt-1 space-y-1 border-l-2 border-blue-100 ml-2">
                                         <button onClick={() => { startTransition(() => setDashboardYear('overview')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'overview' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ภาพรวมทั้งหมด</button>
@@ -1447,19 +1008,13 @@
                                     </div>
                                 )}
                             </div>
-                            <div>
-                                <button onClick={() => { startTransition(() => setDashboardView('ns')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${dashboardView === 'ns' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-medium'}`}>
-                                    <i className="fa-solid fa-earth-asia w-4"></i> Region Tasks
-                                </button>
-                            </div>
+                            <div><button onClick={() => { startTransition(() => setDashboardView('ns')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${dashboardView === 'ns' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-medium'}`}><i className="fa-solid fa-earth-asia w-4"></i> Region Tasks</button></div>
                         </div>
                     )}
                   </div>
 
                   <div className="space-y-1">
-                    <button onClick={() => { startTransition(() => { setActiveTab('tasks'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'tasks' ? 'bg-blue-50 text-blue-700 font-bold shadow-sm border border-blue-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>
-                      <i className={`fa-solid fa-table-list text-lg w-6 text-center ${activeTab === 'tasks' ? 'text-blue-600' : 'opacity-70'}`}></i><span className="whitespace-nowrap">ตารางงาน (All Data)</span>
-                    </button>
+                    <button onClick={() => { startTransition(() => { setActiveTab('tasks'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'tasks' ? 'bg-blue-50 text-blue-700 font-bold shadow-sm border border-blue-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}><i className={`fa-solid fa-table-list text-lg w-6 text-center ${activeTab === 'tasks' ? 'text-blue-600' : 'opacity-70'}`}></i><span className="whitespace-nowrap">ตารางงาน (All Data)</span></button>
                     {activeTab === 'tasks' && isSidebarOpen && (
                         <div className="pl-14 pr-4 space-y-1 pb-2 pt-1">
                             <button onClick={() => { startTransition(() => { setTasksSubTab('subcontract'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${tasksSubTab === 'subcontract' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>- Jobs for Subcontract</button>
@@ -1474,16 +1029,13 @@
 
                 <div className="p-4 border-t border-slate-200 bg-white shrink-0">
                     <p className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">ระบบจัดการ (Admin)</p>
-                    <button onClick={() => { startTransition(() => { setActiveTab('master_data'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors ${activeTab === 'master_data' ? 'bg-blue-50 text-blue-700 font-bold shadow-sm border border-blue-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>
-                        <i className={`fa-solid fa-database text-lg w-6 text-center ${activeTab === 'master_data' ? 'text-blue-600' : 'opacity-70'}`}></i>
-                        <span className="whitespace-nowrap text-sm">ฐานข้อมูล (Master Data)</span>
-                    </button>
+                    <button onClick={() => { startTransition(() => { setActiveTab('master_data'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors ${activeTab === 'master_data' ? 'bg-blue-50 text-blue-700 font-bold shadow-sm border border-blue-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}><i className={`fa-solid fa-database text-lg w-6 text-center ${activeTab === 'master_data' ? 'text-blue-600' : 'opacity-70'}`}></i><span className="whitespace-nowrap text-sm">ฐานข้อมูล (Master Data)</span></button>
                 </div>
 
                 <div className="p-3 bg-slate-50 flex items-center justify-between gap-2 text-xs font-medium shrink-0 border-t border-slate-200">
                   <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${isLoading || isBackgroundSyncing || isPendingTransition ? 'bg-blue-400 animate-pulse' : 'bg-emerald-500'}`}></div>
-                      {isLoading || isBackgroundSyncing || isPendingTransition ? <span className="text-blue-500 font-bold">Syncing...</span> : firebaseError ? <span className="text-red-500 text-center"><i className="fa-solid fa-circle-xmark"></i> Error</span> : <span className="text-emerald-600 font-bold">Live Synced</span>}
+                      {isLoading || isBackgroundSyncing || isPendingTransition ? <span className="text-blue-500 font-bold">Syncing...</span> : firebaseError ? <span className="text-red-500 text-center"><i className="fa-solid fa-circle-xmark"></i> Error</span> : <span className="text-emerald-600 font-bold">Live Synced (Zero-Quota)</span>}
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold">v{APP_VERSION}</span>
                 </div>
@@ -1546,8 +1098,6 @@
                               <div className="flex justify-between items-center mb-4"><h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานและสถานะแยกตามทีม</h3></div>
                               <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2"><div className="min-w-[500px] md:min-w-[600px] h-full">{chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}</div></div>
                           </div>
-                          
-                          {/* กราฟเกินกำหนดนัดหมาย (แสดงเฉพาะหน้า Subcontract) */}
                           {dashboardView === 'subcontract' && (
                               <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                                   <div className="flex justify-between items-center mb-4"><h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> เกินกำหนดนัดหมาย</h3></div>
@@ -1567,17 +1117,13 @@
                         <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 bg-white border border-slate-200 shadow-sm rounded-lg hover:bg-slate-50 text-slate-600 transition-colors hidden lg:block"><i className="fa-solid fa-bars"></i></button>
                         <div><h2 className="text-xl md:text-3xl font-bold text-slate-900">ตารางงาน {tasksSubTab === 'ns' ? '(Region Tasks)' : '(Subcontract)'}</h2></div>
                       </div>
-                      <button onClick={() => setShowHistoryModal(true)} className="flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 px-4 py-2 rounded-lg font-bold border border-indigo-200 transition-colors text-sm shadow-sm">
-                          <i className="fa-solid fa-clock-rotate-left"></i> ดูประวัติการแก้ไข
-                      </button>
+                      <button onClick={() => setShowHistoryModal(true)} className="flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 px-4 py-2 rounded-lg font-bold border border-indigo-200 transition-colors text-sm shadow-sm"><i className="fa-solid fa-clock-rotate-left"></i> ดูประวัติการแก้ไข</button>
                     </header>
 
                     {firebaseError && <div className="shrink-0 bg-red-50 border-l-4 border-red-500 p-4 rounded-md shadow-sm mb-4"><div className="flex items-center"><i className="fa-solid fa-circle-exclamation text-red-500 text-xl mr-3"></i><div><p className="text-red-700 font-bold">แจ้งเตือนระบบ</p><p className="text-red-600 text-sm mt-1">{firebaseError}</p></div></div></div>}
 
                     <div className="shrink-0 bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200 space-y-3 md:space-y-4 mb-4">
-                        <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4">
-                            <div className="relative w-full"><i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i><input type="text" placeholder="พิมพ์คำค้นหา..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-10 pr-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium" /></div>
-                        </div>
+                        <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4"><div className="relative w-full"><i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i><input type="text" placeholder="พิมพ์คำค้นหา..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-10 pr-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium" /></div></div>
                         <div className="flex flex-wrap items-center gap-2 md:gap-3 pt-3 border-t border-slate-100">
                             <span className="text-xs md:text-sm font-semibold text-slate-600 hidden md:inline-block"><i className="fa-solid fa-filter mr-1"></i> ตัวกรอง:</span>
                             {t_teamCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueTeams} selected={tableFilterTeams} onChange={setTableFilterTeams} placeholder="ทีมงาน" /></div>}
@@ -1586,14 +1132,7 @@
                             {t_statusCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueStatuses} selected={tableFilterStatus} onChange={setTableFilterStatus} placeholder="Status" /></div>}
                             {t_overDueCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={['ครบกำหนด', 'ยังไม่ครบกำหนด', 'เกินกำหนด']} selected={tableFilterOverdue} onChange={setTableFilterOverdue} placeholder="นัดหมายลูกค้า" /></div>}
                             <div className="ml-auto flex flex-wrap items-center gap-2 mt-2 md:mt-0 w-full sm:w-auto">
-                                {tasksSubTab === 'subcontract' && t_cidCol && (
-                                    <button 
-                                        onClick={() => setShowDuplicatesOnly(!showDuplicatesOnly)} 
-                                        className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs md:text-sm font-bold px-3 py-1.5 rounded-lg border h-[38px] transition-colors ${showDuplicatesOnly ? 'bg-amber-500 text-white border-amber-600 shadow-inner' : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'}`}
-                                    >
-                                        <i className="fa-solid fa-copy"></i> {showDuplicatesOnly ? 'แสดงทั้งหมด' : 'เช็ค CID ซ้ำ'}
-                                    </button>
-                                )}
+                                {tasksSubTab === 'subcontract' && t_cidCol && ( <button onClick={() => setShowDuplicatesOnly(!showDuplicatesOnly)} className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs md:text-sm font-bold px-3 py-1.5 rounded-lg border h-[38px] transition-colors ${showDuplicatesOnly ? 'bg-amber-500 text-white border-amber-600 shadow-inner' : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'}`}><i className="fa-solid fa-copy"></i> {showDuplicatesOnly ? 'แสดงทั้งหมด' : 'เช็ค CID ซ้ำ'}</button> )}
                                 <ColumnToggle columns={displayColumns} hiddenColumns={hiddenColumns} setHiddenColumns={setHiddenColumns} />
                                 <button onClick={resetFilters} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs md:text-sm font-bold text-red-600 bg-red-50 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg border h-[38px]">ล้างตัวกรอง</button>
                             </div>
@@ -1610,19 +1149,9 @@
                                   const isPinned = (pinnedColumns || []).includes(col);
                                   const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
                                   const colWidth = colWidths[col] || (isPinned ? 150 : undefined);
-
                                   let thStyle = { whiteSpace: 'nowrap' };
-                                  if (colWidth) {
-                                      thStyle.width = colWidth;
-                                      thStyle.minWidth = colWidth;
-                                      thStyle.maxWidth = colWidth;
-                                  }
-                                  if (isPinned) {
-                                      thStyle.position = 'sticky';
-                                      thStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
-                                      thStyle.zIndex = 50;
-                                  }
-
+                                  if (colWidth) { thStyle.width = colWidth; thStyle.minWidth = colWidth; thStyle.maxWidth = colWidth; }
+                                  if (isPinned) { thStyle.position = 'sticky'; thStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable); thStyle.zIndex = 50; }
                                   let thClass = `p-0 align-middle relative group transition-colors select-none sortable-header bg-slate-800 border-r border-slate-700 hover:bg-slate-700`;
                                   if (isLastPinned) thClass += ` shadow-[4px_0_6px_-1px_rgba(0,0,0,0.3)] border-r-slate-500`;
 
@@ -1631,9 +1160,7 @@
                                           <div className="flex items-center justify-between px-2 md:px-4 py-2 md:py-3 w-full h-full cursor-pointer" onClick={() => handleSort(col)}>
                                             <div className="flex items-center gap-2 overflow-hidden">
                                                 <div className="th-content text-xs md:text-sm font-semibold text-white">{col}</div>
-                                                <button onClick={(e) => { e.stopPropagation(); handlePinToggle(e, col); }} className={`hover:scale-110 transition-transform ${isPinned ? 'text-blue-400' : 'text-slate-500 hover:text-white'}`} title="ตรึงคอลัมน์">
-                                                    <i className="fa-solid fa-thumbtack text-[10px]"></i>
-                                                </button>
+                                                <button onClick={(e) => { e.stopPropagation(); handlePinToggle(e, col); }} className={`hover:scale-110 transition-transform ${isPinned ? 'text-blue-400' : 'text-slate-500 hover:text-white'}`} title="ตรึงคอลัมน์"><i className="fa-solid fa-thumbtack text-[10px]"></i></button>
                                             </div>
                                             <div className="ml-2 text-white opacity-70 shrink-0">{sortConfig.key === col ? (sortConfig.direction === 'asc' ? <i className="fa-solid fa-sort-up text-blue-400"></i> : <i className="fa-solid fa-sort-down text-blue-400"></i>) : <i className="fa-solid fa-sort opacity-30 text-[10px]"></i>}</div>
                                           </div>
@@ -1643,9 +1170,7 @@
                               }) : <th className="p-4 text-white sticky top-0 bg-slate-800 z-30">ตารางงาน</th>}
                               
                               <th className="bg-slate-800 border-l border-slate-700 p-0 align-middle sticky right-0 z-40 w-24 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.2)]">
-                                  <div className="px-2 py-2 text-center text-xs md:text-sm font-semibold text-white whitespace-nowrap">
-                                      <i className="fa-solid fa-gear text-slate-300"></i> จัดการ
-                                  </div>
+                                  <div className="px-2 py-2 text-center text-xs md:text-sm font-semibold text-white whitespace-nowrap"><i className="fa-solid fa-gear text-slate-300"></i> จัดการ</div>
                               </th>
                             </tr>
                           </thead>
@@ -1654,138 +1179,61 @@
                             : (currentTasksTable?.length || 0) === 0 ? <tr><td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-8 text-center text-slate-500">ฐานข้อมูลว่างเปล่า</td></tr>
                             : (finalTableTasks?.length || 0) === 0 ? <tr><td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-8 text-center text-slate-500">ไม่พบข้อมูล...</td></tr>
                             : (paginatedTasks || []).map((task) => (
-                              <tr key={task.id} className={`transition-colors hover:bg-slate-50`}>
+                              <tr key={task.id} className="transition-colors hover:bg-slate-50">
                                 {(orderedVisibleColumnsTable || []).map((col, idx) => {
                                     const hasFixedWidth = colWidths[col] !== undefined;
+                                    const isStatusCell = col === t_statusCol; const isTeamCell = col === t_teamCol; const isOverDueCell = col === t_overDueCol; 
+                                    const isCidCell = col === t_cidCol && t_cidCol !== ''; const isEquipYearCell = col === t_equipYearCol && t_equipYearCol !== ''; const isRegionResponCell = col === 'Region_Respon';
+                                    const isStatusChangeCell = col === statusChangeColMatch; const isContactJobCell = col === contactJobColMatch;
                                     
-                                    const isStatusCell = col === t_statusCol;
-                                    const isTeamCell = col === t_teamCol;
-                                    const isOverDueCell = col === t_overDueCol; 
-                                    const isCidCell = col === t_cidCol && t_cidCol !== '';
-                                    const isEquipYearCell = col === t_equipYearCol && t_equipYearCol !== '';
-                                    const isRegionResponCell = col === 'Region_Respon';
-                                    
-                                    const isStatusChangeCell = col === statusChangeColMatch;
-                                    const isContactJobCell = col === contactJobColMatch;
-                                    
-                                    const colStr = String(col).toLowerCase();
-                                    const isAddressCell = colStr.includes('address') || colStr.includes('ที่อยู่');
-
                                     const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
                                     
-                                    const val = task[col] || '';
-                                    const cleanVal = getCleanStatus(val);
-                                    const cellId = `${task.id}-${col}`;
-                                    const isEditing = editingCell === cellId;
-                                    
+                                    const val = task[col] || ''; const cleanVal = getCleanStatus(val); const cellId = `${task.id}-${col}`; const isEditing = editingCell === cellId;
                                     let styleObj = {};
                                     
-                                    if (isStatusCell) {
-                                        styleObj = { backgroundColor: getStatusColor(cleanVal, 0.1), color: getStatusColor(cleanVal, 1), fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isTeamCell) {
-                                        const tColor = getTeamColorStyle(val, masterData); styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isEquipYearCell && cleanVal) {
-                                        const yColor = getYearColorStyle(val); styleObj = { backgroundColor: yColor.bg, color: yColor.text, border: `1px solid ${yColor.border}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isCidCell && cleanVal) {
-                                        const currentTaskStatus = getCleanStatus(task[t_statusCol]);
-                                        const cBg = getStatusColor(currentTaskStatus, 0.15);
-                                        const cText = getStatusColor(currentTaskStatus, 1);
-                                        styleObj = { backgroundColor: cBg, color: cText, border: `1px solid ${getStatusColor(currentTaskStatus, 0.3)}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isOverDueCell && cleanVal) {
-                                        let num = NaN; const match = cleanVal.match(/-?\d+/); if(match) num = parseInt(match[0], 10);
-                                        if (cleanVal.includes('เกิน') || cleanVal.includes('over') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                        else if (num === 0 || cleanVal.includes('ครบกำหนด') || cleanVal === '0') styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' }; 
-                                        else if (num > 0 || cleanVal.includes('เหลือ')) styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isStatusChangeCell && cleanVal !== 'ไม่ระบุสถานะ' && cleanVal !== '') {
-                                        styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', borderRadius: '4px', border: '1px solid #fef08a', display: 'inline-block', padding: '2px 6px' };
-                                    }
+                                    if (isStatusCell) { styleObj = { backgroundColor: getStatusColor(cleanVal, 0.1), color: getStatusColor(cleanVal, 1), fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' }; } 
+                                    else if (isTeamCell) { const tColor = getTeamColorStyle(val, masterData); styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' }; } 
+                                    else if (isEquipYearCell && cleanVal) { const yColor = getYearColorStyle(val); styleObj = { backgroundColor: yColor.bg, color: yColor.text, border: `1px solid ${yColor.border}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' }; } 
+                                    else if (isCidCell && cleanVal) { const currentTaskStatus = getCleanStatus(task[t_statusCol]); const cBg = getStatusColor(currentTaskStatus, 0.15); const cText = getStatusColor(currentTaskStatus, 1); styleObj = { backgroundColor: cBg, color: cText, border: `1px solid ${getStatusColor(currentTaskStatus, 0.3)}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' }; } 
+                                    else if (isOverDueCell && cleanVal) { let num = NaN; const match = cleanVal.match(/-?\d+/); if(match) num = parseInt(match[0], 10); if (cleanVal.includes('เกิน') || cleanVal.includes('over') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' }; else if (num === 0 || cleanVal.includes('ครบกำหนด') || cleanVal === '0') styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' }; else if (num > 0 || cleanVal.includes('เหลือ')) styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' }; } 
+                                    else if (isStatusChangeCell && cleanVal !== 'ไม่ระบุสถานะ' && cleanVal !== '') { styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', borderRadius: '4px', border: '1px solid #fef08a', display: 'inline-block', padding: '2px 6px' }; }
 
-                                    const isPinned = (pinnedColumns || []).includes(col);
-                                    const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
-                                    const colWidth = colWidths[col] || (isPinned ? 150 : undefined);
-
+                                    const isPinned = (pinnedColumns || []).includes(col); const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1]; const colWidth = colWidths[col] || (isPinned ? 150 : undefined);
                                     let tdStyle = { verticalAlign: 'top' };
-                                    if (colWidth) {
-                                        tdStyle.width = colWidth;
-                                        tdStyle.minWidth = colWidth;
-                                        tdStyle.maxWidth = colWidth;
-                                    } else {
-                                        if (isStatusChangeCell || isContactJobCell || isAddressCell) {
-                                            tdStyle.minWidth = '150px';
-                                            tdStyle.maxWidth = '250px';
-                                        }
+                                    if (colWidth) { tdStyle.width = colWidth; tdStyle.minWidth = colWidth; tdStyle.maxWidth = colWidth; } 
+                                    else {
+                                        if (isStatusChangeCell) tdStyle.maxWidth = '250px';
+                                        if (isContactJobCell) tdStyle.minWidth = '200px';
                                     }
-
-                                    if (isPinned) {
-                                        tdStyle.position = 'sticky';
-                                        tdStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
-                                        tdStyle.zIndex = 20;
-                                    }
-
-                                    let tdWhiteSpace = 'nowrap';
-                                    let tdWordBreak = 'normal';
-                                    let tdOverflow = 'hidden';
-
-                                    if (isGroupedMultiLine) {
-                                        tdWhiteSpace = 'pre-wrap';
-                                        tdWordBreak = 'break-word';
-                                        tdOverflow = 'auto';
-                                    } else if ((isStatusChangeCell || isContactJobCell || isAddressCell) && !hasFixedWidth) {
-                                        tdWhiteSpace = 'pre-wrap';
-                                        tdWordBreak = 'break-word';
-                                        tdOverflow = 'visible';
-                                    }
+                                    if (isPinned) { tdStyle.position = 'sticky'; tdStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable); tdStyle.zIndex = 20; }
 
                                     const textAlignment = isGroupedMultiLine ? 'left' : (isTeamCell || isStatusCell || isEquipYearCell || isOverDueCell || isCidCell || isRegionResponCell ? 'center' : 'left');
 
                                     let tdClass = `p-1 md:p-1.5 align-middle border-r border-slate-100`;
-                                    if (isPinned) {
-                                        tdClass += ` sticky-col-cell`;
-                                        if (isLastPinned) tdClass += ` shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300`;
-                                    } else {
-                                        tdClass += ` bg-white`;
-                                    }
+                                    if (isPinned) { tdClass += ` sticky-col-cell`; if (isLastPinned) tdClass += ` shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300`; } else { tdClass += ` bg-white`; }
 
                                     let cellClasses = `px-2 md:px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`;
                                     if (isGroupedMultiLine) cellClasses += ' cell-scrollbar';
 
                                     if (isRegionResponCell) {
-                                        return (
-                                            <td key={idx} className={tdClass} style={tdStyle}>
-                                                <div className="px-2 md:px-3 py-1 text-center text-slate-600 font-semibold bg-slate-50 rounded" style={{ minHeight: '28px', lineHeight: '20px' }}>{val}</div>
-                                            </td>
-                                        );
+                                        return ( <td key={idx} className={tdClass} style={tdStyle}><div className="px-2 md:px-3 py-1 text-center text-slate-600 font-semibold bg-slate-50 rounded" style={{ minHeight: '28px', lineHeight: '20px' }}>{val}</div></td> );
                                     } else if (isStatusCell) {
                                         const statusOptions = tasksSubTab === 'ns' && masterData.nsStatuses && masterData.nsStatuses.length > 0 ? masterData.nsStatuses.map(s=>s.name) : tableUniqueStatuses;
                                         return (
                                             <td key={idx} className={tdClass} style={tdStyle}>
                                                 <div className="flex items-stretch w-full transition-colors mx-auto relative" style={styleObj}>
                                                     <div contentEditable={isEditing} suppressContentEditableWarning={true} className={`flex-1 px-2 md:px-3 py-1 outline-none text-center editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} style={{ minHeight: '28px', lineHeight: '20px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
-                                                    <div className="relative w-5 md:w-6 flex-shrink-0 flex items-center justify-center hover:bg-black/10 rounded-r-md cursor-pointer">
-                                                        <i className="fa-solid fa-chevron-down text-[10px]"></i>
-                                                        <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(task, col, e.target.value, currentColumnsTable); }}>
-                                                            <option value="" disabled></option>
-                                                            {(statusOptions || []).map(s => <option key={s} value={s}>{s}</option>)}
-                                                        </select>
-                                                    </div>
+                                                    <div className="relative w-5 md:w-6 flex-shrink-0 flex items-center justify-center hover:bg-black/10 rounded-r-md cursor-pointer"><i className="fa-solid fa-chevron-down text-[10px]"></i><select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(task, col, e.target.value, currentColumnsTable); }}><option value="" disabled></option>{(statusOptions || []).map(s => <option key={s} value={s}>{s}</option>)}</select></div>
                                                 </div>
                                             </td>
                                         );
                                     } else if (isTeamCell) {
-                                        const teamOptions = tasksSubTab === 'ns' 
-                                            ? (masterData.nsTeams && masterData.nsTeams.length > 0 ? masterData.nsTeams.map(s=>s.name) : tableUniqueTeams)
-                                            : (masterData.teams && masterData.teams.length > 0 ? masterData.teams : tableUniqueTeams);
+                                        const teamOptions = tasksSubTab === 'ns' ? (masterData.nsTeams && masterData.nsTeams.length > 0 ? masterData.nsTeams.map(s=>s.name) : tableUniqueTeams) : (masterData.teams && masterData.teams.length > 0 ? masterData.teams : tableUniqueTeams);
                                         return (
                                             <td key={idx} className={tdClass} style={tdStyle}>
                                                 <div className="flex items-stretch w-full transition-colors mx-auto relative" style={styleObj}>
                                                     <div contentEditable={isEditing} suppressContentEditableWarning={true} className={`flex-1 px-2 md:px-3 py-1 outline-none text-center editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} style={{ minHeight: '28px', lineHeight: '20px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
-                                                    <div className="relative w-5 md:w-6 flex-shrink-0 flex items-center justify-center hover:bg-black/10 rounded-r-md cursor-pointer">
-                                                        <i className="fa-solid fa-chevron-down text-[10px]"></i>
-                                                        <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(task, col, e.target.value, currentColumnsTable); }}>
-                                                            <option value="" disabled></option>
-                                                            {(teamOptions || []).map(s => <option key={s} value={s}>{s}</option>)}
-                                                        </select>
-                                                    </div>
+                                                    <div className="relative w-5 md:w-6 flex-shrink-0 flex items-center justify-center hover:bg-black/10 rounded-r-md cursor-pointer"><i className="fa-solid fa-chevron-down text-[10px]"></i><select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(task, col, e.target.value, currentColumnsTable); }}><option value="" disabled></option>{(teamOptions || []).map(s => <option key={s} value={s}>{s}</option>)}</select></div>
                                                 </div>
                                             </td>
                                         );
@@ -1794,20 +1242,14 @@
                                             <td key={idx} className={tdClass} style={tdStyle}>
                                                 <div className="flex items-stretch w-full transition-colors mx-auto relative" style={styleObj}>
                                                     <div contentEditable={isEditing} suppressContentEditableWarning={true} className={`flex-1 px-2 md:px-3 py-1 outline-none text-center editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} style={{ minHeight: '28px', lineHeight: '20px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
-                                                    <div className="relative w-5 md:w-6 flex-shrink-0 flex items-center justify-center hover:bg-black/10 rounded-r-md cursor-pointer">
-                                                        <i className="fa-solid fa-chevron-down text-[10px]"></i>
-                                                        <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(task, col, e.target.value, currentColumnsTable); }}>
-                                                            <option value="" disabled></option>
-                                                            {(tableUniqueYears || []).map(y => <option key={y} value={y}>{y}</option>)}
-                                                        </select>
-                                                    </div>
+                                                    <div className="relative w-5 md:w-6 flex-shrink-0 flex items-center justify-center hover:bg-black/10 rounded-r-md cursor-pointer"><i className="fa-solid fa-chevron-down text-[10px]"></i><select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(task, col, e.target.value, currentColumnsTable); }}><option value="" disabled></option>{(tableUniqueYears || []).map(y => <option key={y} value={y}>{y}</option>)}</select></div>
                                                 </div>
                                             </td>
                                         );
                                     } else {
                                         return (
                                             <td key={idx} className={tdClass} style={tdStyle}>
-                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={cellClasses} style={{ ...styleObj, minHeight: '28px', cursor: isEditing ? 'text' : 'pointer', whiteSpace: tdWhiteSpace, wordBreak: tdWordBreak, textAlign: textAlignment, lineHeight: isGroupedMultiLine ? '1.8' : '20px', overflow: tdOverflow, textOverflow: isGroupedMultiLine ? 'clip' : 'ellipsis', maxHeight: isGroupedMultiLine ? '120px' : 'none' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
+                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={cellClasses} style={{ ...styleObj, cursor: isEditing ? 'text' : 'pointer', textAlign: textAlignment, lineHeight: isGroupedMultiLine ? '1.8' : '20px', maxHeight: isGroupedMultiLine ? '120px' : 'none' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
                                             </td>
                                         );
                                     }
@@ -1815,16 +1257,8 @@
                                 
                                 <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-10 text-center shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)]">
                                     <div className="flex flex-col gap-1.5 h-full justify-center px-1">
-                                        {tasksSubTab === 'ns' && (
-                                            <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="w-full py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 rounded text-[10px] font-bold transition-all shadow-sm flex items-center justify-center gap-1" title="ส่ง CID นี้ไปหน้าจ่ายงาน">
-                                                <i className="fa-solid fa-bolt"></i> จ่ายงาน
-                                            </button>
-                                        )}
-                                        {tasksSubTab === 'subcontract' && (
-                                            <button onClick={() => handleDeleteTask(task)} className="w-full py-1.5 bg-red-50 border border-red-200 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 rounded text-[10px] font-bold transition-all shadow-sm flex items-center justify-center gap-1" title="ลบข้อมูลแถวนี้">
-                                                <i className="fa-solid fa-trash"></i> ลบ
-                                            </button>
-                                        )}
+                                        {tasksSubTab === 'ns' && ( <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="w-full py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 rounded text-[10px] font-bold transition-all shadow-sm flex items-center justify-center gap-1" title="ส่ง CID นี้ไปหน้าจ่ายงาน"><i className="fa-solid fa-bolt"></i> จ่ายงาน</button> )}
+                                        {tasksSubTab === 'subcontract' && ( <button onClick={() => handleDeleteTask(task)} className="w-full py-1.5 bg-red-50 border border-red-200 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 rounded text-[10px] font-bold transition-all shadow-sm flex items-center justify-center gap-1" title="ลบข้อมูลแถวนี้"><i className="fa-solid fa-trash"></i> ลบ</button> )}
                                     </div>
                                 </td>
                               </tr>
@@ -1836,29 +1270,9 @@
                       {/* Pagination UI */}
                       <div className="shrink-0 bg-slate-50 border-t border-slate-200 p-2 md:p-3 px-3 md:px-5 flex flex-col sm:flex-row items-center justify-between z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] gap-3">
                           <div className="text-xs md:text-sm font-semibold text-blue-700 flex items-center gap-2 bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm w-full sm:w-auto justify-center"><i className="fa-solid fa-list-check"></i>แสดงผลทั้งหมด {finalTableTasks?.length || 0} รายการ</div>
-                          
                           <div className="flex items-center justify-between w-full sm:w-auto gap-4">
-                              <div className="flex items-center gap-2">
-                                  <span className="text-xs text-slate-500">แสดงหน้าละ:</span>
-                                  <select 
-                                      value={rowsPerPage} 
-                                      onChange={(e) => { setRowsPerPage(e.target.value === 'All' ? 'All' : Number(e.target.value)); setCurrentPage(1); }}
-                                      className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 bg-white outline-none focus:border-blue-500 cursor-pointer shadow-sm"
-                                  >
-                                      <option value={20}>20</option>
-                                      <option value={50}>50</option>
-                                      <option value={100}>100</option>
-                                      <option value="All">ทั้งหมด</option>
-                                  </select>
-                              </div>
-                              
-                              {totalPages > 1 && (
-                                  <div className="flex items-center gap-2">
-                                      <span className="text-xs text-slate-500 hidden sm:block mr-2">หน้า {currentPage} จาก {totalPages}</span>
-                                      <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md text-xs font-semibold disabled:opacity-50 transition-colors"><i className="fa-solid fa-chevron-left sm:mr-1"></i><span className="hidden sm:inline"> ก่อนหน้า</span></button>
-                                      <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md text-xs font-semibold disabled:opacity-50 transition-colors"><span className="hidden sm:inline">ถัดไป </span><i className="fa-solid fa-chevron-right sm:ml-1"></i></button>
-                                  </div>
-                              )}
+                              <div className="flex items-center gap-2"><span className="text-xs text-slate-500">แสดงหน้าละ:</span><select value={rowsPerPage} onChange={(e) => { setRowsPerPage(e.target.value === 'All' ? 'All' : Number(e.target.value)); setCurrentPage(1); }} className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 bg-white outline-none focus:border-blue-500 cursor-pointer shadow-sm"><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option><option value="All">ทั้งหมด</option></select></div>
+                              {totalPages > 1 && ( <div className="flex items-center gap-2"><span className="text-xs text-slate-500 hidden sm:block mr-2">หน้า {currentPage} จาก {totalPages}</span><button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md text-xs font-semibold disabled:opacity-50 transition-colors"><i className="fa-solid fa-chevron-left sm:mr-1"></i><span className="hidden sm:inline"> ก่อนหน้า</span></button><button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md text-xs font-semibold disabled:opacity-50 transition-colors"><span className="hidden sm:inline">ถัดไป </span><i className="fa-solid fa-chevron-right sm:ml-1"></i></button></div> )}
                           </div>
                       </div>
                     </div>
@@ -1870,32 +1284,12 @@
                   <div className="absolute inset-0 flex flex-col p-2 md:p-4 lg:p-6 overflow-hidden bg-slate-50 min-h-0">
                     <header className="shrink-0 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-4">
                       <div className="flex items-center gap-3">
-                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 bg-white border border-slate-200 shadow-sm rounded-lg hover:bg-slate-50 text-slate-600 transition-colors hidden lg:block">
-                            <i className="fa-solid fa-bars"></i>
-                        </button>
-                        <div>
-                            <h2 className="text-xl md:text-3xl font-bold text-slate-900">ปฏิทิน (Calendar)</h2>
-                            <p className="text-xs md:text-sm text-slate-500 mt-1">ข้อมูลจะดึงมาจากตารางงานอัตโนมัติ ชี้ที่นัดหมายเพื่อดูรายละเอียด</p>
-                        </div>
+                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 bg-white border border-slate-200 shadow-sm rounded-lg hover:bg-slate-50 text-slate-600 transition-colors hidden lg:block"><i className="fa-solid fa-bars"></i></button>
+                        <div><h2 className="text-xl md:text-3xl font-bold text-slate-900">ปฏิทิน (Calendar)</h2><p className="text-xs md:text-sm text-slate-500 mt-1">ข้อมูลจะดึงมาจากตารางงานอัตโนมัติ ชี้ที่นัดหมายเพื่อดูรายละเอียด</p></div>
                       </div>
                       <div className="flex flex-col items-end gap-3 w-full md:w-auto">
-                        <div className="flex bg-slate-200 p-1 rounded-lg w-full sm:w-auto">
-                          <button onClick={() => setCalendarView('day')} className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md ${calendarView === 'day' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>รายวัน</button>
-                          <button onClick={() => setCalendarView('week')} className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md ${calendarView === 'week' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>สัปดาห์</button>
-                          <button onClick={() => setCalendarView('month')} className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md ${calendarView === 'month' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>เดือน</button>
-                        </div>
-                        <div className="flex items-center justify-between w-full md:w-auto gap-4">
-                          <h3 className="text-base md:text-xl font-bold text-blue-700 min-w-[140px] md:min-w-[180px] text-left md:text-right">
-                            {calendarView === 'month' && `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
-                            {calendarView === 'week' && `สัปดาห์ที่ ${currentDate.getDate()} ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
-                            {calendarView === 'day' && `${currentDate.getDate()} ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
-                          </h3>
-                          <div className="flex gap-1 shrink-0">
-                            <button onClick={() => navigateCalendar(-1)} className="p-1.5 md:p-2 bg-white border rounded-lg hover:bg-slate-50"><i className="fa-solid fa-chevron-left text-xs md:text-base"></i></button>
-                            <button onClick={() => setCurrentDate(new Date())} className="px-2 md:px-3 bg-white border rounded-lg hover:bg-slate-50 text-xs md:text-sm font-bold">วันนี้</button>
-                            <button onClick={() => navigateCalendar(1)} className="p-1.5 md:p-2 bg-white border rounded-lg hover:bg-slate-50"><i className="fa-solid fa-chevron-right text-xs md:text-base"></i></button>
-                          </div>
-                        </div>
+                        <div className="flex bg-slate-200 p-1 rounded-lg w-full sm:w-auto"><button onClick={() => setCalendarView('day')} className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md ${calendarView === 'day' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>รายวัน</button><button onClick={() => setCalendarView('week')} className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md ${calendarView === 'week' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>สัปดาห์</button><button onClick={() => setCalendarView('month')} className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md ${calendarView === 'month' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>เดือน</button></div>
+                        <div className="flex items-center justify-between w-full md:w-auto gap-4"><h3 className="text-base md:text-xl font-bold text-blue-700 min-w-[140px] md:min-w-[180px] text-left md:text-right">{calendarView === 'month' && `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}{calendarView === 'week' && `สัปดาห์ที่ ${currentDate.getDate()} ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}{calendarView === 'day' && `${currentDate.getDate()} ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}</h3><div className="flex gap-1 shrink-0"><button onClick={() => navigateCalendar(-1)} className="p-1.5 md:p-2 bg-white border rounded-lg hover:bg-slate-50"><i className="fa-solid fa-chevron-left text-xs md:text-base"></i></button><button onClick={() => setCurrentDate(new Date())} className="px-2 md:px-3 bg-white border rounded-lg hover:bg-slate-50 text-xs md:text-sm font-bold">วันนี้</button><button onClick={() => navigateCalendar(1)} className="p-1.5 md:p-2 bg-white border rounded-lg hover:bg-slate-50"><i className="fa-solid fa-chevron-right text-xs md:text-base"></i></button></div></div>
                       </div>
                     </header>
 
@@ -1903,12 +1297,7 @@
                       {calendarView === 'month' && (
                         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col min-h-0 overflow-hidden">
                           <div className="grid grid-cols-7 border-l border-t border-slate-200 shrink-0 bg-slate-50 z-10">
-                            {['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map((d, i) => (
-                              <div key={d} className="py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-slate-600 border-r border-b border-slate-200">
-                                  <span className="md:hidden">{d}</span>
-                                  <span className="hidden md:inline">{['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'][i]}</span>
-                              </div>
-                            ))}
+                            {['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map((d, i) => ( <div key={d} className="py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-slate-600 border-r border-b border-slate-200"><span className="md:hidden">{d}</span><span className="hidden md:inline">{['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'][i]}</span></div> ))}
                           </div>
                           <div className="flex-1 overflow-y-auto custom-scrollbar">
                               <div className="grid grid-cols-7 border-l border-slate-200 h-full min-h-[500px] auto-rows-fr">
@@ -1918,40 +1307,16 @@
                                     <div key={idx} className="bg-white p-1 md:p-2 flex flex-col border-r border-b border-slate-200 group hover:bg-slate-50/50 transition-colors h-full overflow-hidden min-h-[100px]">
                                       {dateObj && (
                                         <>
-                                          <div className="text-right mb-0.5 md:mb-1 shrink-0">
-                                            <span 
-                                              onClick={() => { setCalendarView('day'); setCurrentDate(dateObj); }}
-                                              title="คลิกเพื่อดูรายละเอียดรายวัน"
-                                              className={`inline-block w-6 h-6 md:w-7 md:h-7 leading-6 md:leading-7 text-center rounded-full text-xs md:text-sm font-semibold cursor-pointer hover:scale-110 ${dateObj.getDate() === new Date().getDate() && dateObj.getMonth() === new Date().getMonth() ? 'bg-blue-600 text-white shadow-md' : 'text-slate-700 bg-slate-100 group-hover:bg-blue-100 group-hover:text-blue-700 transition-all'}`}
-                                            >
-                                              {dateObj.getDate()}
-                                            </span>
-                                          </div>
+                                          <div className="text-right mb-0.5 md:mb-1 shrink-0"><span onClick={() => { setCalendarView('day'); setCurrentDate(dateObj); }} title="คลิกเพื่อดูรายละเอียดรายวัน" className={`inline-block w-6 h-6 md:w-7 md:h-7 leading-6 md:leading-7 text-center rounded-full text-xs md:text-sm font-semibold cursor-pointer hover:scale-110 ${dateObj.getDate() === new Date().getDate() && dateObj.getMonth() === new Date().getMonth() ? 'bg-blue-600 text-white shadow-md' : 'text-slate-700 bg-slate-100 group-hover:bg-blue-100 group-hover:text-blue-700 transition-all'}`}>{dateObj.getDate()}</span></div>
                                           <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-1 md:space-y-1.5 min-h-0">
                                             {(dayTasks || []).map(t => {
-                                                const border = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 1);
-                                                const softBg = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 0.1);
-                                                const colDate = t._calDateCol ? t[t._calDateCol] : '-';
-                                                const colTime = t._calTimeCol ? t[t._calTimeCol] : '-';
-                                                
+                                                const border = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 1); const softBg = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 0.1); const colDate = t._calDateCol ? t[t._calDateCol] : '-'; const colTime = t._calTimeCol ? t[t._calTimeCol] : '-';
                                                 return (
                                                   <div key={t.id} style={{borderLeftColor: border}} className="p-1.5 md:p-2 rounded-lg md:rounded-xl border border-l-2 md:border-l-4 shadow-sm bg-white text-[9px] md:text-xs space-y-1 cursor-pointer hover:shadow-md transition-shadow" onMouseMove={(e) => handleMouseMove(e, t)} onMouseLeave={handleMouseLeave} onClick={() => { if(window.innerWidth <= 1024) { setCalendarView('day'); setCurrentDate(dateObj); } }}>
-                                                    {/* ทีม */}
                                                     <div className="text-slate-500 font-semibold truncate mb-0.5 text-[8px] md:text-[10px]">ทีม: {t._calTeamCol ? t[t._calTeamCol] : '-'}</div>
-                                                    
-                                                    {/* บริษัทลูกค้า */}
                                                     <div className="font-bold text-slate-800 leading-tight line-clamp-2" title={t._calCompCol ? t[t._calCompCol] : 'ไม่ระบุชื่อ'}>{t._calCompCol ? t[t._calCompCol] : 'ไม่ระบุชื่อ'}</div>
-                                                    
-                                                    {/* วันที่และเวลา */}
-                                                    <div className="flex items-center gap-1 text-slate-600 font-medium text-[8px] md:text-[10px] mt-0.5 flex-wrap">
-                                                        <i className="fa-regular fa-calendar-check"></i> {colDate} 
-                                                        {colTime !== '-' && <><i className="fa-regular fa-clock ml-0.5"></i> {colTime}</>}
-                                                    </div>
-                                                    
-                                                    {/* Status */}
-                                                    <div className="mt-1 text-center font-bold px-1 py-0.5 rounded border text-[8px] md:text-[10px] truncate" style={{backgroundColor: softBg, color: border, borderColor: border}}>
-                                                        {t._calStatusCol ? t[t._calStatusCol] : 'ไม่มีสถานะ'}
-                                                    </div>
+                                                    <div className="flex items-center gap-1 text-slate-600 font-medium text-[8px] md:text-[10px] mt-0.5 flex-wrap"><i className="fa-regular fa-calendar-check"></i> {colDate} {colTime !== '-' && <><i className="fa-regular fa-clock ml-0.5"></i> {colTime}</>}</div>
+                                                    <div className="mt-1 text-center font-bold px-1 py-0.5 rounded border text-[8px] md:text-[10px] truncate" style={{backgroundColor: softBg, color: border, borderColor: border}}>{t._calStatusCol ? t[t._calStatusCol] : 'ไม่มีสถานะ'}</div>
                                                   </div>
                                                 );
                                             })}
@@ -1971,17 +1336,8 @@
                           <div className="grid grid-cols-7 border-l border-t border-slate-200 shrink-0 bg-slate-50 z-10">
                             {(weekSlots || []).map((dateObj, idx) => (
                               <div key={idx} className="py-2 md:py-3 text-center border-r border-b border-slate-200">
-                                <div className="text-[10px] md:text-sm font-semibold text-slate-500">
-                                    <span className="md:hidden">{['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'][dateObj.getDay()]}</span>
-                                    <span className="hidden md:inline">{['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'][dateObj.getDay()]}</span>
-                                </div>
-                                <div 
-                                  onClick={() => { setCalendarView('day'); setCurrentDate(dateObj); }}
-                                  title="คลิกเพื่อดูรายละเอียดรายวัน"
-                                  className={`text-base md:text-2xl font-bold mt-1 cursor-pointer transition-colors inline-block px-2 md:px-3 py-0.5 md:py-1 rounded-lg hover:bg-blue-100 hover:text-blue-700 ${dateObj.getDate() === new Date().getDate() && dateObj.getMonth() === new Date().getMonth() ? 'text-blue-600' : 'text-slate-800'}`}
-                                >
-                                  {dateObj.getDate()}
-                                </div>
+                                <div className="text-[10px] md:text-sm font-semibold text-slate-500"><span className="md:hidden">{['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'][dateObj.getDay()]}</span><span className="hidden md:inline">{['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'][dateObj.getDay()]}</span></div>
+                                <div onClick={() => { setCalendarView('day'); setCurrentDate(dateObj); }} title="คลิกเพื่อดูรายละเอียดรายวัน" className={`text-base md:text-2xl font-bold mt-1 cursor-pointer transition-colors inline-block px-2 md:px-3 py-0.5 md:py-1 rounded-lg hover:bg-blue-100 hover:text-blue-700 ${dateObj.getDate() === new Date().getDate() && dateObj.getMonth() === new Date().getMonth() ? 'text-blue-600' : 'text-slate-800'}`}>{dateObj.getDate()}</div>
                               </div>
                             ))}
                           </div>
@@ -1993,26 +1349,12 @@
                                     <div key={`w-${idx}`} className="bg-white p-1 md:p-2 flex flex-col gap-1.5 md:gap-2 bg-slate-50/30 border-r border-b border-slate-200 h-full overflow-hidden min-h-0">
                                         <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-1.5 min-h-0">
                                             {(dayTasks || []).map(t => {
-                                                const border = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 1);
-                                                const softBg = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 0.1);
-                                                
-                                                const colDate = t._calDateCol ? t[t._calDateCol] : '-';
-                                                const colTime = t._calTimeCol ? t[t._calTimeCol] : '-';
-
+                                                const border = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 1); const softBg = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 0.1); const colDate = t._calDateCol ? t[t._calDateCol] : '-'; const colTime = t._calTimeCol ? t[t._calTimeCol] : '-';
                                                 return (
                                                   <div key={t.id} style={{borderLeftColor: border}} className="p-1.5 md:p-3 rounded-lg md:rounded-xl border border-l-2 md:border-l-4 shadow-sm bg-white text-[10px] md:text-xs space-y-1 md:space-y-1.5 cursor-pointer hover:shadow-md transition-shadow" onMouseMove={(e) => handleMouseMove(e, t)} onMouseLeave={handleMouseLeave} onClick={() => { if(window.innerWidth <= 1024) { setCalendarView('day'); setCurrentDate(dateObj); } }}>
-                                                    {/* 1. ทีมงาน */}
                                                     <div className="text-slate-500 font-semibold truncate mb-0.5">ทีม: {t._calTeamCol ? t[t._calTeamCol] : '-'}</div>
-                                                    
-                                                    {/* 2. ชื่อบริษัทลูกค้า */}
                                                     <div className="font-bold text-slate-800 break-words leading-tight line-clamp-2">{t._calCompCol ? t[t._calCompCol] : 'ไม่ระบุชื่อ'}</div>
-                                                    
-                                                    {/* 3. วันและเวลาที่เข้าเก็บ */}
-                                                    <div className="flex items-center gap-1 text-slate-600 font-medium px-1 py-0.5 rounded text-[8px] md:text-[10px] w-fit mt-1">
-                                                        <i className="fa-regular fa-calendar-check"></i> {colDate} <i className="fa-regular fa-clock ml-0.5"></i> {colTime}
-                                                    </div>
-                                                    
-                                                    {/* 4. Status */}
+                                                    <div className="flex items-center gap-1 text-slate-600 font-medium px-1 py-0.5 rounded text-[8px] md:text-[10px] w-fit mt-1"><i className="fa-regular fa-calendar-check"></i> {colDate} <i className="fa-regular fa-clock ml-0.5"></i> {colTime}</div>
                                                     <div className="mt-1.5 text-center font-bold px-1 md:px-2 py-0.5 md:py-1 rounded-md md:rounded-lg border text-[8px] md:text-[10px]" style={{backgroundColor: softBg, color: border, borderColor: border}}>{t._calStatusCol ? t[t._calStatusCol] : 'ไม่มีสถานะ'}</div>
                                                   </div>
                                                 )
@@ -2036,24 +1378,14 @@
                             </h4>
                             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
                                 {(dayTasks || []).length === 0 ? (
-                                  <div className="text-center text-slate-400 py-12 md:py-20 flex flex-col items-center">
-                                      <i className="fa-regular fa-calendar-xmark text-4xl md:text-6xl mb-3 md:mb-4 text-slate-200"></i>
-                                      <p className="text-sm md:text-lg font-medium">ไม่มีงานที่ต้องดำเนินการในวันนี้</p>
-                                  </div>
+                                  <div className="text-center text-slate-400 py-12 md:py-20 flex flex-col items-center"><i className="fa-regular fa-calendar-xmark text-4xl md:text-6xl mb-3 md:mb-4 text-slate-200"></i><p className="text-sm md:text-lg font-medium">ไม่มีงานที่ต้องดำเนินการในวันนี้</p></div>
                                 ) : (
                                   <div className="space-y-3 md:space-y-4">
                                     {(dayTasks || []).map(t => {
-                                        const bgColor = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 1);
-                                        const softBg = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 0.1);
-                                        
-                                        const cidVal = t._calCidCol ? t[t._calCidCol] : '';
-                                        const companyVal = t._calCompCol ? t[t._calCompCol] : '-';
-                                        
-                                        const contactVal = (t._calContactCol && t[t._calContactCol]) ? t[t._calContactCol] : 'ไม่ระบุ';
-                                        const phoneVal = (t._calPhoneCol && t[t._calPhoneCol]) ? t[t._calPhoneCol] : '';
-                                        
-                                        const collectionDateVal = t._calDateCol ? t[t._calDateCol] : '-';
-                                        const collectionTimeVal = t._calTimeCol ? t[t._calTimeCol] : '-';
+                                        const bgColor = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 1); const softBg = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 0.1);
+                                        const cidVal = t._calCidCol ? t[t._calCidCol] : ''; const companyVal = t._calCompCol ? t[t._calCompCol] : '-';
+                                        const contactVal = (t._calContactCol && t[t._calContactCol]) ? t[t._calContactCol] : 'ไม่ระบุ'; const phoneVal = (t._calPhoneCol && t[t._calPhoneCol]) ? t[t._calPhoneCol] : '';
+                                        const collectionDateVal = t._calDateCol ? t[t._calDateCol] : '-'; const collectionTimeVal = t._calTimeCol ? t[t._calTimeCol] : '-';
                                         
                                         return (
                                           <div key={t.id} className="flex bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer relative" onMouseMove={(e) => handleMouseMove(e, t)} onMouseLeave={handleMouseLeave}>
@@ -2061,70 +1393,38 @@
                                             
                                             <div className="p-3 md:p-4 flex-1 flex flex-col text-xs md:text-sm min-w-0">
                                                 <div className="flex flex-col lg:flex-row gap-3 md:gap-4 lg:items-center w-full min-w-0">
-                                                    
-                                                    {/* กลุ่มข้อมูลด้านซ้าย */}
                                                     <div className="flex-1 flex flex-col lg:flex-row gap-3 lg:gap-4 lg:items-center min-w-0">
-                                                        
-                                                        {/* 1. ทีมงาน */}
                                                         <div className="flex flex-col justify-center items-start shrink-0 lg:pr-4 lg:border-r border-slate-200">
                                                             <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">ทีมงาน</p>
-                                                            <div className="px-2 py-1 md:py-1.5 rounded-md text-sm md:text-base font-bold border w-24 md:w-32 text-center truncate shadow-sm" style={{ backgroundColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').bg, color: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').text, borderColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').border }} title={t._calTeamCol ? t[t._calTeamCol] : 'ไม่ระบุทีม'}>
-                                                                {t._calTeamCol ? t[t._calTeamCol] : 'ไม่ระบุทีม'}
-                                                            </div>
+                                                            <div className="px-2 py-1 md:py-1.5 rounded-md text-sm md:text-base font-bold border w-24 md:w-32 text-center truncate shadow-sm" style={{ backgroundColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').bg, color: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').text, borderColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').border }} title={t._calTeamCol ? t[t._calTeamCol] : 'ไม่ระบุทีม'}>{t._calTeamCol ? t[t._calTeamCol] : 'ไม่ระบุทีม'}</div>
                                                         </div>
-
-                                                        {/* 2. บริษัทลูกค้า + CID */}
                                                         <div className="flex-1 flex flex-col justify-center overflow-hidden min-w-0 lg:pr-2">
                                                             <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider">CID / บริษัทลูกค้า</p>
-                                                            <p className="font-bold text-slate-800 text-sm md:text-base leading-tight truncate mt-0.5" title={`${cidVal ? '['+cidVal+'] ' : ''}${companyVal}`}>
-                                                                {cidVal && <span className="text-blue-600 mr-1">[{cidVal}]</span>}
-                                                                <span>{companyVal}</span>
-                                                            </p>
+                                                            <p className="font-bold text-slate-800 text-sm md:text-base leading-tight truncate mt-0.5" title={`${cidVal ? '['+cidVal+'] ' : ''}${companyVal}`}>{cidVal && <span className="text-blue-600 mr-1">[{cidVal}]</span>}<span>{companyVal}</span></p>
                                                         </div>
-
-                                                        {/* 3 & 4. ผู้ประสานงาน และ เข้าเก็บ */}
                                                         <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 shrink-0 lg:pl-2">
-                                                            {/* 3. ผู้ประสานงาน */}
                                                             <div className="flex flex-col justify-center sm:w-40 lg:w-56">
                                                                 <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider">ผู้ประสานงาน / เบอร์โทร</p>
                                                                 <p className="text-slate-700 break-words font-medium mt-0.5">{contactVal}</p>
                                                                 {phoneVal && contactVal !== phoneVal && <p className="text-slate-500 text-xs mt-0.5 break-words"><i className="fa-solid fa-phone text-[10px]"></i> {phoneVal}</p>}
                                                             </div>
-
-                                                            {/* 4. วันและเวลาที่เข้าเก็บ */}
                                                             <div className="flex flex-col justify-center shrink-0">
                                                                 <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider">เข้าเก็บ (วัน-เวลา)</p>
-                                                                <div className="flex items-center gap-2 mt-0.5 text-sm md:text-base font-bold text-slate-700">
-                                                                    <p>{collectionDateVal}</p>
-                                                                    {collectionTimeVal !== '-' && (
-                                                                        <p><i className="fa-regular fa-clock mr-1 text-slate-500 text-sm"></i>{collectionTimeVal}</p>
-                                                                    )}
-                                                                </div>
+                                                                <div className="flex items-center gap-2 mt-0.5 text-sm md:text-base font-bold text-slate-700"><p>{collectionDateVal}</p>{collectionTimeVal !== '-' && (<p><i className="fa-regular fa-clock mr-1 text-slate-500 text-sm"></i>{collectionTimeVal}</p>)}</div>
                                                             </div>
                                                         </div>
-                                                        
                                                     </div>
 
-                                                    {/* 5. Status (อัปเดตจากปฏิทินได้) */}
                                                     <div className="flex justify-start lg:justify-end mt-2 lg:mt-0 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 pt-3 lg:pt-0 lg:pl-4 relative">
                                                         <div style={{backgroundColor: softBg, color: bgColor, borderColor: bgColor}} className="font-bold px-4 md:px-6 py-1.5 md:py-2 rounded-lg md:rounded-xl border-2 text-center min-w-[120px] md:min-w-[140px] shadow-sm relative flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity">
                                                             <span className="flex-1 text-center">{t._calStatusCol ? t[t._calStatusCol] : 'ไม่มีสถานะ'}</span>
                                                             <i className="fa-solid fa-chevron-down text-[10px] ml-2"></i>
-                                                            <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(t, t._calStatusCol, e.target.value, currentColumnsTable); }}>
-                                                                <option value="" disabled></option>
-                                                                {(masterData.nsStatuses && masterData.nsStatuses.length > 0 ? masterData.nsStatuses.map(s=>s.name) : tableUniqueStatuses || []).map(s => <option key={s} value={s}>{s}</option>)}
-                                                            </select>
+                                                            <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(t, t._calStatusCol, e.target.value, currentColumnsTable); }}><option value="" disabled></option>{(masterData.nsStatuses && masterData.nsStatuses.length > 0 ? masterData.nsStatuses.map(s=>s.name) : tableUniqueStatuses || []).map(s => <option key={s} value={s}>{s}</option>)}</select>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                {/* 6. หมายเหตุเพิ่มเติม */}
-                                                {t._calNoteCol && t[t._calNoteCol] && (
-                                                    <div className="mt-3 pt-3 border-t border-slate-100 w-full">
-                                                        <p className="text-[10px] md:text-xs text-amber-600 font-semibold uppercase tracking-wider">หมายเหตุเพิ่มเติม</p>
-                                                        <p className="text-slate-600 text-xs mt-0.5 break-words">{t[t._calNoteCol]}</p>
-                                                    </div>
-                                                )}
+                                                {t._calNoteCol && t[t._calNoteCol] && ( <div className="mt-3 pt-3 border-t border-slate-100 w-full"><p className="text-[10px] md:text-xs text-amber-600 font-semibold uppercase tracking-wider">หมายเหตุเพิ่มเติม</p><p className="text-slate-600 text-xs mt-0.5 break-words">{t[t._calNoteCol]}</p></div> )}
                                             </div>
                                           </div>
                                         )
@@ -2150,17 +1450,9 @@
               {/* Tooltip Component */}
               {tooltipData.visible && tooltipData.task && (
                 <div className="fixed z-[9999] bg-white p-4 md:p-5 rounded-xl shadow-2xl border border-slate-200 w-[280px] md:w-80 pointer-events-none transition-opacity duration-150" style={{ left: tooltipData.x, top: tooltipData.y }}>
-                    <div className="flex justify-between items-start mb-3 border-b pb-2">
-                        <h4 className="font-bold text-slate-800 text-sm break-words pr-2">
-                            {tooltipData.task._calCompCol ? tooltipData.task[tooltipData.task._calCompCol] : tooltipData.task[t_getCol(['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'])] || 'ไม่ระบุองค์กร'}
-                        </h4>
-                    </div>
+                    <div className="flex justify-between items-start mb-3 border-b pb-2"><h4 className="font-bold text-slate-800 text-sm break-words pr-2">{tooltipData.task._calCompCol ? tooltipData.task[tooltipData.task._calCompCol] : tooltipData.task[t_getCol(['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'])] || 'ไม่ระบุองค์กร'}</h4></div>
                     <div className="space-y-2 text-[11px] md:text-xs text-slate-600 max-h-[250px] overflow-y-auto pr-1 table-container">
-                        {(currentColumnsTable || []).map(col => {
-                            if (skipColsInTooltip.includes(col)) return null;
-                            const val = tooltipData.task[col]; if (!val || String(val).trim() === '') return null;
-                            return (<div key={col} className="flex flex-col"><span className="font-semibold text-[9px] text-slate-400 uppercase">{col}</span><span className="text-slate-800 font-medium">{val}</span></div>)
-                        })}
+                        {(currentColumnsTable || []).map(col => { if (skipColsInTooltip.includes(col)) return null; const val = tooltipData.task[col]; if (!val || String(val).trim() === '') return null; return (<div key={col} className="flex flex-col"><span className="font-semibold text-[9px] text-slate-400 uppercase">{col}</span><span className="text-slate-800 font-medium">{val}</span></div>) })}
                     </div>
                 </div>
               )}
@@ -2169,31 +1461,16 @@
               {showHistoryModal && (
                   <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 p-4 animate-fade-in">
                       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
-                          <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
-                              <h2 className="text-lg font-bold text-slate-800"><i className="fa-solid fa-clock-rotate-left text-indigo-600 mr-2"></i> ประวัติการแก้ไขข้อมูล (ล่าสุด 50 รายการ)</h2>
-                              <button onClick={() => setShowHistoryModal(false)} className="w-8 h-8 flex justify-center items-center rounded-full bg-white hover:bg-slate-200 text-slate-500 shadow-sm border transition-colors"><i className="fa-solid fa-xmark"></i></button>
-                          </div>
+                          <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0"><h2 className="text-lg font-bold text-slate-800"><i className="fa-solid fa-clock-rotate-left text-indigo-600 mr-2"></i> ประวัติการแก้ไขข้อมูล (ล่าสุด 50 รายการ)</h2><button onClick={() => setShowHistoryModal(false)} className="w-8 h-8 flex justify-center items-center rounded-full bg-white hover:bg-slate-200 text-slate-500 shadow-sm border transition-colors"><i className="fa-solid fa-xmark"></i></button></div>
                           <div className="flex-1 overflow-y-auto p-4 bg-slate-100/50">
-                              {(historyLogs || []).length === 0 ? (
-                                  <div className="text-center py-10 text-slate-400"><i className="fa-regular fa-folder-open text-4xl mb-3"></i><p>ยังไม่มีประวัติการแก้ไขข้อมูล</p></div>
-                              ) : (
+                              {(historyLogs || []).length === 0 ? ( <div className="text-center py-10 text-slate-400"><i className="fa-regular fa-folder-open text-4xl mb-3"></i><p>ยังไม่มีประวัติการแก้ไขข้อมูล</p></div> ) : (
                                   <div className="space-y-3">
                                       {(historyLogs || []).map(log => {
                                           const dateStr = log.updatedAt ? new Date(log.updatedAt.toDate()).toLocaleString('th-TH') : 'กำลังบันทึก...';
                                           return (
                                               <div key={log.id} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center gap-3">
-                                                  <div className="w-full md:w-1/4 shrink-0 border-r border-slate-100">
-                                                      <p className="text-[10px] text-slate-400 font-bold uppercase"><i className="fa-regular fa-clock"></i> {dateStr}</p>
-                                                      <p className="text-xs font-bold text-slate-700 mt-1 line-clamp-1">{log.company}</p>
-                                                  </div>
-                                                  <div className="flex-1 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-sm">
-                                                      <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-semibold shrink-0">คอลัมน์: {log.field}</span>
-                                                      <div className="flex items-center gap-2 w-full">
-                                                          <span className="line-through text-red-500 bg-red-50 px-2 py-0.5 rounded truncate max-w-[150px]" title={log.oldValue}>{log.oldValue || '-ว่าง-'}</span>
-                                                          <i className="fa-solid fa-arrow-right-long text-slate-300 shrink-0"></i>
-                                                          <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded truncate flex-1" title={log.newValue}>{log.newValue || '-ว่าง-'}</span>
-                                                      </div>
-                                                  </div>
+                                                  <div className="w-full md:w-1/4 shrink-0 border-r border-slate-100"><p className="text-[10px] text-slate-400 font-bold uppercase"><i className="fa-regular fa-clock"></i> {dateStr}</p><p className="text-xs font-bold text-slate-700 mt-1 line-clamp-1">{log.company}</p></div>
+                                                  <div className="flex-1 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-sm"><span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-semibold shrink-0">คอลัมน์: {log.field}</span><div className="flex items-center gap-2 w-full"><span className="line-through text-red-500 bg-red-50 px-2 py-0.5 rounded truncate max-w-[150px]" title={log.oldValue}>{log.oldValue || '-ว่าง-'}</span><i className="fa-solid fa-arrow-right-long text-slate-300 shrink-0"></i><span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded truncate flex-1" title={log.newValue}>{log.newValue || '-ว่าง-'}</span></div></div>
                                               </div>
                                           )
                                       })}
@@ -2209,11 +1486,7 @@
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(
-            <ErrorBoundary>
-                <App />
-            </ErrorBoundary>
-        );
+        root.render(<ErrorBoundary><App /></ErrorBoundary>);
     </script>
 </body>
 </html>
