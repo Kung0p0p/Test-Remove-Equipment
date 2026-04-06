@@ -4,38 +4,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Equipment Collection Dashboard</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+
+    <!-- Chart.js และ DataLabels -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
     <style>
         body { font-family: 'Prompt', sans-serif; background-color: #f8fafc; margin: 0; padding: 0; overflow: hidden; }
         #root { height: 100%; }
         .table-container::-webkit-scrollbar { height: 8px; width: 8px; }
         .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
         .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .table-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .cell-scrollbar::-webkit-scrollbar { width: 4px; }
         .cell-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .editable-cell { width: 100%; background: transparent; border: 1px solid transparent; padding: 4px 8px; border-radius: 4px; outline: none; transition: all 0.2s; display: block; cursor: pointer; min-height: 28px; }
+
+        .editable-cell {
+            width: 100%; background: transparent; border: 1px solid transparent; padding: 4px 8px;
+            border-radius: 4px; outline: none; transition: all 0.2s; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; display: block; cursor: pointer;
+        }
         .editable-cell:hover { border-color: #e2e8f0; background: #f8fafc; }
         .editable-cell.editing { border-color: #3b82f6; background: #ffffff; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); cursor: text; }
+        
         .th-content { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 16px; }
         .sortable-header { cursor: pointer; transition: background 0.2s; position: relative; }
         .sortable-header:hover { background-color: #334155 !important; }
+
         .line-preview { background-color: #84A98C; background-image: url('https://www.transparenttextures.com/patterns/cubes.png'); }
         .line-bubble { background-color: #ffffff; border-radius: 18px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
         .line-bubble::after { content: ''; position: absolute; left: -8px; top: 12px; border-style: solid; border-width: 6px 10px 6px 0; border-color: transparent #ffffff transparent transparent; }
+
         .sticky-col-header { position: sticky; z-index: 50; outline: 1px solid #334155; }
         .sticky-col-cell { position: sticky; z-index: 20; background-color: #ffffff; outline: 1px solid #e2e8f0; }
         tr:hover .sticky-col-cell { background-color: #f8fafc; }
+        
         @keyframes slideInDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .animate-slide-in-down { animation: slideInDown 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -44,9 +65,15 @@
 </head>
 <body>
     <div id="root"></div>
+
     <script type="text/babel">
-        const APP_VERSION = "4.2.0";
+        // ==========================================
+        // APP VERSION: v5.0.0 (Zero-Quota + Assign Fix + UI Fix)
+        // ==========================================
+        const APP_VERSION = "5.0.0";
+
         if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
+
         const { useState, useEffect, useRef, useMemo, useTransition } = React;
 
         class ErrorBoundary extends React.Component {
@@ -66,7 +93,7 @@
         }
 
         const firebaseConfig = {
-            apiKey: "YOUR_FIREBASE_API_KEY",
+            apiKey: "AIzaSyAvJPbPWiK632FpuOSlTT6tiEjsk3Rjh7Y",
             authDomain: "test-remove-equipment.firebaseapp.com",
             projectId: "test-remove-equipment",
             storageBucket: "test-remove-equipment.firebasestorage.app",
@@ -75,15 +102,15 @@
             measurementId: "G-VB3VDMQ9D1"
         };
         
+        // 🔴 ใส่ลิงก์ New Deployment จาก GAS ตรงนี้
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwIf_5Ps8MMNLHPXFdCK4ZjgKx232EguXInCDLyiJFx_GN88X4PObxsiWetG4GhURnZ/exec"; 
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+
         const historyRef = db.collection('task_history');
         const masterDataRef = db.collection('master_data').doc('zones_teams');
-        const syncRef = db.collection('system').doc('sync'); 
-        const collectionRef = db.collection('tasks');
-        const nsCollectionRef = db.collection('ns_tasks'); 
+        const syncRef = db.collection('system').doc('sync'); // กระดิ่ง Firebase
 
         const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
         const defaultMasterData = { zones: [], teams: [] };
@@ -131,14 +158,16 @@
         const getCleanTeam = (raw) => (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : 'ไม่ระบุทีม';
 
         function isValidTaskHelper(taskObj) {
-            if (!taskObj) return false; let hasRealData = false;
+            if (!taskObj) return false;
+            let hasRealData = false;
             Object.keys(taskObj).forEach(k => {
                 if (k === 'id' || k === '_rowIndex') return;
                 const lk = String(k).toLowerCase().replace(/[\s_]+/g, '');
                 if (lk.includes('นัดหมาย') || lk.includes('over') || lk.includes('เกินกำหนด') || lk.includes('สถานะ') || lk.includes('status') || lk.includes('วันที่') || lk.includes('เวลา') || lk.includes('date') || lk.includes('time') || lk.includes('timestamp')) return;
                 const val = String(taskObj[k]).trim();
                 if (val !== '' && val !== '-' && val !== 'ไม่ระบุสถานะ' && val !== 'ไม่ระบุทีม') hasRealData = true;
-            }); return hasRealData;
+            });
+            return hasRealData;
         }
 
         const fallbackTeamColors = [ { bg: '#f3e8ff', text: '#7e22ce', border: '#e9d5ff' }, { bg: '#ccfbf1', text: '#0f766e', border: '#99f6e4' }, { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa' }, { bg: '#e0e7ff', text: '#4338ca', border: '#c7d2fe' }, { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0' }, { bg: '#ffe4e6', text: '#be123c', border: '#fecdd3' } ];
@@ -261,36 +290,46 @@
 
             const executeAutoFill = (searchCidValue, currentSiteType) => {
                 if (!searchCidValue.trim()) return;
-                const matchedCids = (nsTasks || []).filter(t => { const cid = getVal(t, ['circuitno']); return String(cid).trim().toLowerCase() === searchCidValue.trim().toLowerCase(); });
-                if (matchedCids.length === 0) { customAlert(`❌ ไม่พบข้อมูล CID: "${searchCidValue}" ในฐานข้อมูล NS`, 'error'); return; }
+                
+                // 🟢 ดึงข้อมูลทุกแถวที่มี CID ตรงกัน (ไม่สน Site Type ในตอนแรก เพื่อให้ได้อุปกรณ์ครบ)
+                const matchedRows = (nsTasks || []).filter(t => { 
+                    const cid = getVal(t, ['circuitno', 'cid']); 
+                    return String(cid).trim().toLowerCase() === searchCidValue.trim().toLowerCase(); 
+                });
 
-                let actualSiteType = currentSiteType || 'Terminate'; const siteTypeKeys = ['sitetype', 'site']; 
-                let matchedRows = matchedCids.filter(t => { const st = getVal(t, siteTypeKeys); return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase(); });
-                let isAutoSwitched = false;
+                if (matchedRows.length === 0) { customAlert(`❌ ไม่พบข้อมูล CID: "${searchCidValue}" ในฐานข้อมูล NS`, 'error'); return; }
 
-                if (matchedRows.length === 0) {
-                    const firstSt = String(getVal(matchedCids[0], siteTypeKeys)).trim();
-                    if (firstSt) { actualSiteType = firstSt; matchedRows = matchedCids.filter(t => { const st = getVal(t, siteTypeKeys); return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase(); }); isAutoSwitched = true; } else { matchedRows = matchedCids; }
+                // 🟢 หา Site Type หลักจากแถวแรกที่เจอ
+                let actualSiteType = currentSiteType || 'Terminate'; 
+                const firstSt = String(getVal(matchedRows[0], ['sitetype', 'site'])).trim();
+                if (firstSt) actualSiteType = firstSt;
+
+                const first = matchedRows[0]; 
+                const rawAmphur = getVal(first, ['amphur', 'อำเภอ', 'เขต', 'district']) || ''; 
+                let matchedZoneId = ''; let matchedTeam = ''; let matchedNextTeam = ''; let displayDistrict = '';
+                
+                if (rawAmphur) {
+                    const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                    const foundDistrict = allDistrictsMap.find(d => { const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase(); return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur); });
+                    if (foundDistrict) {
+                        displayDistrict = foundDistrict.name; matchedZoneId = foundDistrict.zoneId; const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
+                        if (zone) { const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean); let currentQ = queueState[zone.id] || 0; matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : ''; matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : ''; }
+                    } else { displayDistrict = rawAmphur; }
                 }
 
-                if (matchedRows.length > 0) {
-                    const first = matchedRows[0]; const rawAmphur = getVal(first, ['amphur', 'อำเภอ', 'เขต', 'district']) || ''; let matchedZoneId = ''; let matchedTeam = ''; let matchedNextTeam = ''; let displayDistrict = '';
-                    if (rawAmphur) {
-                        const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
-                        const foundDistrict = allDistrictsMap.find(d => { const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase(); return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur); });
-                        if (foundDistrict) {
-                            displayDistrict = foundDistrict.name; matchedZoneId = foundDistrict.zoneId; const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
-                            if (zone) { const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean); let currentQ = queueState[zone.id] || 0; matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : ''; matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : ''; }
-                        } else { displayDistrict = rawAmphur; }
-                    }
+                setForm(prev => ({ ...prev, cid: getVal(first, ['circuitno']) || prev.cid, siteType: actualSiteType, customerName: getVal(first, ['customername', 'company', 'บริษัท']) || '', address: getVal(first, ['address', 'ที่อยู่']) || '', phone: getVal(first, ['customercontract', 'contract', 'เบอร์']) || '', cancelDate: getVal(first, ['duejob', 'due', 'ยกเลิก']) || '', getbackDate: getVal(first, ['getbackdate', 'วันที่เข้าเก็บ', 'date']) || '', getbackTime: getVal(first, ['getbacktime', 'เวลาเข้าเก็บ', 'time']) || '', districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId, team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' }));
+                
+                // 🟢 ดึงอุปกรณ์ โดยบังคับหาคอลัมน์ ITEM NAME ก่อน
+                const equips = matchedRows.map(t => {
+                    let exactItemKey = Object.keys(t).find(k => String(k).toLowerCase().replace(/[\s_]+/g, '') === 'itemname');
+                    let itemName = exactItemKey ? t[exactItemKey] : getVal(t, ['itemname', 'อุปกรณ์', 'item']);
+                    return { name: itemName || '', serial: getVal(t, ['serialno', 'serial', 'sn']) || '' };
+                }).filter(e => e.name || e.serial);
 
-                    setForm(prev => ({ ...prev, cid: getVal(first, ['circuitno']) || prev.cid, siteType: actualSiteType, customerName: getVal(first, ['customername', 'company', 'บริษัท']) || '', address: getVal(first, ['address', 'ที่อยู่']) || '', phone: getVal(first, ['customercontract', 'contract', 'เบอร์']) || '', cancelDate: getVal(first, ['duejob', 'due', 'ยกเลิก']) || '', getbackDate: getVal(first, ['getbackdate', 'วันที่เข้าเก็บ', 'date']) || '', getbackTime: getVal(first, ['getbacktime', 'เวลาเข้าเก็บ', 'time']) || '', districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId, team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' }));
-                    const equips = matchedRows.map(t => ({ name: getVal(t, ['itemname', 'อุปกรณ์', 'item']) || '', serial: getVal(t, ['serialno', 'serial', 'sn']) || '' })).filter(e => e.name || e.serial);
-                    equips.sort((a, b) => { const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0; const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0; return bHasSn - aHasSn; });
-                    if (equips.length > 0) setEquipments(equips); else setEquipments([{ name: '', serial: '' }]);
-                    if (isAutoSwitched && !autoAssignData) customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! (สลับ Site Type เป็น "${actualSiteType}" ให้อัตโนมัติ)`, 'success');
-                    else if (!autoAssignData) customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
-                }
+                equips.sort((a, b) => { const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0; const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0; return bHasSn - aHasSn; });
+                if (equips.length > 0) setEquipments(equips); else setEquipments([{ name: '', serial: '' }]);
+                
+                if (!autoAssignData) customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
             };
 
             const handleAutoFillClick = () => { executeAutoFill(searchCid, form.siteType); };
@@ -487,99 +526,65 @@
           const tableUniqueColMonths = [...new Set((currentTasksTable || []).map(t => { const d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null); return d ? d.getMonth() + 1 : null; }).filter(Boolean))].sort((a,b)=>a-b);
           const tableUniqueYears = t_equipYearCol ? [...new Set((currentTasksTable || []).map(t => t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : '').filter(Boolean))].sort() : [];
 
-          // ================== FIREBASE FETCHING (Real-Time 100%) ==================
+          // 🟢 ฟังก์ชันโหลดข้อมูลหลักจาก GAS
+          const fetchAllDataFromServer = async (isSilent = false) => {
+              if (!isSilent) setIsLoading(true);
+              else setIsBackgroundSyncing(true);
+              
+              setFirebaseError(null);
+              
+              try {
+                  const masterDoc = await masterDataRef.get();
+                  if (masterDoc.exists && masterDoc.data().zones) {
+                      const data = masterDoc.data();
+                      setMasterData({
+                          zones: data.zones || defaultMasterData.zones,
+                          teams: Array.isArray(data.teams) ? data.teams : defaultMasterData.teams,
+                          nsTeams: Array.isArray(data.nsTeams) ? data.nsTeams.map(t => typeof t === 'string' ? {name: t, bg: '#e0f2fe', text: '#0369a1'} : t) : [],
+                          nsStatuses: Array.isArray(data.nsStatuses) ? data.nsStatuses.map(s => typeof s === 'string' ? {name: s, bg: '#fef3c7', text: '#b45309'} : s) : []
+                      });
+                  }
+
+                  const response = await fetch(GAS_WEB_APP_URL + "?action=getAllData");
+                  const data = await response.json();
+
+                  if (data.subcontract) {
+                      setColumns(data.subcontract.columns); localStorage.setItem('equip_tracker_columns', JSON.stringify(data.subcontract.columns));
+                      const validTasks = data.subcontract.tasks.filter(isValidTaskHelper); setTasks(validTasks); localStorage.setItem('equip_tracker_tasks', JSON.stringify(validTasks));
+                  }
+                  
+                  if (data.ns) {
+                      setNsColumns(data.ns.columns); localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(data.ns.columns));
+                      const validNsTasks = data.ns.tasks.filter(isValidTaskHelper); setNsTasks(validNsTasks); localStorage.setItem('equip_tracker_ns_tasks', JSON.stringify(validNsTasks));
+                  }
+              } catch (error) {
+                  console.error("Fetch Error:", error);
+                  if (!isSilent) setFirebaseError('ไม่สามารถโหลดข้อมูลจากระบบได้ (โปรดตรวจสอบอินเทอร์เน็ต)');
+              }
+              
+              setIsLoading(false);
+              setIsBackgroundSyncing(false);
+          };
+
           useEffect(() => {
-              setIsLoading(true); setFirebaseError(null);
-              let initialLoad = true;
+              try {
+                  const cachedTasks = localStorage.getItem('equip_tracker_tasks'); const cachedNsTasks = localStorage.getItem('equip_tracker_ns_tasks');
+                  const cachedCols = localStorage.getItem('equip_tracker_columns'); const cachedNsCols = localStorage.getItem('equip_tracker_ns_columns');
+                  if (cachedTasks) setTasks(JSON.parse(cachedTasks)); if (cachedNsTasks) setNsTasks(JSON.parse(cachedNsTasks));
+                  if (cachedCols) setColumns(JSON.parse(cachedCols)); if (cachedNsCols) setNsColumns(JSON.parse(cachedNsCols));
+              } catch(e) {}
               
-              let initialCols = []; let initialNsCols = [];
-              try { const savedCols = localStorage.getItem('equip_tracker_columns'); if (savedCols && savedCols !== "undefined" && savedCols !== "null") { const parsed = JSON.parse(savedCols); if (Array.isArray(parsed)) { initialCols = parsed; setColumns(parsed); } } } catch(e) {}
-              try { const savedNsCols = localStorage.getItem('equip_tracker_ns_columns'); if (savedNsCols && savedNsCols !== "undefined" && savedNsCols !== "null") { const parsed = JSON.parse(savedNsCols); if (Array.isArray(parsed)) { initialNsCols = parsed; setNsColumns(parsed); } } } catch(e) {}
+              fetchAllDataFromServer(false);
 
-              const unsubMaster = masterDataRef.onSnapshot(doc => {
-                  if (doc.exists && doc.data().zones) {
+              const unsubSync = syncRef.onSnapshot(doc => {
+                  if (doc.exists) {
                       const data = doc.data();
-                      setMasterData({ zones: data.zones || defaultMasterData.zones, teams: Array.isArray(data.teams) ? data.teams : defaultMasterData.teams, nsTeams: Array.isArray(data.nsTeams) ? data.nsTeams.map(t => typeof t === 'string' ? {name: t, bg: '#e0f2fe', text: '#0369a1'} : t) : [], nsStatuses: Array.isArray(data.nsStatuses) ? data.nsStatuses.map(s => typeof s === 'string' ? {name: s, bg: '#fef3c7', text: '#b45309'} : s) : [] });
-                      if (data.queue) setQueueState(data.queue);
-                  } else { masterDataRef.set({ ...defaultMasterData, queue: {} }, { merge: true }); }
-              }, (error) => { console.error("MasterData Error:", error); if (error.code === 'resource-exhausted') db.disableNetwork().catch(console.error); });
-
-              const unsubscribeTasks = collectionRef.onSnapshot((snapshot) => {
-                  if (snapshot.empty) return;
-                  let allCols = new Set(initialCols); let metadataCols = null; const newTasks = []; const assignTasks = []; const now = Date.now();
-                  const isMyOwnEdit = (Date.now() - lastLocalEditRef.current) < 5000;
-
-                  snapshot.forEach((doc) => {
-                      if (doc.id === '_metadata') { metadataCols = doc.data().columns; return; }
-                      if (doc.id === '_sync_status') return; 
-                      if (doc.id.startsWith('task_assign_')) { const timestampStr = doc.id.replace('task_assign_', ''); const timestamp = parseInt(timestampStr); if (!isNaN(timestamp) && (now - timestamp > 15000)) { collectionRef.doc(doc.id).delete().catch(()=>{}); return; } }
-
-                      const data = doc.data(); const cleanData = { id: doc.id };
-                      Object.keys(data).forEach(key => { if (key !== '_rowIndex') { let rawValue = typeof data[key] === 'object' && data[key] !== null && 'stringValue' in data[key] ? data[key].stringValue : data[key] ?? ''; cleanData[key] = formatSheetDate(rawValue); allCols.add(key); } });
-                      
-                      let rIndex = 0;
-                      if (data['_rowIndex'] && data['_rowIndex'].integerValue) rIndex = parseInt(data['_rowIndex'].integerValue); else if (data['_rowIndex'] !== undefined) rIndex = parseInt(data['_rowIndex']); else { const parsed = parseInt(doc.id.replace('task_', '').replace('task_assign_', '')); rIndex = isNaN(parsed) ? 999999 : parsed; }
-                      if (rIndex >= 50000 && !doc.id.startsWith('task_assign_')) { console.warn('🗑️ Auto-purging stuck ghost task:', doc.id); doc.ref.delete().catch(()=>{}); return; }
-
-                      cleanData._rowIndex = rIndex || 0;
-                      if (doc.id.startsWith('task_assign_')) assignTasks.push(cleanData); else newTasks.push(cleanData);
-                  });
-
-                  assignTasks.forEach(assignT => {
-                      const isDuplicate = newTasks.some(realT => { const keysToCompare = Object.keys(assignT).filter(k => k !== 'id' && k !== '_rowIndex' && assignT[k] && assignT[k] !== '-'); if (keysToCompare.length === 0) return false; return keysToCompare.every(k => realT[k] === assignT[k]); });
-                      const timestamp = parseInt(assignT.id.replace('task_assign_', '')); const isExpired = !isNaN(timestamp) && (now - timestamp > 15000);
-                      if (isDuplicate || isExpired) collectionRef.doc(assignT.id).delete().catch(()=>{}); else newTasks.push(assignT);
-                  });
-
-                  const validTasks = newTasks.filter(isValidTaskHelper); validTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex));
-                  
-                  startTransition(() => { setTasks(validTasks); }); setFirebaseError(null); 
-                  
-                  if (metadataCols && Array.isArray(metadataCols)) { setColumns(metadataCols); localStorage.setItem('equip_tracker_columns', JSON.stringify(metadataCols)); initialCols = metadataCols; } 
-                  else if (allCols.size > (initialCols?.length || 0)) { const colsArray = Array.from(allCols); setColumns(colsArray); localStorage.setItem('equip_tracker_columns', JSON.stringify(colsArray)); initialCols = colsArray; }
-                  localStorage.setItem('equip_tracker_tasks', JSON.stringify(validTasks));
-                  
-                  if (initialLoad) { setIsLoading(false); initialLoad = false; }
-              }, (error) => {
-                  console.error("Firestore Error:", error);
-                  if (error.code === 'resource-exhausted') { setFirebaseError('โควต้า Firebase รายวันเต็ม (Resource Exhausted) ระบบกำลังแสดงข้อมูลล่าสุดที่ถูกแคชไว้ในเครื่อง'); db.disableNetwork().catch(console.error); } 
-                  else { setFirebaseError(`Firebase Error: ${error.message}`); }
-                  try { const savedTasks = localStorage.getItem('equip_tracker_tasks'); if (savedTasks) setTasks(JSON.parse(savedTasks) || []); } catch(e){}
-                  setIsLoading(false);
-              });
-              
-              const unsubscribeNS = nsCollectionRef.onSnapshot((snapshot) => {
-                  if (snapshot.empty) return;
-                  let allCols = new Set(initialNsCols); let metadataCols = null; const newTasks = [];
-
-                  snapshot.forEach((doc) => {
-                      if (doc.id === '_metadata') { metadataCols = doc.data().columns; return; }
-                      if (doc.id === '_sync_status') return;
-
-                      const data = doc.data(); const cleanData = { id: doc.id };
-                      Object.keys(data).forEach(key => { if (key !== '_rowIndex') { let rawValue = typeof data[key] === 'object' && data[key] !== null && 'stringValue' in data[key] ? data[key].stringValue : data[key] ?? ''; cleanData[key] = formatSheetDate(rawValue); allCols.add(key); } });
-                      
-                      let rIndex = 0;
-                      if (data['_rowIndex'] && data['_rowIndex'].integerValue) rIndex = parseInt(data['_rowIndex'].integerValue); else if (data['_rowIndex'] !== undefined) rIndex = parseInt(data['_rowIndex']); else { const parsed = parseInt(doc.id.replace('NS_task_', '')); rIndex = isNaN(parsed) ? 999999 : parsed; }
-                      if (rIndex >= 50000) { console.warn('🗑️ Auto-purging stuck ghost task (NS):', doc.id); doc.ref.delete().catch(()=>{}); return; }
-
-                      cleanData._rowIndex = rIndex || 0;
-                      if(isValidTaskHelper(cleanData)) { newTasks.push(cleanData); }
-                  });
-
-                  newTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex));
-                  startTransition(() => { setNsTasks(newTasks); }); localStorage.setItem('equip_tracker_ns_tasks', JSON.stringify(newTasks));
-
-                  if (metadataCols && Array.isArray(metadataCols)) { setNsColumns(metadataCols); localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(metadataCols)); initialNsCols = metadataCols; } 
-                  else if (allCols.size > (initialNsCols?.length || 0)) { const colsArray = Array.from(allCols); setNsColumns(colsArray); localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(colsArray)); initialNsCols = colsArray; }
-              }, (error) => {
-                  console.error("Firestore Error (NS):", error);
-                  if (error.code === 'resource-exhausted') { setFirebaseError('โควต้า Firebase รายวันเต็ม (Resource Exhausted) ระบบกำลังแสดงข้อมูลล่าสุดที่ถูกแคชไว้ในเครื่อง'); db.disableNetwork().catch(console.error); } 
-                  else { setFirebaseError(`Firebase Error: ${error.message}`); }
-                  try { const savedNsTasks = localStorage.getItem('equip_tracker_ns_tasks'); if (savedNsTasks) setNsTasks(JSON.parse(savedNsTasks) || []); } catch(e){}
+                      const ts = parseInt(data.timestamp || 0);
+                      if (Date.now() - ts < 15000) fetchAllDataFromServer(true);
+                  }
               });
 
-              return () => { unsubscribeTasks(); unsubscribeNS(); unsubMaster(); };
+              return () => { unsubSync(); };
           }, []);
 
           useEffect(() => {
@@ -614,16 +619,12 @@
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
                   const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
-                  const targetCollection = tasksSubTab === 'subcontract' ? collectionRef : nsCollectionRef;
-
-                  lastLocalEditRef.current = Date.now(); 
-
                   if (tasksSubTab === 'subcontract') setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
                   else setNsTasks(prev => prev.filter(t => !docIds.includes(t.id)));
-
                   try {
-                      const batch = db.batch(); docIds.forEach(id => { batch.delete(targetCollection.doc(id)); }); await batch.commit();
-                      if (GAS_WEB_APP_URL) { fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'deleteRows', sheetName: targetSheetName, rows: rowIndices }) }).catch(e => console.error("Failed to delete from sheet:", e)); }
+                      if (GAS_WEB_APP_URL) {
+                          fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'deleteRows', sheetName: targetSheetName, rows: rowIndices }) }).catch(e => console.error("Failed to delete from sheet:", e));
+                      }
                       customAlert('ลบข้อมูลสำเร็จ', 'success');
                   } catch (error) { customAlert('เกิดข้อผิดพลาดในการลบข้อมูล', 'error'); }
               });
@@ -649,7 +650,6 @@
               lastLocalEditRef.current = Date.now();
 
               const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
-              const targetCollection = tasksSubTab === 'subcontract' ? collectionRef : nsCollectionRef;
 
               if (tasksSubTab === 'subcontract') setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
               else setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
@@ -660,8 +660,6 @@
               } catch (err) {}
 
               try {
-                  const batch = db.batch(); docIds.forEach(id => { batch.update(targetCollection.doc(id), { [field]: value }); }); await batch.commit(); 
-                  
                   if (GAS_WEB_APP_URL) {
                       let hasValidUpdate = false;
                       docIds.forEach((id, idx) => {
@@ -1064,7 +1062,7 @@
                 <div className="p-3 bg-slate-50 flex items-center justify-between gap-2 text-xs font-medium shrink-0 border-t border-slate-200">
                   <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${isLoading || isBackgroundSyncing || isPendingTransition ? 'bg-blue-400 animate-pulse' : 'bg-emerald-500'}`}></div>
-                      {isLoading || isBackgroundSyncing || isPendingTransition ? <span className="text-blue-500 font-bold">Syncing...</span> : firebaseError ? <span className="text-red-500 text-center"><i className="fa-solid fa-circle-xmark"></i> Error</span> : <span className="text-emerald-600 font-bold">Live Synced</span>}
+                      {isLoading || isBackgroundSyncing || isPendingTransition ? <span className="text-blue-500 font-bold">Syncing...</span> : firebaseError ? <span className="text-red-500 text-center"><i className="fa-solid fa-circle-xmark"></i> Error</span> : <span className="text-emerald-600 font-bold">Live Synced (Zero-Quota)</span>}
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold">v{APP_VERSION}</span>
                 </div>
