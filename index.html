@@ -611,8 +611,7 @@
                 </div>
             );
         };
-
-        // -------------------------------------------------------------
+// -------------------------------------------------------------
         // --- COMPONENT: ASSIGN JOB & LINE NOTIFY ---
         // -------------------------------------------------------------
         const AssignJobTab = ({ masterData, queueState, setQueueState, masterDataRef, collectionRef, GAS_WEB_APP_URL, nsTasks, autoAssignData, clearAutoAssignData, customAlert }) => {
@@ -839,22 +838,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
                     newTaskData["รายละเอียดงาน"] = `[Site Type: ${form.siteType}] \n[เข้าเก็บ: ${form.getbackDate || '-'} เวลา ${form.getbackTime || '-'}] \n\n${form.details}\n\nรายการอุปกรณ์:\n${equipStr}`;
 
-                    // 🟢 ส่งไป Sheet พร้อมเตือน Line ทันที (แก้ CORS issue แล้ว)
-                    const msg = generateMessage();
-                    if (GAS_WEB_APP_URL) {
-                        const payloadData = JSON.stringify({ 
-                            action: 'sendLineNotify', 
-                            message: msg,
-                            taskData: newTaskData,
-                            tempTaskId: newTaskId 
-                        });
-                        fetch(GAS_WEB_APP_URL, {
-                            method: 'POST', 
-                            mode: 'no-cors', // 🟢 ป้องกัน CORS
-                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                            body: payloadData
-                        }).catch(e => console.error("Background sync to Sheet failed:", e));
-                    }
+                    await collectionRef.doc(newTaskId).set(newTaskData);
 
                     if (form.zoneId) {
                         const zone = (masterData.zones || []).find(z => z.id === form.zoneId);
@@ -871,11 +855,26 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         }
                     }
 
+                    const msg = generateMessage();
                     customAlert('✅ สั่งงานเรียบร้อย (ระบบกำลังจัดการส่ง LINE และลง Sheet ให้อัตโนมัติ)', 'success');
+                    
                     setForm(getInitialFormState());
                     setEquipments([{ name: '', serial: '' }]);
                     setSearchCid('');
 
+                    if (GAS_WEB_APP_URL) {
+                        const payloadData = JSON.stringify({ 
+                            action: 'sendLineNotify', 
+                            message: msg,
+                            taskData: newTaskData,
+                            tempTaskId: newTaskId 
+                        });
+                        fetch(GAS_WEB_APP_URL, {
+                            method: 'POST', mode: 'no-cors',
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: payloadData
+                        }).catch(e => console.error("Background sync to Sheet failed:", e));
+                    }
                 } catch (e) {
                     console.error("Failed to send/save:", e);
                     customAlert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์', 'error');
