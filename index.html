@@ -289,19 +289,19 @@
             useEffect(() => { if (autoAssignData && autoAssignData.cid) { setSearchCid(autoAssignData.cid); executeAutoFill(autoAssignData.cid, autoAssignData.siteType || 'Terminate'); clearAutoAssignData(); } }, [autoAssignData]);
 
             const executeAutoFill = (searchCidValue, currentSiteType) => {
-                if (!searchCidValue.trim()) return;
+                if (!searchCidValue || !String(searchCidValue).trim()) return;
+                const safeSearchCid = String(searchCidValue).trim().toLowerCase();
                 
-                // 🟢 ดึงข้อมูลทุกแถวที่มี CID ตรงกัน (ไม่สน Site Type ในตอนแรก เพื่อให้ได้อุปกรณ์ครบ)
+                // 🟢 ดึงข้อมูลทุกแถวที่มี CID ตรงกัน (เพื่อให้ได้อุปกรณ์ครบทุกชิ้น)
                 const matchedRows = (nsTasks || []).filter(t => { 
                     const cid = getVal(t, ['circuitno', 'cid']); 
-                    return String(cid).trim().toLowerCase() === searchCidValue.trim().toLowerCase(); 
+                    return cid && String(cid).trim().toLowerCase() === safeSearchCid; 
                 });
 
                 if (matchedRows.length === 0) { customAlert(`❌ ไม่พบข้อมูล CID: "${searchCidValue}" ในฐานข้อมูล NS`, 'error'); return; }
 
-                // 🟢 หา Site Type หลักจากแถวแรกที่เจอ
-                let actualSiteType = currentSiteType || 'Terminate'; 
-                const firstSt = String(getVal(matchedRows[0], ['sitetype', 'site'])).trim();
+                let actualSiteType = currentSiteType || 'Terminate'; const siteTypeKeys = ['sitetype', 'site']; 
+                const firstSt = String(getVal(matchedRows[0], siteTypeKeys)).trim();
                 if (firstSt) actualSiteType = firstSt;
 
                 const first = matchedRows[0]; 
@@ -317,7 +317,7 @@
                     } else { displayDistrict = rawAmphur; }
                 }
 
-                setForm(prev => ({ ...prev, cid: getVal(first, ['circuitno']) || prev.cid, siteType: actualSiteType, customerName: getVal(first, ['customername', 'company', 'บริษัท']) || '', address: getVal(first, ['address', 'ที่อยู่']) || '', phone: getVal(first, ['customercontract', 'contract', 'เบอร์']) || '', cancelDate: getVal(first, ['duejob', 'due', 'ยกเลิก']) || '', getbackDate: getVal(first, ['getbackdate', 'วันที่เข้าเก็บ', 'date']) || '', getbackTime: getVal(first, ['getbacktime', 'เวลาเข้าเก็บ', 'time']) || '', districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId, team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' }));
+                setForm(prev => ({ ...prev, cid: getVal(first, ['circuitno', 'cid']) || prev.cid, siteType: actualSiteType, customerName: getVal(first, ['customername', 'company', 'บริษัท']) || '', address: getVal(first, ['address', 'ที่อยู่']) || '', phone: getVal(first, ['customercontract', 'contract', 'เบอร์']) || '', cancelDate: getVal(first, ['duejob', 'due', 'ยกเลิก']) || '', getbackDate: getVal(first, ['getbackdate', 'วันที่เข้าเก็บ', 'date']) || '', getbackTime: getVal(first, ['getbacktime', 'เวลาเข้าเก็บ', 'time']) || '', districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId, team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' }));
                 
                 // 🟢 ดึงอุปกรณ์ โดยบังคับหาคอลัมน์ ITEM NAME ก่อน
                 const equips = matchedRows.map(t => {
@@ -356,8 +356,11 @@
                     const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
                     newTaskData["รายละเอียดงาน"] = `[Site Type: ${form.siteType}] \n[เข้าเก็บ: ${form.getbackDate || '-'} เวลา ${form.getbackTime || '-'}] \n\n${form.details}\n\nรายการอุปกรณ์:\n${equipStr}`;
                     
+                    // 🟢 เขียนลง Firebase ชั่วคราวเพื่อให้หน้าเว็บเห็นทันที
+                    await collectionRef.doc(newTaskId).set(newTaskData);
+                    
                     if(GAS_WEB_APP_URL) {
-                        const payloadData = JSON.stringify({ action: 'sendLineNotify', message: generateMessage(), taskData: newTaskData });
+                        const payloadData = JSON.stringify({ action: 'sendLineNotify', message: generateMessage(), taskData: newTaskData, tempTaskId: newTaskId });
                         fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: payloadData });
                     }
                     
@@ -605,7 +608,13 @@
 
           useEffect(() => { setCurrentPage(1); }, [tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, searchTerm]);
 
-          const handleDirectAssign = (cid, siteType) => { if(!cid || cid.trim() === '') return customAlert('ไม่พบข้อมูล CIDs ในรายการนี้', 'error'); setAutoAssignData({ cid, siteType: siteType || 'Terminate' }); startTransition(() => { setActiveTab('assign'); }); if (window.innerWidth <= 1024) setIsSidebarOpen(false); };
+          const handleDiconst handleDirectAssign = (cid, siteType) => { 
+              const safeCid = cid ? String(cid).trim() : '';
+              if(safeCid === '') return customAlert('ไม่พบข้อมูล CIDs ในรายการนี้', 'error'); 
+              setAutoAssignData({ cid: safeCid, siteType: siteType || 'Terminate' }); 
+              startTransition(() => { setActiveTab('assign'); }); 
+              if (window.innerWidth <= 1024) setIsSidebarOpen(false); 
+          };
           const clearAutoAssignData = () => { setAutoAssignData(null); };
           const handlePinToggle = (e, col) => { if (!(pinnedColumns || []).includes(col)) { if (!colWidths[col]) { const th = e.currentTarget.closest('th'); if (th) { const w = th.getBoundingClientRect().width; setColWidths(prev => ({ ...prev, [col]: w })); } } } setPinnedColumns(prev => (prev || []).includes(col) ? (prev || []).filter(c => c !== col) : [...(prev || []), col]); };
           const getColWidth = (col) => colWidths[col] || 150; 
