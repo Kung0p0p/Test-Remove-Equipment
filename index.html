@@ -1066,6 +1066,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
           const [currentPage, setCurrentPage] = useState(1);
           const [rowsPerPage, setRowsPerPage] = useState(100);
+          const [visibleNsRows, setVisibleNsRows] = useState(100); // จำนวนแถวเริ่มต้นของหน้า Region
 
           const [filterMonth, setFilterMonth] = useState('All');
           const [filterTeams, setFilterTeams] = useState([]);
@@ -1324,6 +1325,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
           useEffect(() => {
               setCurrentPage(1);
+              setVisibleNsRows(100); // รีเซ็ตให้กลับมาโชว์ 100 แถวแรกเสมอเวลาค้นหาหรือเปลี่ยนแท็บ
           }, [tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, searchTerm]);
 
           const handleDirectAssign = (cid, siteType) => {
@@ -1643,9 +1645,25 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           }, [currentTasksTable, currentColumnsTable, tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, sortConfig, searchTerm, showDuplicatesOnly]);
 
           // บังคับให้หน้า NS แสดงข้อมูลทั้งหมด (All) เสมอ
-          const effectiveRowsPerPage = tasksSubTab === 'ns' ? 'All' : rowsPerPage;
-          const totalPages = effectiveRowsPerPage === 'All' ? 1 : Math.ceil((finalTableTasks?.length || 0) / effectiveRowsPerPage);
-          const paginatedTasks = effectiveRowsPerPage === 'All' ? (finalTableTasks || []) : (finalTableTasks || []).slice((currentPage - 1) * effectiveRowsPerPage, currentPage * effectiveRowsPerPage);
+          // คำนวณหน้าสำหรับ Subcontract
+          const totalPages = rowsPerPage === 'All' ? 1 : Math.ceil((finalTableTasks?.length || 0) / rowsPerPage);
+          
+          // แยก Logic: ถ้าเป็น NS ให้ใช้ Infinite Scroll (ตัดข้อมูลตาม visibleNsRows) ถ้าเป็น Subcon ให้ใช้ Pagination ปกติ
+          const paginatedTasks = tasksSubTab === 'ns' 
+              ? (finalTableTasks || []).slice(0, visibleNsRows) 
+              : (rowsPerPage === 'All' ? (finalTableTasks || []) : (finalTableTasks || []).slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage));
+
+          // ฟังก์ชันตรวจจับการเลื่อนเมาส์ (Scroll)
+          const handleTableScroll = (e) => {
+              if (tasksSubTab !== 'ns') return;
+              const { scrollTop, clientHeight, scrollHeight } = e.target;
+              // ถ้าเลื่อนลงมาเหลืออีก 300px จะถึงก้นตาราง ให้โหลดเพิ่มอีก 100 แถว
+              if (scrollHeight - scrollTop <= clientHeight + 300) {
+                  if (visibleNsRows < (finalTableTasks?.length || 0)) {
+                      setVisibleNsRows(prev => prev + 100);
+                  }
+              }
+          };
 
           // --- Dashboard Variables ---
           const dashboardTasks = dashboardView === 'subcontract' ? tasks : nsTasks;
@@ -2090,7 +2108,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     </div>
 
                     <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col min-h-0 overflow-hidden relative">
-                      <div className="flex-1 overflow-auto table-container relative">
+                      <div className="flex-1 overflow-auto table-container relative" onScroll={handleTableScroll}>
                         <table className="w-full text-left border-collapse text-sm relative" style={{ tableLayout: 'auto' }}>
                           <thead className="bg-slate-800 shadow-sm shadow-slate-800/50 sticky top-0 z-40">
                             <tr>
