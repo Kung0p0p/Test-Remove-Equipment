@@ -663,7 +663,7 @@
                 });
 
                 if (matchedCids.length === 0) {
-                    alert(`❌ ไม่พบข้อมูล CID: "${searchCidValue}" ในฐานข้อมูล NS ครับ`);
+                    customAlert(`❌ ไม่พบข้อมูล CID: "${searchCidValue}" ในฐานข้อมูล NS ครับ`, 'error');
                     return;
                 }
 
@@ -761,9 +761,9 @@
                     }
                     
                     if (isAutoSwitched && !autoAssignData) {
-                        alert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ!\n(ระบบสลับ Site Type เป็น "${actualSiteType}" ให้อัตโนมัติ)\nพบอุปกรณ์ทั้งหมด ${equips.length} รายการ`);
+                        customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! (สลับเป็น "${actualSiteType}" อัตโนมัติ) พบอุปกรณ์ ${equips.length} รายการ`, 'success');
                     } else if (!autoAssignData) {
-                        alert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ!\nพบอุปกรณ์ทั้งหมด ${equips.length} รายการ`);
+                        customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! พบอุปกรณ์ทั้งหมด ${equips.length} รายการ`, 'success');
                     }
                 }
             };
