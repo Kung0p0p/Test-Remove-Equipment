@@ -653,7 +653,7 @@
                 }
             }, [autoAssignData]);
 
-            const executeAutoFill = (searchCidValue, currentSiteType, isManualSwitch = false) => {
+            const executeAutoFill = (searchCidValue, currentSiteType) => {
                 if (!searchCidValue.trim()) return;
                 
                 const matchedCids = (nsTasks || []).filter(t => {
@@ -671,20 +671,18 @@
                 
                 let matchedRows = matchedCids.filter(t => {
                     const st = getVal(t, siteTypeKeys);
-                    // ปรับให้ค้นหาแบบยืดหยุ่นขึ้น (เผื่อพิมพ์เว้นวรรคผิด)
-                    return st && String(st).trim().toLowerCase().includes(actualSiteType.toLowerCase().substring(0, 3));
+                    return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase();
                 });
 
                 let isAutoSwitched = false;
 
-                // ถ้าหาไม่เจอ และ "ไม่ได้กดเปลี่ยนเองจาก Dropdown" ให้ลองสลับ Site Type ดู
-                if (matchedRows.length === 0 && !isManualSwitch) {
+                if (matchedRows.length === 0) {
                     const firstSt = String(getVal(matchedCids[0], siteTypeKeys)).trim();
                     if (firstSt) {
-                        actualSiteType = firstSt.toLowerCase().includes('ori') ? 'Originate' : 'Terminate';
+                        actualSiteType = firstSt;
                         matchedRows = matchedCids.filter(t => {
                             const st = getVal(t, siteTypeKeys);
-                            return st && String(st).trim().toLowerCase().includes(actualSiteType.toLowerCase().substring(0, 3));
+                            return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase();
                         });
                         isAutoSwitched = true;
                     } else {
@@ -692,73 +690,74 @@
                     }
                 }
 
-                // ถ้ากดเปลี่ยนเองแล้วไม่เจอข้อมูล ให้ใช้ข้อมูลแถวแรกมาเติมฟอร์ม แต่ปล่อยช่องอุปกรณ์ว่างไว้
-                const baseRow = matchedRows.length > 0 ? matchedRows[0] : matchedCids[0];
+                if (matchedRows.length > 0) {
+                    const first = matchedRows[0];
+                    
+                    const rawAmphur = getVal(first, ['amphur', 'อำเภอ', 'เขต', 'district']) || '';
+                    let matchedZoneId = '';
+                    let matchedTeam = '';
+                    let matchedNextTeam = '';
+                    let displayDistrict = '';
 
-                const rawAmphur = getVal(baseRow, ['amphur', 'อำเภอ', 'เขต', 'district']) || '';
-                let matchedZoneId = '';
-                let matchedTeam = '';
-                let matchedNextTeam = '';
-                let displayDistrict = '';
+                    if (rawAmphur) {
+                        const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                        const foundDistrict = allDistrictsMap.find(d => {
+                            const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                            return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur);
+                        });
 
-                if (rawAmphur) {
-                    const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
-                    const foundDistrict = allDistrictsMap.find(d => {
-                        const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
-                        return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur);
+                        if (foundDistrict) {
+                            displayDistrict = foundDistrict.name;
+                            matchedZoneId = foundDistrict.zoneId;
+                            const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
+                            if (zone) {
+                                const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
+                                let currentQ = queueState[zone.id] || 0;
+                                matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : '';
+                                matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : '';
+                            }
+                        } else {
+                            displayDistrict = rawAmphur;
+                        }
+                    }
+
+                    setForm(prev => ({
+                        ...prev,
+                        cid: getVal(first, ['circuitno', 'cid']) || prev.cid, 
+                        siteType: actualSiteType, 
+                        customerName: getVal(first, ['customername', 'company', 'บริษัท']) || '',
+                        address: getVal(first, ['address', 'ที่อยู่']) || '', phone: getVal(first, ['customercontract', 'customer_contract', 'contract', 'เบอร์']) || '',
+                        cancelDate: getVal(first, ['duejob', 'due', 'ยกเลิก']) || '',
+                        getbackDate: getVal(first, ['getbackdate', 'getback_date', 'วันที่เข้าเก็บ']) || '',
+                        getbackTime: getVal(first, ['getbacktime', 'getback_time', 'เวลาเข้าเก็บ']) || '',
+                        districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId,
+                        team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' 
+                    }));
+
+                    const equips = matchedRows.map(t => ({
+                        name: getVal(t, ['itemname', 'item name', 'อุปกรณ์', 'item']) || '',
+                        serial: getVal(t, ['serialno', 'serial', 'sn']) || ''
+                    })).filter(e => e.name || e.serial);
+
+                    equips.sort((a, b) => {
+                        const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0;
+                        const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0;
+                        return bHasSn - aHasSn;
                     });
 
-                    if (foundDistrict) {
-                        displayDistrict = foundDistrict.name;
-                        matchedZoneId = foundDistrict.zoneId;
-                        const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
-                        if (zone) {
-                            const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
-                            let currentQ = queueState[zone.id] || 0;
-                            matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : '';
-                            matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : '';
-                        }
+                    if (equips.length > 0) {
+                        setEquipments(equips);
                     } else {
-                        displayDistrict = rawAmphur;
+                        setEquipments([{ name: '', serial: '' }]);
+                    }
+                    
+                    if (isAutoSwitched && !autoAssignData) {
+                        customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! (สลับ Site Type เป็น "${actualSiteType}" ให้อัตโนมัติ)`, 'success');
+                    } else if (!autoAssignData) {
+                        customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
                     }
                 }
-
-                setForm(prev => ({
-                    ...prev,
-                    cid: getVal(baseRow, ['circuitno', 'cid']) || prev.cid, 
-                    siteType: actualSiteType, 
-                    customerName: getVal(baseRow, ['customername', 'company', 'บริษัท']) || '',
-                    address: getVal(baseRow, ['address', 'ที่อยู่']) || '', phone: getVal(baseRow, ['customercontract', 'customer_contract', 'contract', 'เบอร์']) || '',
-                    cancelDate: getVal(baseRow, ['duejob', 'due', 'ยกเลิก']) || '',
-                    getbackDate: getVal(baseRow, ['getbackdate', 'getback_date', 'วันที่เข้าเก็บ']) || '',
-                    getbackTime: getVal(baseRow, ['getbacktime', 'getback_time', 'เวลาเข้าเก็บ']) || '',
-                    districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId,
-                    team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' 
-                }));
-
-                const equips = matchedRows.map(t => ({
-                    name: getVal(t, ['itemname', 'item name', 'อุปกรณ์', 'item']) || '',
-                    serial: getVal(t, ['serialno', 'serial', 'sn']) || ''
-                })).filter(e => e.name || e.serial);
-
-                equips.sort((a, b) => {
-                    const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0;
-                    const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0;
-                    return bHasSn - aHasSn;
-                });
-
-                if (equips.length > 0) {
-                    setEquipments(equips);
-                } else {
-                    setEquipments([{ name: '', serial: '' }]);
-                }
-                
-                if (isAutoSwitched && !autoAssignData) {
-                    customAlert(`✅ ดึงข้อมูลสำเร็จ! (สลับเป็น "${actualSiteType}" ให้อัตโนมัติ)`, 'success');
-                } else if (!autoAssignData && !isManualSwitch) {
-                    customAlert(`✅ ดึงข้อมูลสำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
-                }
-                };
+            };
 
             const handleAutoFillClick = () => {
                 executeAutoFill(searchCid, form.siteType);
@@ -900,11 +899,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                 <div className="flex-1 flex gap-2">
                                     <input type="text" placeholder="พิมพ์ CIRCUIT NO..." value={searchCid} onChange={e => setSearchCid(e.target.value)} className="flex-1 px-3 py-1.5 rounded-md border border-indigo-300 outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold shadow-inner" list="ns-cids-list" />
                                     <datalist id="ns-cids-list">{(nsCidOptions || []).map((c, i) => <option key={i} value={c} />)}</datalist>
-                                    <select value={form.siteType} onChange={e=>{
-                                        const newType = e.target.value;
-                                        setForm({...form, siteType: newType});
-                                        if(searchCid) executeAutoFill(searchCid, newType);
-                                    }} className="px-2 py-1.5 border border-indigo-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-indigo-800 bg-white shadow-inner w-28 shrink-0">
+                                    <select value={form.siteType} onChange={e=>setForm({...form, siteType: e.target.value})} className="px-2 py-1.5 border border-indigo-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-indigo-800 bg-white shadow-inner w-28 shrink-0">
                                         <option value="Terminate">Terminate</option>
                                         <option value="Originate">Originate</option>
                                     </select>
@@ -2137,7 +2132,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             : (currentTasksTable?.length || 0) === 0 ? <tr><td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-8 text-center text-slate-500">ฐานข้อมูลว่างเปล่า</td></tr>
                             : (finalTableTasks?.length || 0) === 0 ? <tr><td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-8 text-center text-slate-500">ไม่พบข้อมูล...</td></tr>
                             : (paginatedTasks || []).map((task) => (
-                              <tr key={task.id} className={`transition-colors tr-hover ${isBackgroundSyncing ? 'opacity-70 pointer-events-none' : 'hover:bg-slate-50'}`}>
+                              <tr key={task.id} className={`transition-colors tr-hover hover:bg-slate-50`}>
                                 {(orderedVisibleColumnsTable || []).map((col, idx) => {
                                     const hasFixedWidth = colWidths[col] !== undefined;
                                     
