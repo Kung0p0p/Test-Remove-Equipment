@@ -2619,7 +2619,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                             <i className="fa-solid fa-chevron-down text-[10px] ml-2"></i>
                                                             <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(t, t._calStatusCol, e.target.value, currentColumnsTable); }}>
                                                                 <option value="" disabled></option>
-                                                                {(masterData.nsStatuses && masterData.nsStatuses.length > 0 ? masterData.nsStatuses.map(s=>s.name) : tableUniqueStatuses || []).map(s => <option key={s} value={s}>{s}</option>)}
+                                                                {(subcontractStatuses || []).map(s => <option key={s} value={s}>{s}</option>)}
                                                             </select>
                                                         </div>
                                                     </div>
