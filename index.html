@@ -653,11 +653,11 @@
                 }
             }, [autoAssignData]);
 
-            const executeAutoFill = (searchCidValue, currentSiteType, isManualSwitch = false) => {
+            const executeAutoFill = (searchCidValue, requestedSiteType, isManualSwitch = false) => {
                 if (!searchCidValue.trim()) return;
                 
                 const matchedCids = (nsTasks || []).filter(t => {
-                    const cid = getVal(t, ['circuitno']);
+                    const cid = getVal(t, ['circuitno', 'cid']);
                     return String(cid).trim().toLowerCase() === searchCidValue.trim().toLowerCase();
                 });
 
@@ -666,13 +666,13 @@
                     return;
                 }
 
-                let actualSiteType = currentSiteType || 'Terminate';
                 const siteTypeKeys = ['sitetype', 'site', 'site_type']; 
+                let finalSiteType = requestedSiteType || 'Terminate';
                 
                 // กรองหาแถวที่ Site Type ตรงกับที่เลือก
                 let matchedRows = matchedCids.filter(t => {
                     const st = getVal(t, siteTypeKeys);
-                    return st && String(st).trim().toLowerCase().includes(actualSiteType.toLowerCase().substring(0, 3));
+                    return st && String(st).trim().toLowerCase().includes(finalSiteType.toLowerCase().substring(0, 3));
                 });
 
                 let isAutoSwitched = false;
@@ -681,16 +681,16 @@
                 if (matchedRows.length === 0 && !isManualSwitch) {
                     const firstSt = String(getVal(matchedCids[0], siteTypeKeys)).trim();
                     if (firstSt) {
-                        actualSiteType = firstSt.toLowerCase().includes('ori') ? 'Originate' : 'Terminate';
+                        finalSiteType = firstSt.toLowerCase().includes('ori') ? 'Originate' : 'Terminate';
                         matchedRows = matchedCids.filter(t => {
                             const st = getVal(t, siteTypeKeys);
-                            return st && String(st).trim().toLowerCase().includes(actualSiteType.toLowerCase().substring(0, 3));
+                            return st && String(st).trim().toLowerCase().includes(finalSiteType.toLowerCase().substring(0, 3));
                         });
                         isAutoSwitched = true;
                     }
                 }
 
-                // ใช้ข้อมูลลูกค้าจากแถวที่ตรงกับ Site Type (ถ้ามี) ถ้าไม่มีให้ดึงจากแถวแรกของ CID นั้น
+                // ใช้ข้อมูลลูกค้าจากแถวที่ตรง (ถ้ามี) หรือแถวแรกของ CID นั้น
                 const baseRow = matchedRows.length > 0 ? matchedRows[0] : matchedCids[0];
 
                 const rawAmphur = getVal(baseRow, ['amphur', 'อำเภอ', 'เขต', 'district']) || '';
@@ -724,7 +724,7 @@
                 setForm(prev => ({
                     ...prev,
                     cid: getVal(baseRow, ['circuitno', 'cid']) || prev.cid, 
-                    siteType: actualSiteType, // บังคับใช้ค่าที่เลือกเสมอ
+                    siteType: finalSiteType, 
                     customerName: getVal(baseRow, ['customername', 'company', 'บริษัท']) || '',
                     address: getVal(baseRow, ['address', 'ที่อยู่']) || '', phone: getVal(baseRow, ['customercontract', 'customer_contract', 'contract', 'เบอร์']) || '',
                     cancelDate: getVal(baseRow, ['duejob', 'due', 'ยกเลิก']) || '',
@@ -734,11 +734,21 @@
                     team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' 
                 }));
 
-                // ดึงอุปกรณ์เฉพาะแถวที่ตรงกับ Site Type เท่านั้น
-                const equips = matchedRows.map(t => ({
-                    name: getVal(t, ['itemname', 'item name', 'อุปกรณ์', 'item']) || '',
-                    serial: getVal(t, ['serialno', 'serial', 'sn']) || ''
-                })).filter(e => e.name || e.serial);
+                // ฟังก์ชันดึงอุปกรณ์ (รองรับชื่อคอลัมน์หลายรูปแบบ รวมถึง ITEM NAME)
+                const extractEquips = (rows) => {
+                    return rows.map(t => ({
+                        name: getVal(t, ['itemname', 'item name', 'item_name', 'อุปกรณ์', 'item', 'equipment', 'product']) || '',
+                        serial: getVal(t, ['serialno', 'serial', 'sn', 's/n', 'mac']) || ''
+                    })).filter(e => e.name || e.serial);
+                };
+
+                // 1. ลองดึงอุปกรณ์จากบรรทัดที่ Site Type ตรงกันก่อน
+                let equips = extractEquips(matchedRows);
+
+                // 2. Fallback: ถ้าไม่มีอุปกรณ์เลย ให้กวาดดึงจากทุกบรรทัดของ CID นี้ (แก้ปัญหา Sheet เว้นว่าง Site Type)
+                if (equips.length === 0) {
+                    equips = extractEquips(matchedCids);
+                }
 
                 equips.sort((a, b) => {
                     const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0;
@@ -753,9 +763,15 @@
                 }
                 
                 if (isAutoSwitched && !autoAssignData) {
-                    customAlert(`✅ ดึงข้อมูลสำเร็จ! (สลับเป็น "${actualSiteType}" ให้อัตโนมัติ)`, 'success');
+                    customAlert(`✅ ดึงข้อมูลสำเร็จ! (สลับเป็น "${finalSiteType}" ให้อัตโนมัติ)`, 'success');
                 } else if (!autoAssignData && !isManualSwitch) {
-                    customAlert(`✅ ดึงข้อมูลสำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
+                    if (equips.length > 0) {
+                        customAlert(`✅ ดึงข้อมูลสำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
+                    } else {
+                        customAlert(`✅ ดึงข้อมูลสำเร็จ! แต่ไม่พบรายการอุปกรณ์ในระบบ`, 'warning');
+                    }
+                } else if (isManualSwitch && matchedRows.length === 0) {
+                    customAlert(`⚠️ เปลี่ยนเป็น ${finalSiteType} แล้ว (ดึงข้อมูลอุปกรณ์รวมของ CID นี้)`, 'warning');
                 }
             };
 
