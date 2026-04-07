@@ -7,14 +7,18 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <!-- Firebase SDKs -->
@@ -28,14 +32,21 @@
     <style>
         body { font-family: 'Prompt', sans-serif; background-color: #f8fafc; margin: 0; padding: 0; overflow: hidden; }
         #root { height: 100%; }
+        
         .table-container::-webkit-scrollbar { height: 8px; width: 8px; }
         .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
         .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .table-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
         .cell-scrollbar::-webkit-scrollbar { width: 4px; }
+        .cell-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .cell-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .cell-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
         .editable-cell {
             width: 100%; background: transparent; border: 1px solid transparent; padding: 4px 8px;
@@ -49,14 +60,24 @@
         .sortable-header { cursor: pointer; transition: background 0.2s; position: relative; }
         .sortable-header:hover { background-color: #334155 !important; }
 
-        .line-preview { background-color: #84A98C; background-image: url('https://www.transparenttextures.com/patterns/cubes.png'); }
-        .line-bubble { background-color: #ffffff; border-radius: 18px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .line-bubble::after { content: ''; position: absolute; left: -8px; top: 12px; border-style: solid; border-width: 6px 10px 6px 0; border-color: transparent #ffffff transparent transparent; }
+        .line-preview {
+            background-color: #84A98C;
+            background-image: url('https://www.transparenttextures.com/patterns/cubes.png');
+        }
+        .line-bubble {
+            background-color: #ffffff; border-radius: 18px; position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .line-bubble::after {
+            content: ''; position: absolute; left: -8px; top: 12px;
+            border-style: solid; border-width: 6px 10px 6px 0; border-color: transparent #ffffff transparent transparent;
+        }
 
         .sticky-col-header { position: sticky; z-index: 50; outline: 1px solid #334155; }
         .sticky-col-cell { position: sticky; z-index: 20; background-color: #ffffff; outline: 1px solid #e2e8f0; }
         tr:hover .sticky-col-cell { background-color: #f8fafc; }
         
+        /* Animation classes */
         @keyframes slideInDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .animate-slide-in-down { animation: slideInDown 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -68,30 +89,52 @@
 
     <script type="text/babel">
         // ==========================================
-        // APP VERSION: v5.1.0 (Ultimate Fix - Zero Quota + Assign Job + UI)
+        // APP VERSION: v2.0.0 (Unlimited Free Tier Mode)
         // ==========================================
-        const APP_VERSION = "5.1.0";
+        const APP_VERSION = "2.0.0";
 
-        if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
+        if (typeof ChartDataLabels !== 'undefined') {
+            Chart.register(ChartDataLabels);
+        }
 
         const { useState, useEffect, useRef, useMemo, useTransition } = React;
 
+        // Error Boundary เพื่อป้องกันหน้าจอขาว
         class ErrorBoundary extends React.Component {
-            constructor(props) { super(props); this.state = { hasError: false, error: null }; }
-            static getDerivedStateFromError(error) { return { hasError: true, error }; }
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false, error: null };
+            }
+            static getDerivedStateFromError(error) {
+                return { hasError: true, error };
+            }
+            componentDidCatch(error, errorInfo) {
+                console.error("React Error Boundary Caught:", error, errorInfo);
+            }
             render() {
-                if (this.state.hasError) return (
-                    <div className="flex flex-col items-center justify-center w-full h-screen bg-slate-50 p-8 text-center">
-                        <i className="fa-solid fa-triangle-exclamation text-6xl text-red-500 mb-4"></i>
-                        <h2 className="text-2xl font-bold text-slate-800 mb-2">เกิดข้อผิดพลาดในการแสดงผล</h2>
-                        <p className="text-slate-500 mb-6 border p-4 bg-white rounded-lg">{this.state.error && this.state.error.toString()}</p>
-                        <button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg"><i className="fa-solid fa-rotate-right mr-2"></i> รีเฟรชหน้าเว็บ</button>
-                    </div>
-                );
+                if (this.state.hasError) {
+                    return (
+                        <div className="flex flex-col items-center justify-center w-full h-screen bg-slate-50 p-8 text-center">
+                            <i className="fa-solid fa-triangle-exclamation text-6xl text-red-500 mb-4"></i>
+                            <h2 className="text-2xl font-bold text-slate-800 mb-2">เกิดข้อผิดพลาดในการแสดงผล (ระบบขัดข้อง)</h2>
+                            <p className="text-slate-500 mb-6 max-w-lg break-words text-sm border p-4 bg-white rounded-lg shadow-inner">
+                                {this.state.error && this.state.error.toString()}
+                            </p>
+                            <button 
+                                onClick={() => window.location.reload()} 
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-md">
+                                <i className="fa-solid fa-rotate-right mr-2"></i> รีเฟรชหน้าเว็บ
+                            </button>
+                        </div>
+                    );
+                }
                 return this.props.children; 
             }
         }
 
+        // ==========================================
+        // 1. Global Setup & Firebase Config
+        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyAvJPbPWiK632FpuOSlTT6tiEjsk3Rjh7Y",
             authDomain: "test-remove-equipment.firebaseapp.com",
@@ -102,22 +145,29 @@
             measurementId: "G-VB3VDMQ9D1"
         };
         
-        // 🔴 ใส่ลิงก์ New Deployment จาก GAS ตรงนี้
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwIf_5Ps8MMNLHPXFdCK4ZjgKx232EguXInCDLyiJFx_GN88X4PObxsiWetG4GhURnZ/exec"; 
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxTX-V8W9wpn976AHY5_45hS-4yNQrYUoPlOwGIXJYGtWaMWbuNSSDdKtA1KUCnER05/exec"; 
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-
-        const historyRef = db.collection('task_history');
-        const masterDataRef = db.collection('master_data').doc('zones_teams');
-        const syncRef = db.collection('system').doc('sync'); 
+        db.settings({ experimentalForceLongPolling: true, useFetchStreams: false });
 
         const collectionRef = db.collection('tasks');
         const nsCollectionRef = db.collection('ns_tasks'); 
+        const historyRef = db.collection('task_history');
+        const masterDataRef = db.collection('master_data').doc('zones_teams');
 
         const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-        const defaultMasterData = { zones: [], teams: [] };
+        const defaultMasterData = {
+            zones: [
+                { id: "zone_1", name: "โซน 1 (กทม. เหนือ/กลาง/นนทบุรี)", districts: "เขตพระนคร,เขตดุสิต,เขตบางซื่อ,เขตจตุจักร,เขตพญาไท,เมืองนนทบุรี,ปากเกร็ด", teams: "BA,TAS" },
+                { id: "zone_2", name: "โซน 2 (กทม. ตะวันออก/ปทุมธานี)", districts: "เขตบางกะปิ,เขตมีนบุรี,เขตลาดกระบัง,คลองหลวง,ธัญบุรี,ลำลูกกา", teams: "ATG,NPY" },
+                { id: "zone_3", name: "โซน 3 (กทม. ใต้/สมุทรปราการ)", districts: "เขตบางนา,เขตพระโขนง,เขตคลองเตย,เมืองสมุทรปราการ,บางพลี,พระประแดง", teams: "JEKLINK,TP" },
+                { id: "zone_4", name: "โซน 4 (กทม. ธนบุรี/ตะวันตก)", districts: "เขตธนบุรี,เขตบางกอกน้อย,เขตบางแค,บางใหญ่,บางบัวทอง,บางกรวย", teams: "JJ&A,SYMC" }
+            ],
+            teams: ["BA", "TAS", "ATG", "NPY", "JEKLINK", "TP", "JJ&A", "SYMC"]
+        };
 
+        // --- Helper Functions ---
         const formatSheetDate = (val) => {
             if (typeof val !== 'string') return val;
             const isLongDate = val.match(/^[A-Z][a-z]{2} [A-Z][a-z]{2} \d{2} \d{4}/) || val.match(/^\d{4}-\d{2}-\d{2}T/);
@@ -125,35 +175,52 @@
                 const d = new Date(val);
                 if (!isNaN(d.getTime())) {
                     if (d.getFullYear() === 1899) {
-                        let h = d.getUTCHours() + 7; if (h >= 24) h -= 24; let m = d.getUTCMinutes(); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                        let h = d.getUTCHours() + 7;
+                        if (h >= 24) h -= 24;
+                        let m = d.getUTCMinutes();
+                        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
                     }
                     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
                 }
-            } return val;
+            }
+            return val;
         };
 
         const parseDateHelper = (dateStr) => {
             if (!dateStr || typeof dateStr !== 'string') return null;
-            let str = dateStr.trim().split(/[\sT]+/)[0]; if (!str) return null;
+            let str = dateStr.trim().split(/[\sT]+/)[0]; 
+            if (!str) return null;
             let match = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
             if (match) {
-                let d = parseInt(match[1], 10); let m = parseInt(match[2], 10); let y = parseInt(match[3], 10);
-                if (y < 100) { y += (y > 40 ? 2500 : 2000); } if (y > 2500) y -= 543;
-                if (m > 12 && d <= 12) [d, m] = [m, d]; return new Date(y, m - 1, d);
+                let d = parseInt(match[1], 10);
+                let m = parseInt(match[2], 10);
+                let y = parseInt(match[3], 10);
+                if (y < 100) { y += (y > 40 ? 2500 : 2000); }
+                if (y > 2500) y -= 543;
+                if (m > 12 && d <= 12) [d, m] = [m, d];
+                return new Date(y, m - 1, d);
             }
             match = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
             if (match) {
-                let y = parseInt(match[1], 10); let m = parseInt(match[2], 10); let d = parseInt(match[3], 10);
-                if (y > 2500) y -= 543; return new Date(y, m - 1, d);
+                let y = parseInt(match[1], 10);
+                let m = parseInt(match[2], 10);
+                let d = parseInt(match[3], 10);
+                if (y > 2500) y -= 543;
+                return new Date(y, m - 1, d);
             }
-            const dObj = new Date(str); if (!isNaN(dObj.getTime())) return dObj; return null;
+            const dObj = new Date(str);
+            if (!isNaN(dObj.getTime())) return dObj;
+            return null;
         };
 
         const hexToRgbA = (hex, alpha) => {
             if (!hex || !hex.startsWith('#')) return hex;
-            let c = hex.substring(1).split(''); if (c.length === 3) c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+            let c = hex.substring(1).split('');
+            if (c.length === 3) c = [c[0], c[0], c[1], c[1], c[2], c[2]];
             if (c.length !== 6) return hex;
-            let r = parseInt(c.slice(0, 2).join(''), 16); let g = parseInt(c.slice(2, 4).join(''), 16); let b = parseInt(c.slice(4, 6).join(''), 16);
+            let r = parseInt(c.slice(0, 2).join(''), 16);
+            let g = parseInt(c.slice(2, 4).join(''), 16);
+            let b = parseInt(c.slice(4, 6).join(''), 16);
             return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         };
 
@@ -166,9 +233,13 @@
             Object.keys(taskObj).forEach(k => {
                 if (k === 'id' || k === '_rowIndex') return;
                 const lk = String(k).toLowerCase().replace(/[\s_]+/g, '');
-                if (lk.includes('นัดหมาย') || lk.includes('over') || lk.includes('เกินกำหนด') || lk.includes('สถานะ') || lk.includes('status') || lk.includes('วันที่') || lk.includes('เวลา') || lk.includes('date') || lk.includes('time') || lk.includes('timestamp')) return;
+                if (lk.includes('นัดหมาย') || lk.includes('over') || lk.includes('เกินกำหนด') || lk.includes('สถานะ') || lk.includes('status') || lk.includes('วันที่') || lk.includes('เวลา') || lk.includes('date') || lk.includes('time') || lk.includes('timestamp')) {
+                    return;
+                }
                 const val = String(taskObj[k]).trim();
-                if (val !== '' && val !== '-' && val !== 'ไม่ระบุสถานะ' && val !== 'ไม่ระบุทีม') hasRealData = true;
+                if (val !== '' && val !== '-' && val !== 'ไม่ระบุสถานะ' && val !== 'ไม่ระบุทีม') {
+                    hasRealData = true;
+                }
             });
             return hasRealData;
         }
@@ -179,16 +250,29 @@
         const getTeamColorStyle = (teamName, masterData) => {
             if (!teamName || String(teamName).trim() === '') return { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
             const str = String(teamName).trim();
+
             if (masterData && masterData.nsTeams) {
                 const nsTeamMatch = masterData.nsTeams.find(t => t.name === str);
-                if (nsTeamMatch && nsTeamMatch.bg) return { bg: hexToRgbA(nsTeamMatch.bg, 0.15), text: nsTeamMatch.text || nsTeamMatch.bg, border: nsTeamMatch.bg };
+                if (nsTeamMatch && nsTeamMatch.bg) {
+                    return { bg: hexToRgbA(nsTeamMatch.bg, 0.15), text: nsTeamMatch.text || nsTeamMatch.bg, border: nsTeamMatch.bg };
+                }
             }
+
             if (specificTeamColors[str.toLowerCase()]) return specificTeamColors[str.toLowerCase()];
             let hash = 0; for (let i = 0; i < (str?.length || 0); i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
             return fallbackTeamColors[Math.abs(hash) % fallbackTeamColors.length];
         };
 
-        const yearColors = [ { bg: '#e0f2fe', text: '#0369a1', border: '#bae6fd' }, { bg: '#fce7f3', text: '#be185d', border: '#fbcfe8' }, { bg: '#fef9c3', text: '#a16207', border: '#fef08a' }, { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0' }, { bg: '#f3e8ff', text: '#7e22ce', border: '#e9d5ff' }, { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa' }, { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' } ];
+        const yearColors = [
+            { bg: '#e0f2fe', text: '#0369a1', border: '#bae6fd' },
+            { bg: '#fce7f3', text: '#be185d', border: '#fbcfe8' },
+            { bg: '#fef9c3', text: '#a16207', border: '#fef08a' },
+            { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0' },
+            { bg: '#f3e8ff', text: '#7e22ce', border: '#e9d5ff' },
+            { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa' },
+            { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' } 
+        ];
+
         const getYearColorStyle = (yearStr) => {
             if (!yearStr || String(yearStr).trim() === '') return yearColors[yearColors.length - 1];
             let hash = 0; for (let i = 0; i < String(yearStr).length; i++) hash = String(yearStr).charCodeAt(i) + ((hash << 5) - hash);
@@ -198,13 +282,22 @@
         const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
         const getFirstDayOfMonth = (y, m) => new Date(y, m, 1).getDay();
         const isSameDate = (dateStr, dateObj) => {
-            const d = parseDateHelper(dateStr); if (!d || !dateObj) return false;
+            const d = parseDateHelper(dateStr);
+            if (!d || !dateObj) return false;
             return d.getDate() === dateObj.getDate() && d.getMonth() === dateObj.getMonth() && d.getFullYear() === dateObj.getFullYear();
         };
 
+        // ==========================================
+        // 2. Reusable UI Components
+        // ==========================================
         const MultiSelect = ({ options = [], selected = [], onChange, placeholder = "ทั้งหมด" }) => {
-            const [isOpen, setIsOpen] = useState(false); const dropdownRef = useRef(null);
-            useEffect(() => { const handleClickOutside = (event) => { if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false); }; document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, []);
+            const [isOpen, setIsOpen] = useState(false);
+            const dropdownRef = useRef(null);
+            useEffect(() => {
+                const handleClickOutside = (event) => { if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false); };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
             const toggleOption = (opt) => { if (selected.includes(opt)) onChange(selected.filter(x => x !== opt)); else onChange([...selected, opt]); };
             return (
                 <div className="relative inline-block text-left w-full md:w-auto" ref={dropdownRef}>
@@ -215,9 +308,17 @@
                     {isOpen && (
                         <div className="origin-top-left sm:origin-top-right absolute left-0 sm:left-auto sm:right-0 mt-2 w-56 max-w-[90vw] rounded-xl shadow-xl bg-white ring-1 ring-black ring-opacity-5 z-[100] overflow-hidden">
                             <div className="max-h-[50vh] sm:max-h-60 overflow-y-auto py-2 custom-scrollbar">
-                                <label className="flex items-center px-4 py-2 hover:bg-blue-50 cursor-pointer transition-colors"><input type="checkbox" checked={selected?.length === 0} onChange={() => onChange([])} className="mr-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" /><span className="text-sm font-bold text-slate-800">เลือกทั้งหมด</span></label>
+                                <label className="flex items-center px-4 py-2 hover:bg-blue-50 cursor-pointer transition-colors">
+                                    <input type="checkbox" checked={selected?.length === 0} onChange={() => onChange([])} className="mr-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+                                    <span className="text-sm font-bold text-slate-800">เลือกทั้งหมด</span>
+                                </label>
                                 <div className="h-px bg-slate-100 my-1"></div>
-                                {options?.map(opt => ( <label key={opt} className="flex items-center px-4 py-2 hover:bg-slate-50 cursor-pointer transition-colors"><input type="checkbox" checked={selected?.includes(opt)} onChange={() => toggleOption(opt)} className="mr-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" /><span className="text-sm text-slate-600 truncate" title={opt}>{opt}</span></label> ))}
+                                {options?.map(opt => (
+                                    <label key={opt} className="flex items-center px-4 py-2 hover:bg-slate-50 cursor-pointer transition-colors">
+                                        <input type="checkbox" checked={selected?.includes(opt)} onChange={() => toggleOption(opt)} className="mr-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+                                        <span className="text-sm text-slate-600 truncate" title={opt}>{opt}</span>
+                                    </label>
+                                ))}
                             </div>
                         </div>
                     )}
@@ -226,20 +327,34 @@
         };
 
         const ColumnToggle = ({ columns = [], hiddenColumns = [], setHiddenColumns }) => {
-            const [isOpen, setIsOpen] = useState(false); const dropdownRef = useRef(null);
-            useEffect(() => { const handleClickOutside = (event) => { if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false); }; document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, []);
+            const [isOpen, setIsOpen] = useState(false);
+            const dropdownRef = useRef(null);
+            useEffect(() => {
+                const handleClickOutside = (event) => { if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false); };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
             const toggleColumn = (col) => { if (hiddenColumns.includes(col)) setHiddenColumns(hiddenColumns.filter(c => c !== col)); else setHiddenColumns([...hiddenColumns, col]); };
             const toggleAll = () => { if (hiddenColumns?.length > 0) setHiddenColumns([]); else setHiddenColumns(columns); };
             return (
                 <div className="relative inline-block text-left" ref={dropdownRef}>
                     <button type="button" onClick={() => setIsOpen(!isOpen)} className="flex items-center gap-1.5 text-xs md:text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 px-3 md:px-4 py-1.5 rounded-lg border border-slate-300 shadow-sm transition-colors h-[38px]">
-                        <i className="fa-regular fa-eye text-slate-500"></i> <span className="hidden sm:inline">ซ่อน/แสดง คอลัมน์</span><i className={`fa-solid fa-chevron-down text-[10px] md:text-xs text-slate-400 ml-1 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}></i>
+                        <i className="fa-regular fa-eye text-slate-500"></i> <span className="hidden sm:inline">ซ่อน/แสดง คอลัมน์</span>
+                        <i className={`fa-solid fa-chevron-down text-[10px] md:text-xs text-slate-400 ml-1 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}></i>
                     </button>
                     {isOpen && (
                         <div className="origin-top-left sm:origin-top-right absolute left-0 sm:left-auto sm:right-0 mt-2 w-64 max-w-[90vw] rounded-xl shadow-xl bg-white ring-1 ring-black ring-opacity-5 z-[100] overflow-hidden">
                             <div className="max-h-[50vh] sm:max-h-80 overflow-y-auto py-2 custom-scrollbar">
-                                <label className="flex items-center px-4 py-2 hover:bg-blue-50 cursor-pointer transition-colors border-b border-slate-100"><input type="checkbox" checked={hiddenColumns?.length === 0} onChange={toggleAll} className="mr-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" /><span className="text-sm font-bold text-slate-800">แสดงทั้งหมด</span></label>
-                                {columns?.map(col => ( <label key={col} className="flex items-center px-4 py-2 hover:bg-slate-50 cursor-pointer transition-colors"><input type="checkbox" checked={!hiddenColumns?.includes(col)} onChange={() => toggleColumn(col)} className="mr-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" /><span className="text-sm text-slate-600 truncate" title={col}>{col}</span></label> ))}
+                                <label className="flex items-center px-4 py-2 hover:bg-blue-50 cursor-pointer transition-colors border-b border-slate-100">
+                                    <input type="checkbox" checked={hiddenColumns?.length === 0} onChange={toggleAll} className="mr-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+                                    <span className="text-sm font-bold text-slate-800">แสดงทั้งหมด</span>
+                                </label>
+                                {columns?.map(col => (
+                                    <label key={col} className="flex items-center px-4 py-2 hover:bg-slate-50 cursor-pointer transition-colors">
+                                        <input type="checkbox" checked={!hiddenColumns?.includes(col)} onChange={() => toggleColumn(col)} className="mr-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+                                        <span className="text-sm text-slate-600 truncate" title={col}>{col}</span>
+                                    </label>
+                                ))}
                             </div>
                         </div>
                     )}
@@ -248,34 +363,255 @@
         };
 
         const ChartComponent = ({ type, data, options }) => {
-            const chartRef = useRef(null); const chartInstance = useRef(null);
-            useEffect(() => { if (chartInstance.current) chartInstance.current.destroy(); const ctx = chartRef.current.getContext('2d'); chartInstance.current = new Chart(ctx, { type, data, options }); return () => { if (chartInstance.current) chartInstance.current.destroy(); }; }, [type, data, options]);
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+            useEffect(() => {
+                if (chartInstance.current) chartInstance.current.destroy();
+                const ctx = chartRef.current.getContext('2d');
+                chartInstance.current = new Chart(ctx, { type, data, options });
+                return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+            }, [type, data, options]);
             return <canvas ref={chartRef} style={{ width: '100%', height: '100%' }} />;
         };
 
         const DraggableFAB = ({ onClick }) => {
             const [position, setPosition] = useState(() => ({ x: typeof window !== 'undefined' ? window.innerWidth - 80 : 0, y: typeof window !== 'undefined' ? window.innerHeight - 80 : 0 }));
-            const draggingRef = useRef(false); const startPosRef = useRef({ x: 0, y: 0 }); const fabRef = useRef(null); const dragDistance = useRef(0); const lastPos = useRef({ x: 0, y: 0 });
-            useEffect(() => { const handleResize = () => { setPosition(prev => { let nx = prev.x, ny = prev.y; if (nx > window.innerWidth - 70) nx = window.innerWidth - 80; if (ny > window.innerHeight - 70) ny = window.innerHeight - 80; return { x: nx, y: ny }; }); }; window.addEventListener('resize', handleResize); return () => window.removeEventListener('resize', handleResize); }, []);
-            const onDown = (e) => { draggingRef.current = true; dragDistance.current = 0; lastPos.current = { x: e.clientX, y: e.clientY }; const rect = fabRef.current.getBoundingClientRect(); startPosRef.current = { offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top }; e.currentTarget.setPointerCapture(e.pointerId); };
-            const onMove = (e) => { if (!draggingRef.current) return; const dx = e.clientX - lastPos.current.x, dy = e.clientY - lastPos.current.y; dragDistance.current += Math.sqrt(dx * dx + dy * dy); lastPos.current = { x: e.clientX, y: e.clientY }; let newX = e.clientX - startPosRef.current.offsetX, newY = e.clientY - startPosRef.current.offsetY; const maxX = document.documentElement.clientWidth - 60, maxY = document.documentElement.clientHeight - 60; newX = Math.max(10, Math.min(newX, maxX)); newY = Math.max(10, Math.min(newY, maxY)); setPosition({ x: newX, y: newY }); };
-            const onUp = (e) => { draggingRef.current = false; e.currentTarget.releasePointerCapture(e.pointerId); if (dragDistance.current < 10) onClick(); };
-            return ( <button ref={fabRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} className="lg:hidden fixed z-[100] bg-blue-600 text-white w-14 h-14 rounded-full shadow-[0_4px_20px_rgba(37,99,235,0.5)] flex items-center justify-center transition-shadow touch-none" style={{ left: position.x, top: position.y }} title="เปิดเมนู (ลากเพื่อย้าย)"><i className="fa-solid fa-bars text-2xl pointer-events-none"></i></button> );
-        };
-
-        const MasterDataTab = ({ masterData, masterDataRef, customAlert, customConfirm }) => {
-            const [isEditing, setIsEditing] = useState(false); const [tempData, setTempData] = useState(masterData);
-            useEffect(() => { setTempData({ ...masterData, nsTeams: Array.isArray(masterData.nsTeams) ? masterData.nsTeams : [], nsStatuses: Array.isArray(masterData.nsStatuses) ? masterData.nsStatuses : [] }); }, [masterData]);
-            const handleSaveZone = (index, field, val) => { const newZones = [...tempData.zones]; newZones[index][field] = val; setTempData({ ...tempData, zones: newZones }); };
-            const addZone = () => { const newZones = [...tempData.zones, { id: `zone_${Date.now()}`, name: `โซนใหม่ ${(tempData?.zones?.length || 0) + 1}`, districts: "", teams: "" }]; setTempData({ ...tempData, zones: newZones }); };
-            const delZone = (index) => { customConfirm('ยืนยันลบโซนพื้นที่นี้หรือไม่?', () => { const newZones = tempData.zones.filter((_, i) => i !== index); setTempData({ ...tempData, zones: newZones }); }); };
-            const handleSave = () => { const newTeamsArr = typeof tempData.teams === 'string' ? tempData.teams.split(',').map(t=>t.trim()).filter(Boolean) : tempData.teams; const dataToSave = { zones: tempData.zones || [], teams: newTeamsArr || [], nsTeams: tempData.nsTeams || [], nsStatuses: tempData.nsStatuses || [] }; masterDataRef.set(dataToSave, { merge: true }); setIsEditing(false); customAlert('บันทึกข้อมูลส่วนกลางเรียบร้อยแล้ว', 'success'); };
-
+            const draggingRef = useRef(false);
+            const startPosRef = useRef({ x: 0, y: 0 });
+            const fabRef = useRef(null);
+            const dragDistance = useRef(0);
+            const lastPos = useRef({ x: 0, y: 0 });
+            useEffect(() => {
+                const handleResize = () => {
+                    setPosition(prev => {
+                        let nx = prev.x, ny = prev.y;
+                        if (nx > window.innerWidth - 70) nx = window.innerWidth - 80;
+                        if (ny > window.innerHeight - 70) ny = window.innerHeight - 80;
+                        return { x: nx, y: ny };
+                    });
+                };
+                window.addEventListener('resize', handleResize);
+                return () => window.removeEventListener('resize', handleResize);
+            }, []);
+            const onDown = (e) => {
+                draggingRef.current = true; dragDistance.current = 0; lastPos.current = { x: e.clientX, y: e.clientY };
+                const rect = fabRef.current.getBoundingClientRect();
+                startPosRef.current = { offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top };
+                e.currentTarget.setPointerCapture(e.pointerId);
+            };
+            const onMove = (e) => {
+                if (!draggingRef.current) return;
+                const dx = e.clientX - lastPos.current.x, dy = e.clientY - lastPos.current.y;
+                dragDistance.current += Math.sqrt(dx * dx + dy * dy);
+                lastPos.current = { x: e.clientX, y: e.clientY };
+                let newX = e.clientX - startPosRef.current.offsetX, newY = e.clientY - startPosRef.current.offsetY;
+                const maxX = document.documentElement.clientWidth - 60, maxY = document.documentElement.clientHeight - 60;
+                newX = Math.max(10, Math.min(newX, maxX)); newY = Math.max(10, Math.min(newY, maxY));
+                setPosition({ x: newX, y: newY });
+            };
+            const onUp = (e) => {
+                draggingRef.current = false; e.currentTarget.releasePointerCapture(e.pointerId);
+                if (dragDistance.current < 10) onClick();
+            };
             return (
-                <div className="absolute inset-0 p-4 md:p-8 overflow-y-auto custom-scrollbar bg-slate-50"><div className="max-w-6xl mx-auto"><header className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><div><h2 className="text-xl md:text-2xl font-bold text-slate-900"><i className="fa-solid fa-database text-blue-600 mr-2"></i> จัดการฐานข้อมูลส่วนกลาง (Master Data)</h2><p className="text-slate-500 mt-1 text-xs md:text-sm">จัดการโซน, ทีมงาน และสีของสถานะ</p></div><div className="flex gap-2">{!isEditing ? ( <button onClick={() => setIsEditing(true)} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors text-sm flex items-center"><i className="fa-solid fa-pen-to-square mr-2"></i> แก้ไขข้อมูล</button> ) : ( <><button onClick={() => { setIsEditing(false); setTempData({ ...masterData, nsTeams: masterData.nsTeams || [], nsStatuses: masterData.nsStatuses || [] }); }} className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-semibold transition-colors text-sm">ยกเลิก</button><button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold shadow-sm transition-colors text-sm flex items-center"><i className="fa-solid fa-check mr-2"></i> ยืนยันการบันทึก</button></> )}</div></header><div className="grid grid-cols-1 lg:grid-cols-3 gap-6"><div className="lg:col-span-1 space-y-6"><div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-blue-200 ring-1 ring-blue-100' : 'bg-slate-100/50 border-slate-200'}`}><h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-users-gear text-indigo-500 mr-2"></i> ฐานข้อมูลทีมงาน (Subcon)</h3><div><label className="text-xs font-bold text-slate-500">รายชื่อทีม Subcontract (คั่นด้วยลูกน้ำ ,)</label><textarea disabled={!isEditing} value={Array.isArray(tempData.teams) ? tempData.teams.join(', ') : tempData.teams} onChange={e => setTempData({...tempData, teams: e.target.value})} rows="4" className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:bg-slate-100 disabled:text-slate-500"></textarea></div></div><div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-amber-200 ring-1 ring-amber-100' : 'bg-slate-100/50 border-slate-200'}`}><h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-user-tie text-amber-500 mr-2"></i> ฐานข้อมูล NS Responsible</h3><div className="space-y-2"><label className="text-xs font-bold text-slate-500">รายชื่อผู้รับผิดชอบ NS และสี (ปรับแต่งได้)</label><div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">{Array.isArray(tempData.nsTeams) && tempData.nsTeams.map((team, idx) => ( <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200"><input type="text" disabled={!isEditing} value={team.name} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], name: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อทีม NS" /><div className="flex flex-col items-center shrink-0"><span className="text-[8px] text-slate-400 font-bold mb-0.5">พื้นหลัง</span><input type="color" disabled={!isEditing} value={team.bg || '#e0f2fe'} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], bg: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" /></div><div className="flex flex-col items-center shrink-0"><span className="text-[8px] text-slate-400 font-bold mb-0.5">ตัวอักษร</span><input type="color" disabled={!isEditing} value={team.text || '#0369a1'} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], text: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" /></div>{isEditing && <button onClick={() => { let newT = tempData.nsTeams.filter((_, i) => i !== idx); setTempData({...tempData, nsTeams: newT}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}</div> ))}</div>{isEditing && <button onClick={() => setTempData({...tempData, nsTeams: [...(tempData.nsTeams||[]), {name: '', bg: '#e0f2fe', text: '#0369a1'}]})} className="text-[10px] font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มทีม NS</button>}</div></div><div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-emerald-200 ring-1 ring-emerald-100' : 'bg-slate-100/50 border-slate-200'}`}><h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-tags text-emerald-500 mr-2"></i> ฐานข้อมูล Status JOB</h3><div className="space-y-2"><label className="text-xs font-bold text-slate-500">รายชื่อ Status JOB และสี (ปรับแต่งได้)</label><div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">{Array.isArray(tempData.nsStatuses) && tempData.nsStatuses.map((st, idx) => ( <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200"><input type="text" disabled={!isEditing} value={st.name} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], name: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อสถานะ" /><div className="flex flex-col items-center shrink-0"><span className="text-[8px] text-slate-400 font-bold mb-0.5">พื้นหลัง</span><input type="color" disabled={!isEditing} value={st.bg || '#fef3c7'} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], bg: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" /></div><div className="flex flex-col items-center shrink-0"><span className="text-[8px] text-slate-400 font-bold mb-0.5">ตัวอักษร</span><input type="color" disabled={!isEditing} value={st.text || '#b45309'} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], text: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" /></div>{isEditing && <button onClick={() => { let newS = tempData.nsStatuses.filter((_, i) => i !== idx); setTempData({...tempData, nsStatuses: newS}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}</div> ))}</div>{isEditing && <button onClick={() => setTempData({...tempData, nsStatuses: [...(tempData.nsStatuses||[]), {name: '', bg: '#fef3c7', text: '#b45309'}]})} className="text-[10px] font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มสถานะ NS</button>}</div></div></div><div className="lg:col-span-2"><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-slate-800"><i className="fa-solid fa-map-location-dot text-amber-500 mr-2"></i> ฐานข้อมูลโซนพื้นที่ (Zones)</h3>{isEditing && ( <button onClick={addZone} className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg font-bold transition-colors"><i className="fa-solid fa-plus"></i> เพิ่มโซน</button> )}</div><div className="grid grid-cols-1 xl:grid-cols-2 gap-4">{(tempData.zones || []).map((zone, idx) => ( <div key={zone.id} className={`p-4 rounded-xl shadow-sm relative transition-colors ${isEditing ? 'bg-white border border-amber-200 hover:shadow-md' : 'bg-slate-100/50 border border-slate-200'}`}>{isEditing && ( <button onClick={() => delZone(idx)} className="absolute top-3 right-3 text-slate-300 hover:text-red-500 transition-colors"><i className="fa-solid fa-trash"></i></button> )}<div className="space-y-3"><div className="pr-6"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ชื่อโซน</label><input type="text" disabled={!isEditing} value={zone.name} onChange={e => handleSaveZone(idx, 'name', e.target.value)} className="w-full mt-0.5 px-2 py-1 border-b border-slate-200 bg-transparent outline-none focus:border-amber-500 text-sm font-bold text-slate-800 disabled:text-slate-600" /></div><div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">เขต/อำเภอ (คั่นด้วยลูกน้ำ ,)</label><textarea disabled={!isEditing} value={zone.districts} onChange={e => handleSaveZone(idx, 'districts', e.target.value)} rows="2" className="w-full mt-0.5 px-2 py-1 border border-slate-200 rounded bg-slate-50 outline-none focus:ring-1 focus:ring-amber-500 text-xs disabled:bg-transparent disabled:border-transparent disabled:px-0" ></textarea></div><div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ทีมที่รับผิดชอบ (เรียงตามคิว)</label><textarea disabled={!isEditing} value={zone.teams} onChange={e => handleSaveZone(idx, 'teams', e.target.value)} rows="1" className="w-full mt-0.5 px-2 py-1 border border-slate-200 rounded bg-slate-50 outline-none focus:ring-1 focus:ring-amber-500 text-xs disabled:bg-transparent disabled:border-transparent disabled:px-0 font-semibold text-indigo-700" ></textarea></div></div></div> ))}</div></div></div></div></div>
+                <button ref={fabRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} className="lg:hidden fixed z-[100] bg-blue-600 text-white w-14 h-14 rounded-full shadow-[0_4px_20px_rgba(37,99,235,0.5)] flex items-center justify-center transition-shadow touch-none" style={{ left: position.x, top: position.y }} title="เปิดเมนู (ลากเพื่อย้าย)">
+                    <i className="fa-solid fa-bars text-2xl pointer-events-none"></i>
+                </button>
             );
         };
 
+        // -------------------------------------------------------------
+        // --- COMPONENT: MASTER DATA MANAGEMENT ---
+        // -------------------------------------------------------------
+        const MasterDataTab = ({ masterData, masterDataRef, customAlert, customConfirm }) => {
+            const [isEditing, setIsEditing] = useState(false);
+            const [tempData, setTempData] = useState(masterData);
+
+            useEffect(() => { 
+                setTempData({
+                    ...masterData,
+                    nsTeams: Array.isArray(masterData.nsTeams) ? masterData.nsTeams : [],
+                    nsStatuses: Array.isArray(masterData.nsStatuses) ? masterData.nsStatuses : []
+                }); 
+            }, [masterData]);
+
+            const handleSaveZone = (index, field, val) => {
+                const newZones = [...tempData.zones];
+                newZones[index][field] = val;
+                setTempData({ ...tempData, zones: newZones });
+            };
+            const addZone = () => {
+                const newZones = [...tempData.zones, { id: `zone_${Date.now()}`, name: `โซนใหม่ ${(tempData?.zones?.length || 0) + 1}`, districts: "", teams: "" }];
+                setTempData({ ...tempData, zones: newZones });
+            };
+            const delZone = (index) => {
+                customConfirm('ยืนยันลบโซนพื้นที่นี้หรือไม่?', () => {
+                    const newZones = tempData.zones.filter((_, i) => i !== index);
+                    setTempData({ ...tempData, zones: newZones });
+                });
+            };
+
+            const handleSave = () => {
+                const newTeamsArr = typeof tempData.teams === 'string' ? tempData.teams.split(',').map(t=>t.trim()).filter(Boolean) : tempData.teams;
+
+                const dataToSave = {
+                    zones: tempData.zones || [],
+                    teams: newTeamsArr || [],
+                    nsTeams: tempData.nsTeams || [],
+                    nsStatuses: tempData.nsStatuses || []
+                };
+
+                masterDataRef.set(dataToSave, { merge: true });
+                setIsEditing(false);
+                customAlert('บันทึกข้อมูลส่วนกลางเรียบร้อยแล้ว', 'success');
+            };
+
+            return (
+                <div className="absolute inset-0 p-4 md:p-8 overflow-y-auto custom-scrollbar bg-slate-50">
+                    <div className="max-w-6xl mx-auto">
+                        <header className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div>
+                                <h2 className="text-xl md:text-2xl font-bold text-slate-900"><i className="fa-solid fa-database text-blue-600 mr-2"></i> จัดการฐานข้อมูลส่วนกลาง (Master Data)</h2>
+                                <p className="text-slate-500 mt-1 text-xs md:text-sm">จัดการโซน, ทีมงาน และสีของสถานะ</p>
+                            </div>
+                            <div className="flex gap-2">
+                                {!isEditing ? (
+                                    <button onClick={() => setIsEditing(true)} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors text-sm flex items-center">
+                                        <i className="fa-solid fa-pen-to-square mr-2"></i> แก้ไขข้อมูล
+                                    </button>
+                                ) : (
+                                    <>
+                                        <button onClick={() => { setIsEditing(false); setTempData({ ...masterData, nsTeams: masterData.nsTeams || [], nsStatuses: masterData.nsStatuses || [] }); }} className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-semibold transition-colors text-sm">
+                                            ยกเลิก
+                                        </button>
+                                        <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold shadow-sm transition-colors text-sm flex items-center">
+                                            <i className="fa-solid fa-check mr-2"></i> ยืนยันการบันทึก
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </header>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-1 space-y-6">
+                                <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-blue-200 ring-1 ring-blue-100' : 'bg-slate-100/50 border-slate-200'}`}>
+                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-users-gear text-indigo-500 mr-2"></i> ฐานข้อมูลทีมงาน (Subcon)</h3>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500">รายชื่อทีม Subcontract (คั่นด้วยลูกน้ำ ,)</label>
+                                        <textarea disabled={!isEditing} value={Array.isArray(tempData.teams) ? tempData.teams.join(', ') : tempData.teams} onChange={e => setTempData({...tempData, teams: e.target.value})} rows="4" className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:bg-slate-100 disabled:text-slate-500"></textarea>
+                                    </div>
+                                </div>
+
+                                <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-amber-200 ring-1 ring-amber-100' : 'bg-slate-100/50 border-slate-200'}`}>
+                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-user-tie text-amber-500 mr-2"></i> ฐานข้อมูล NS Responsible</h3>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-500">รายชื่อผู้รับผิดชอบ NS และสี (ปรับแต่งได้)</label>
+                                        <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                                            {Array.isArray(tempData.nsTeams) && tempData.nsTeams.map((team, idx) => (
+                                                <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
+                                                    <input type="text" disabled={!isEditing} value={team.name} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], name: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อทีม NS" />
+                                                    <div className="flex flex-col items-center shrink-0">
+                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">พื้นหลัง</span>
+                                                        <input type="color" disabled={!isEditing} value={team.bg || '#e0f2fe'} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], bg: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" />
+                                                    </div>
+                                                    <div className="flex flex-col items-center shrink-0">
+                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">ตัวอักษร</span>
+                                                        <input type="color" disabled={!isEditing} value={team.text || '#0369a1'} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], text: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" />
+                                                    </div>
+                                                    {isEditing && <button onClick={() => { let newT = tempData.nsTeams.filter((_, i) => i !== idx); setTempData({...tempData, nsTeams: newT}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {isEditing && <button onClick={() => setTempData({...tempData, nsTeams: [...(tempData.nsTeams||[]), {name: '', bg: '#e0f2fe', text: '#0369a1'}]})} className="text-[10px] font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มทีม NS</button>}
+                                    </div>
+                                </div>
+
+                                <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-emerald-200 ring-1 ring-emerald-100' : 'bg-slate-100/50 border-slate-200'}`}>
+                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-tags text-emerald-500 mr-2"></i> ฐานข้อมูล Status JOB</h3>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-500">รายชื่อ Status JOB และสี (ปรับแต่งได้)</label>
+                                        <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                                            {Array.isArray(tempData.nsStatuses) && tempData.nsStatuses.map((st, idx) => (
+                                                <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
+                                                    <input type="text" disabled={!isEditing} value={st.name} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], name: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อสถานะ" />
+                                                    <div className="flex flex-col items-center shrink-0">
+                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">พื้นหลัง</span>
+                                                        <input type="color" disabled={!isEditing} value={st.bg || '#fef3c7'} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], bg: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" />
+                                                    </div>
+                                                    <div className="flex flex-col items-center shrink-0">
+                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">ตัวอักษร</span>
+                                                        <input type="color" disabled={!isEditing} value={st.text || '#b45309'} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], text: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" />
+                                                    </div>
+                                                    {isEditing && <button onClick={() => { let newS = tempData.nsStatuses.filter((_, i) => i !== idx); setTempData({...tempData, nsStatuses: newS}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {isEditing && <button onClick={() => setTempData({...tempData, nsStatuses: [...(tempData.nsStatuses||[]), {name: '', bg: '#fef3c7', text: '#b45309'}]})} className="text-[10px] font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มสถานะ NS</button>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="lg:col-span-2">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-bold text-slate-800"><i className="fa-solid fa-map-location-dot text-amber-500 mr-2"></i> ฐานข้อมูลโซนพื้นที่ (Zones)</h3>
+                                    {isEditing && (
+                                        <button onClick={addZone} className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg font-bold transition-colors">
+                                            <i className="fa-solid fa-plus"></i> เพิ่มโซน
+                                        </button>
+                                    )}
+                                </div>
+                                
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                    {(tempData.zones || []).map((zone, idx) => (
+                                        <div key={zone.id} className={`p-4 rounded-xl shadow-sm relative transition-colors ${isEditing ? 'bg-white border border-amber-200 hover:shadow-md' : 'bg-slate-100/50 border border-slate-200'}`}>
+                                            {isEditing && (
+                                                <button onClick={() => delZone(idx)} className="absolute top-3 right-3 text-slate-300 hover:text-red-500 transition-colors"><i className="fa-solid fa-trash"></i></button>
+                                            )}
+                                            <div className="space-y-3">
+                                                <div className="pr-6">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ชื่อโซน</label>
+                                                    <input 
+                                                        type="text" 
+                                                        disabled={!isEditing}
+                                                        value={zone.name} 
+                                                        onChange={e => handleSaveZone(idx, 'name', e.target.value)} 
+                                                        className="w-full mt-0.5 px-2 py-1 border-b border-slate-200 bg-transparent outline-none focus:border-amber-500 text-sm font-bold text-slate-800 disabled:text-slate-600" 
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">เขต/อำเภอ (คั่นด้วยลูกน้ำ ,)</label>
+                                                    <textarea 
+                                                        disabled={!isEditing}
+                                                        value={zone.districts} 
+                                                        onChange={e => handleSaveZone(idx, 'districts', e.target.value)} 
+                                                        rows="2" 
+                                                        className="w-full mt-0.5 px-2 py-1 border border-slate-200 rounded bg-slate-50 outline-none focus:ring-1 focus:ring-amber-500 text-xs disabled:bg-transparent disabled:border-transparent disabled:px-0" 
+                                                        ></textarea>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ทีมที่รับผิดชอบ (เรียงตามคิว)</label>
+                                                    <textarea 
+                                                        disabled={!isEditing}
+                                                        value={zone.teams} 
+                                                        onChange={e => handleSaveZone(idx, 'teams', e.target.value)} 
+                                                        rows="1" 
+                                                        className="w-full mt-0.5 px-2 py-1 border border-slate-200 rounded bg-slate-50 outline-none focus:ring-1 focus:ring-amber-500 text-xs disabled:bg-transparent disabled:border-transparent disabled:px-0 font-semibold text-indigo-700" 
+                                                        ></textarea>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // -------------------------------------------------------------
+        // --- COMPONENT: ASSIGN JOB & LINE NOTIFY ---
+        // -------------------------------------------------------------
         const AssignJobTab = ({ masterData, queueState, setQueueState, masterDataRef, collectionRef, GAS_WEB_APP_URL, nsTasks, autoAssignData, clearAutoAssignData, customAlert }) => {
             const getInitialFormState = () => {
                 const now = new Date();
@@ -284,137 +620,417 @@
                     cid: '', siteType: 'Terminate', districtSearch: '', zoneId: '', team: '', customerName: '', address: '', phone: '', cancelDate: '', getbackDate: '', getbackTime: '', details: '', nextTeam: ''
                 };
             };
-            const [form, setForm] = useState(getInitialFormState()); const [equipments, setEquipments] = useState([{ name: '', serial: '' }]); const [isSending, setIsSending] = useState(false); const [searchCid, setSearchCid] = useState('');
-            const allDistrictsMap = useMemo(() => { let map = []; (masterData.zones || []).forEach(z => { const dists = (z.districts || '').split(',').map(d => d.trim()).filter(Boolean); dists.forEach(d => map.push({ name: d, zoneId: z.id, zoneName: z.name })); }); return map.sort((a,b) => a.name.localeCompare(b.name, 'th')); }, [masterData.zones]);
-            const getVal = (t, keys) => { const matchedKey = Object.keys(t || {}).find(k => keys.some(kw => String(k).toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,'')))); return matchedKey ? t[matchedKey] : ''; };
-            const nsCidOptions = useMemo(() => { const cids = (nsTasks || []).map(t => getVal(t, ['circuitno'])).filter(c => c && String(c).trim() !== ''); return [...new Set(cids)]; }, [nsTasks]);
 
-            useEffect(() => { if (autoAssignData && autoAssignData.cid) { setSearchCid(autoAssignData.cid); executeAutoFill(autoAssignData.cid, autoAssignData.siteType || 'Terminate'); clearAutoAssignData(); } }, [autoAssignData]);
+            const [form, setForm] = useState(getInitialFormState());
+            const [equipments, setEquipments] = useState([{ name: '', serial: '' }]);
+            const [isSending, setIsSending] = useState(false);
+            const [searchCid, setSearchCid] = useState('');
+
+            const allDistrictsMap = useMemo(() => {
+                let map = [];
+                (masterData.zones || []).forEach(z => {
+                    const dists = (z.districts || '').split(',').map(d => d.trim()).filter(Boolean);
+                    dists.forEach(d => map.push({ name: d, zoneId: z.id, zoneName: z.name }));
+                });
+                return map.sort((a,b) => a.name.localeCompare(b.name, 'th'));
+            }, [masterData.zones]);
+
+            const getVal = (t, keys) => {
+                const matchedKey = Object.keys(t || {}).find(k => keys.some(kw => String(k).toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,''))));
+                return matchedKey ? t[matchedKey] : '';
+            };
+
+            const nsCidOptions = useMemo(() => {
+                const cids = (nsTasks || []).map(t => getVal(t, ['circuitno'])).filter(c => c && String(c).trim() !== '');
+                return [...new Set(cids)];
+            }, [nsTasks]);
+
+            useEffect(() => {
+                if (autoAssignData && autoAssignData.cid) {
+                    setSearchCid(autoAssignData.cid);
+                    executeAutoFill(autoAssignData.cid, autoAssignData.siteType || 'Terminate');
+                    clearAutoAssignData();
+                }
+            }, [autoAssignData]);
 
             const executeAutoFill = (searchCidValue, currentSiteType) => {
-                if (!searchCidValue || !String(searchCidValue).trim()) return;
-                const safeSearchCid = String(searchCidValue).trim().toLowerCase();
+                if (!searchCidValue.trim()) return;
                 
-                const matchedRows = (nsTasks || []).filter(t => { 
-                    const cid = getVal(t, ['circuitno', 'cid']); 
-                    return cid && String(cid).trim().toLowerCase() === safeSearchCid; 
+                const matchedCids = (nsTasks || []).filter(t => {
+                    const cid = getVal(t, ['circuitno']);
+                    return String(cid).trim().toLowerCase() === searchCidValue.trim().toLowerCase();
                 });
 
-                if (matchedRows.length === 0) { customAlert(`❌ ไม่พบข้อมูล CID: "${searchCidValue}" ในฐานข้อมูล NS`, 'error'); return; }
-
-                let actualSiteType = currentSiteType || 'Terminate'; const siteTypeKeys = ['sitetype', 'site']; 
-                const firstSt = String(getVal(matchedRows[0], siteTypeKeys)).trim();
-                if (firstSt) actualSiteType = firstSt;
-
-                const first = matchedRows[0]; 
-                const rawAmphur = getVal(first, ['amphur', 'อำเภอ', 'เขต', 'district']) || ''; 
-                let matchedZoneId = ''; let matchedTeam = ''; let matchedNextTeam = ''; let displayDistrict = '';
-                
-                if (rawAmphur) {
-                    const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
-                    const foundDistrict = allDistrictsMap.find(d => { const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase(); return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur); });
-                    if (foundDistrict) {
-                        displayDistrict = foundDistrict.name; matchedZoneId = foundDistrict.zoneId; const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
-                        if (zone) { const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean); let currentQ = queueState[zone.id] || 0; matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : ''; matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : ''; }
-                    } else { displayDistrict = rawAmphur; }
+                if (matchedCids.length === 0) {
+                    customAlert(`❌ ไม่พบข้อมูล CID: "${searchCidValue}" ในฐานข้อมูล NS`, 'error');
+                    return;
                 }
 
-                setForm(prev => ({ ...prev, cid: getVal(first, ['circuitno', 'cid']) || prev.cid, siteType: actualSiteType, customerName: getVal(first, ['customername', 'company', 'บริษัท']) || '', address: getVal(first, ['address', 'ที่อยู่']) || '', phone: getVal(first, ['customercontract', 'contract', 'เบอร์']) || '', cancelDate: getVal(first, ['duejob', 'due', 'ยกเลิก']) || '', getbackDate: getVal(first, ['getbackdate', 'วันที่เข้าเก็บ', 'date']) || '', getbackTime: getVal(first, ['getbacktime', 'เวลาเข้าเก็บ', 'time']) || '', districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId, team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' }));
+                let actualSiteType = currentSiteType || 'Terminate';
+                const siteTypeKeys = ['sitetype', 'site']; 
                 
-                const equips = matchedRows.map(t => {
-                    let exactItemKey = Object.keys(t).find(k => String(k).toLowerCase().replace(/[\s_]+/g, '') === 'itemname');
-                    let itemName = exactItemKey ? t[exactItemKey] : getVal(t, ['itemname', 'อุปกรณ์', 'item']);
-                    return { name: itemName || '', serial: getVal(t, ['serialno', 'serial', 'sn']) || '' };
-                }).filter(e => e.name || e.serial);
+                let matchedRows = matchedCids.filter(t => {
+                    const st = getVal(t, siteTypeKeys);
+                    return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase();
+                });
 
-                equips.sort((a, b) => { const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0; const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0; return bHasSn - aHasSn; });
-                if (equips.length > 0) setEquipments(equips); else setEquipments([{ name: '', serial: '' }]);
-                
-                if (!autoAssignData) customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
+                let isAutoSwitched = false;
+
+                if (matchedRows.length === 0) {
+                    const firstSt = String(getVal(matchedCids[0], siteTypeKeys)).trim();
+                    if (firstSt) {
+                        actualSiteType = firstSt;
+                        matchedRows = matchedCids.filter(t => {
+                            const st = getVal(t, siteTypeKeys);
+                            return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase();
+                        });
+                        isAutoSwitched = true;
+                    } else {
+                        matchedRows = matchedCids;
+                    }
+                }
+
+                if (matchedRows.length > 0) {
+                    const first = matchedRows[0];
+                    
+                    const rawAmphur = getVal(first, ['amphur', 'อำเภอ', 'เขต', 'district']) || '';
+                    let matchedZoneId = '';
+                    let matchedTeam = '';
+                    let matchedNextTeam = '';
+                    let displayDistrict = '';
+
+                    if (rawAmphur) {
+                        const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                        const foundDistrict = allDistrictsMap.find(d => {
+                            const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                            return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur);
+                        });
+
+                        if (foundDistrict) {
+                            displayDistrict = foundDistrict.name;
+                            matchedZoneId = foundDistrict.zoneId;
+                            const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
+                            if (zone) {
+                                const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
+                                let currentQ = queueState[zone.id] || 0;
+                                matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : '';
+                                matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : '';
+                            }
+                        } else {
+                            displayDistrict = rawAmphur;
+                        }
+                    }
+
+                    setForm(prev => ({
+                        ...prev,
+                        cid: getVal(first, ['circuitno']) || prev.cid, 
+                        siteType: actualSiteType,
+                        customerName: getVal(first, ['customername', 'company', 'บริษัท']) || '',
+                        address: getVal(first, ['address', 'ที่อยู่']) || '',
+                        phone: getVal(first, ['customercontract', 'contract', 'เบอร์']) || '',
+                        cancelDate: getVal(first, ['duejob', 'due', 'ยกเลิก']) || '',
+                        getbackDate: getVal(first, ['getbackdate', 'วันที่เข้าเก็บ', 'date']) || '',
+                        getbackTime: getVal(first, ['getbacktime', 'เวลาเข้าเก็บ', 'time']) || '',
+                        districtSearch: displayDistrict || prev.districtSearch,
+                        zoneId: matchedZoneId || prev.zoneId,
+                        team: matchedTeam || prev.team,
+                        nextTeam: matchedNextTeam || prev.nextTeam,
+                        details: '' 
+                    }));
+
+                    const equips = matchedRows.map(t => ({
+                        name: getVal(t, ['itemname', 'อุปกรณ์', 'item']) || '',
+                        serial: getVal(t, ['serialno', 'serial', 'sn']) || ''
+                    })).filter(e => e.name || e.serial);
+
+                    equips.sort((a, b) => {
+                        const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0;
+                        const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0;
+                        return bHasSn - aHasSn;
+                    });
+
+                    if (equips.length > 0) {
+                        setEquipments(equips);
+                    } else {
+                        setEquipments([{ name: '', serial: '' }]);
+                    }
+                    
+                    if (isAutoSwitched && !autoAssignData) {
+                        customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! (สลับ Site Type เป็น "${actualSiteType}" ให้อัตโนมัติ)`, 'success');
+                    } else if (!autoAssignData) {
+                        customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
+                    }
+                }
             };
 
-            const handleAutoFillClick = () => { executeAutoFill(searchCid, form.siteType); };
-            const handleDistrictInput = (e) => { const val = e.target.value; setForm(prev => ({...prev, districtSearch: val})); const found = allDistrictsMap.find(d => d.name === val); if (found) handleZoneSelect(found.zoneId); };
+            const handleAutoFillClick = () => {
+                executeAutoFill(searchCid, form.siteType);
+            };
+
+            const handleDistrictInput = (e) => {
+                const val = e.target.value;
+                setForm(prev => ({...prev, districtSearch: val}));
+                const found = allDistrictsMap.find(d => d.name === val);
+                if (found) handleZoneSelect(found.zoneId);
+            };
+
             const handleZoneSelect = (zoneId) => {
                 const zone = (masterData.zones || []).find(z => z.id === zoneId);
-                if (zone) { const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean); let currentQ = queueState[zone.id] || 0; let t1 = tArr.length > 0 ? tArr[currentQ % tArr.length] : ''; let t2 = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : ''; setForm(prev => ({ ...prev, zoneId: zoneId, team: t1, nextTeam: t2 })); } 
-                else { setForm(prev => ({ ...prev, zoneId: '', team: '', nextTeam: '' })); }
+                if (zone) {
+                    const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
+                    let currentQ = queueState[zone.id] || 0;
+                    let t1 = tArr.length > 0 ? tArr[currentQ % tArr.length] : '';
+                    let t2 = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : '';
+                    setForm(prev => ({ ...prev, zoneId: zoneId, team: t1, nextTeam: t2 }));
+                } else {
+                    setForm(prev => ({ ...prev, zoneId: '', team: '', nextTeam: '' }));
+                }
             };
+
             const addEquip = () => setEquipments([...equipments, { name: '', serial: '' }]);
             const rmEquip = (idx) => setEquipments(equipments.filter((_, i) => i !== idx));
 
             const generateMessage = () => {
-                return `📌📋 [แจ้งสถานะการจ่ายงาน: Remove-Equipment]\n---------------------------\n 📅 วันที่/เวลาแจ้ง: ${form.date}\n CIDs: ${form.cid || '-'}\n\n ผู้รับเหมา: ${form.team || '-'}\n บริษัทลูกค้า: ${form.customerName || '-'}\n ที่อยู่: ${form.address || '-'}\n เบอร์ติดต่อ: ${form.phone || '-'}\n วันที่ยกเลิกใช้งาน: ${form.cancelDate || '-'}\n วันที่เข้าเก็บ: ${form.getbackDate || '-'}  เวลา  : ${form.getbackTime || '-'}\n\n รายละเอียดงาน: ${form.details || '-'}\n\nรายการอุปกรณ์:\n${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n')}\n\n ⏭️ ผู้รับเหมาลำดับถัดไป: ${form.nextTeam || '-'}`;
+                return `📌📋 [แจ้งสถานะการจ่ายงาน: Remove-Equipment]
+---------------------------
+ 📅 วันที่/เวลาแจ้ง: ${form.date}
+ CIDs: ${form.cid || '-'}
+
+ ผู้รับเหมา: ${form.team || '-'}
+ บริษัทลูกค้า: ${form.customerName || '-'}
+ ที่อยู่: ${form.address || '-'}
+ เบอร์ติดต่อ: ${form.phone || '-'}
+ วันที่ยกเลิกใช้งาน: ${form.cancelDate || '-'}
+ วันที่เข้าเก็บ: ${form.getbackDate || '-'}  เวลา  : ${form.getbackTime || '-'}
+
+ รายละเอียดงาน: ${form.details || '-'}
+
+รายการอุปกรณ์:
+${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n')}
+
+ ⏭️ ผู้รับเหมาลำดับถัดไป: ${form.nextTeam || '-'}`;
             };
 
             const submitJob = async () => {
                 if (!form.zoneId && !form.team) { customAlert('กรุณาเลือกโซนพื้นที่รับผิดชอบ หรือระบุทีมงาน', 'error'); return; }
                 setIsSending(true);
+                
                 try {
                     const newTaskId = `task_assign_${Date.now()}`;
+                    
                     const dynamicFormula = `=LET(day_diff, (INT(INDIRECT("O"&ROW())) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
-                    const newTaskData = { "วันที่แจ้ง Subcontract": form.date, "CID Customer": form.cid, "ทีมงาน": form.team, "บริษัทลูกค้า": form.customerName, "ชื่อและเบอร์โทรลูกค้าประสานงาน": form.phone, "วันที่ยกเลิกใช้งาน": form.cancelDate, "สถานะ": "รอเข้าเก็บ", "วันที่เข้าเก็บ": form.getbackDate || '', "เวลาเข้าเก็บ": form.getbackTime || '', "นัดหมายลูกค้า": dynamicFormula, "_rowIndex": 999999 };
+                    
+                    const newTaskData = {
+                        "วันที่แจ้ง Subcontract": form.date,
+                        "CID Customer": form.cid,
+                        "ทีมงาน": form.team,
+                        "บริษัทลูกค้า": form.customerName,
+                        "ชื่อและเบอร์โทรลูกค้าประสานงาน": form.phone,
+                        "วันที่ยกเลิกใช้งาน": form.cancelDate,
+                        "สถานะ": "รอเข้าเก็บ",
+                        "วันที่เข้าเก็บ": form.getbackDate || '',
+                        "เวลาเข้าเก็บ": form.getbackTime || '',
+                        "นัดหมายลูกค้า": dynamicFormula,
+                        "_rowIndex": 999999 
+                    };
                     const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
                     newTaskData["รายละเอียดงาน"] = `[Site Type: ${form.siteType}] \n[เข้าเก็บ: ${form.getbackDate || '-'} เวลา ${form.getbackTime || '-'}] \n\n${form.details}\n\nรายการอุปกรณ์:\n${equipStr}`;
-                    
-                    if(GAS_WEB_APP_URL) {
-                        const payloadData = JSON.stringify({ action: 'sendLineNotify', message: generateMessage(), taskData: newTaskData });
-                        fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: payloadData });
-                    }
-                    
+
+                    await collectionRef.doc(newTaskId).set(newTaskData);
+
                     if (form.zoneId) {
                         const zone = (masterData.zones || []).find(z => z.id === form.zoneId);
                         if (zone) {
-                            const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean); let currentQ = queueState[form.zoneId] || 0; let newQ = tArr.length > 0 ? (currentQ + 1) % tArr.length : 0;
-                            const manualNextIndex = tArr.findIndex(t => t === form.nextTeam); if (manualNextIndex !== -1) newQ = manualNextIndex;
-                            masterDataRef.set({ queue: { ...queueState, [form.zoneId]: newQ } }, { merge: true }); setQueueState({ ...queueState, [form.zoneId]: newQ });
+                            const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
+                            let currentQ = queueState[form.zoneId] || 0;
+                            let newQ = tArr.length > 0 ? (currentQ + 1) % tArr.length : 0;
+                            
+                            const manualNextIndex = tArr.findIndex(t => t === form.nextTeam);
+                            if (manualNextIndex !== -1) newQ = manualNextIndex;
+                            
+                            masterDataRef.set({ queue: { ...queueState, [form.zoneId]: newQ } }, { merge: true });
+                            setQueueState({ ...queueState, [form.zoneId]: newQ });
                         }
                     }
+
+                    const msg = generateMessage();
                     customAlert('✅ สั่งงานเรียบร้อย (ระบบกำลังจัดการส่ง LINE และลง Sheet ให้อัตโนมัติ)', 'success');
-                    setForm(getInitialFormState()); setEquipments([{ name: '', serial: '' }]); setSearchCid('');
-                } catch (e) { console.error("Failed to send/save:", e); customAlert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์', 'error'); }
+                    
+                    setForm(getInitialFormState());
+                    setEquipments([{ name: '', serial: '' }]);
+                    setSearchCid('');
+
+                    if (GAS_WEB_APP_URL) {
+                        const payloadData = JSON.stringify({ 
+                            action: 'sendLineNotify', 
+                            message: msg,
+                            taskData: newTaskData,
+                            tempTaskId: newTaskId 
+                        });
+                        fetch(GAS_WEB_APP_URL, {
+                            method: 'POST', mode: 'no-cors',
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: payloadData
+                        }).catch(e => console.error("Background sync to Sheet failed:", e));
+                    }
+                } catch (e) {
+                    console.error("Failed to send/save:", e);
+                    customAlert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์', 'error');
+                }
                 setIsSending(false);
             };
 
-            const handleCopy = () => { const text = generateMessage(); try { const textArea = document.createElement("textarea"); textArea.value = text; textArea.style.position = "fixed"; textArea.style.left = "-999999px"; document.body.appendChild(textArea); textArea.focus(); textArea.select(); document.execCommand('copy'); textArea.remove(); customAlert('คัดลอกข้อความแล้ว!', 'success'); } catch (err) { customAlert('ไม่สามารถคัดลอกได้ กรุณาคัดลอกด้วยตัวเอง', 'error'); } };
+            const handleCopy = () => {
+                const text = generateMessage();
+                try {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text; textArea.style.position = "fixed"; textArea.style.left = "-999999px";
+                    document.body.appendChild(textArea); textArea.focus(); textArea.select();
+                    document.execCommand('copy'); textArea.remove(); customAlert('คัดลอกข้อความแล้ว!', 'success');
+                } catch (err) { customAlert('ไม่สามารถคัดลอกได้ กรุณาคัดลอกด้วยตัวเอง', 'error'); }
+            };
 
             return (
                 <div className="absolute inset-0 p-3 md:p-6 overflow-y-auto custom-scrollbar bg-slate-100 flex flex-col lg:flex-row gap-4">
                     <div className="flex-1 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-3">
-                        <div className="flex justify-between items-center border-b pb-2"><h2 className="text-lg font-bold text-slate-800"><i className="fa-solid fa-clipboard-user text-blue-600 mr-2"></i> ฟอร์มมอบหมายงาน</h2></div>
+                        <div className="flex justify-between items-center border-b pb-2">
+                            <h2 className="text-lg font-bold text-slate-800"><i className="fa-solid fa-clipboard-user text-blue-600 mr-2"></i> ฟอร์มมอบหมายงาน</h2>
+                        </div>
+
                         <div className="bg-indigo-50 border border-indigo-200 p-3 rounded-lg shadow-sm">
                             <h3 className="text-xs font-bold text-indigo-800 mb-1.5"><i className="fa-solid fa-wand-magic-sparkles mr-1"></i> ดึงข้อมูลอัตโนมัติจาก NS (ค้นหาด้วย CID)</h3>
                             <div className="flex flex-col sm:flex-row gap-2">
-                                <div className="flex-1 flex gap-2"><input type="text" placeholder="พิมพ์ CIRCUIT NO..." value={searchCid} onChange={e => setSearchCid(e.target.value)} className="flex-1 px-3 py-1.5 rounded-md border border-indigo-300 outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold shadow-inner" list="ns-cids-list" /><datalist id="ns-cids-list">{(nsCidOptions || []).map((c, i) => <option key={i} value={c} />)}</datalist><select value={form.siteType} onChange={e=>setForm({...form, siteType: e.target.value})} className="px-2 py-1.5 border border-indigo-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-indigo-800 bg-white shadow-inner w-28 shrink-0"><option value="Terminate">Terminate</option><option value="Originate">Originate</option></select></div>
+                                <div className="flex-1 flex gap-2">
+                                    <input type="text" placeholder="พิมพ์ CIRCUIT NO..." value={searchCid} onChange={e => setSearchCid(e.target.value)} className="flex-1 px-3 py-1.5 rounded-md border border-indigo-300 outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold shadow-inner" list="ns-cids-list" />
+                                    <datalist id="ns-cids-list">{(nsCidOptions || []).map((c, i) => <option key={i} value={c} />)}</datalist>
+                                    <select value={form.siteType} onChange={e=>setForm({...form, siteType: e.target.value})} className="px-2 py-1.5 border border-indigo-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-indigo-800 bg-white shadow-inner w-28 shrink-0">
+                                        <option value="Terminate">Terminate</option>
+                                        <option value="Originate">Originate</option>
+                                    </select>
+                                </div>
                                 <button onClick={handleAutoFillClick} type="button" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-md text-sm font-bold shadow-sm transition-colors whitespace-nowrap"><i className="fa-solid fa-cloud-arrow-down mr-1"></i> ดึงข้อมูล NS</button>
                             </div>
                         </div>
+                        
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase">วันที่/เวลาแจ้ง</label><input type="text" value={form.date} onChange={e=>setForm({...form, date: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs bg-slate-50 text-slate-600" /></div>
-                            <div className="md:col-span-2"><label className="text-[10px] font-bold text-slate-500 uppercase">พิมพ์ค้นหาเขต/อำเภอเพื่อเลือกทีม</label><div className="flex gap-2"><input type="text" list="districts-list" placeholder="เช่น เขตพระนคร" value={form.districtSearch} onChange={handleDistrictInput} className="w-full mt-0.5 px-2 py-1 border rounded text-xs outline-none focus:border-amber-500" /><datalist id="districts-list">{(allDistrictsMap || []).map((d, i) => <option key={i} value={d.name} />)}</datalist><select value={form.zoneId} onChange={(e)=>handleZoneSelect(e.target.value)} className="w-full mt-0.5 px-2 py-1 border border-amber-300 rounded text-xs font-bold text-amber-800 bg-amber-50 outline-none"><option value="">-- เลือกโซนพื้นที่ --</option>{(masterData.zones || []).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></div></div>
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase">วันที่/เวลาแจ้ง</label>
+                                <input type="text" value={form.date} onChange={e=>setForm({...form, date: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs bg-slate-50 text-slate-600" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase">พิมพ์ค้นหาเขต/อำเภอเพื่อเลือกทีม</label>
+                                <div className="flex gap-2">
+                                    <input type="text" list="districts-list" placeholder="เช่น เขตพระนคร" value={form.districtSearch} onChange={handleDistrictInput} className="w-full mt-0.5 px-2 py-1 border rounded text-xs outline-none focus:border-amber-500" />
+                                    <datalist id="districts-list">{(allDistrictsMap || []).map((d, i) => <option key={i} value={d.name} />)}</datalist>
+                                    <select value={form.zoneId} onChange={(e)=>handleZoneSelect(e.target.value)} className="w-full mt-0.5 px-2 py-1 border border-amber-300 rounded text-xs font-bold text-amber-800 bg-amber-50 outline-none">
+                                        <option value="">-- เลือกโซนพื้นที่ --</option>
+                                        <option value="">-- เลือกโซนพื้นที่ --</option>
+                                        {(masterData.zones || []).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
                             <div></div>
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase text-blue-600">ผู้รับเหมา (คิวปัจจุบัน)</label><select value={form.team} onChange={e=>setForm({...form, team: e.target.value})} className="w-full mt-0.5 px-2 py-1 border border-blue-300 rounded text-xs font-bold text-blue-700 bg-blue-50 outline-none focus:ring-1 focus:ring-blue-500"><option value="">- เลือกระบุทีมเอง -</option><optgroup label="ทีมในโซนพื้นที่">{form.zoneId && (masterData.zones || []).find(z=>z.id===form.zoneId)?.teams.split(',').map(t=><option key={`z-${t}`} value={t.trim()}>{t.trim()}</option>)}</optgroup><optgroup label="รายชื่อทีมทั้งหมด">{(masterData.teams || []).map(t => <option key={`a-${t}`} value={t}>{t}</option>)}</optgroup></select></div>
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase text-slate-400">คิวลำดับถัดไป</label><select value={form.nextTeam} onChange={e=>setForm({...form, nextTeam: e.target.value})} className="w-full mt-0.5 px-2 py-1 border border-slate-300 rounded text-xs font-bold text-slate-600 bg-white outline-none focus:ring-1 focus:ring-slate-500"><option value="">- เลือกระบุทีมเอง -</option><optgroup label="ทีมในโซนพื้นที่">{form.zoneId && (masterData.zones || []).find(z=>z.id===form.zoneId)?.teams.split(',').map(t=><option key={`nz-${t}`} value={t.trim()}>{t.trim()}</option>)}</optgroup><optgroup label="รายชื่อทีมทั้งหมด">{(masterData.teams || []).map(t => <option key={`na-${t}`} value={t}>{t}</option>)}</optgroup></select></div>
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase text-blue-600">ผู้รับเหมา (คิวปัจจุบัน)</label>
+                                <select value={form.team} onChange={e=>setForm({...form, team: e.target.value})} className="w-full mt-0.5 px-2 py-1 border border-blue-300 rounded text-xs font-bold text-blue-700 bg-blue-50 outline-none focus:ring-1 focus:ring-blue-500">
+                                    <option value="">- เลือกระบุทีมเอง -</option>
+                                    <optgroup label="ทีมในโซนพื้นที่">{form.zoneId && (masterData.zones || []).find(z=>z.id===form.zoneId)?.teams.split(',').map(t=><option key={`z-${t}`} value={t.trim()}>{t.trim()}</option>)}</optgroup>
+                                    <optgroup label="รายชื่อทีมทั้งหมด">{(masterData.teams || []).map(t => <option key={`a-${t}`} value={t}>{t}</option>)}</optgroup>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase text-slate-400">คิวลำดับถัดไป</label>
+                                <select value={form.nextTeam} onChange={e=>setForm({...form, nextTeam: e.target.value})} className="w-full mt-0.5 px-2 py-1 border border-slate-300 rounded text-xs font-bold text-slate-600 bg-white outline-none focus:ring-1 focus:ring-slate-500">
+                                    <option value="">- เลือกระบุทีมเอง -</option>
+                                    <optgroup label="ทีมในโซนพื้นที่">{form.zoneId && (masterData.zones || []).find(z=>z.id===form.zoneId)?.teams.split(',').map(t=><option key={`nz-${t}`} value={t.trim()}>{t.trim()}</option>)}</optgroup>
+                                    <optgroup label="รายชื่อทีมทั้งหมด">{(masterData.teams || []).map(t => <option key={`na-${t}`} value={t}>{t}</option>)}</optgroup>
+                                </select>
+                            </div>
                         </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 border-t pt-3">
-                            <div className="col-span-1 md:col-span-4 flex gap-2"><div className="flex-1"><label className="text-[10px] font-bold text-slate-500 uppercase">CIDs</label><input type="text" value={form.cid} onChange={e=>setForm({...form, cid: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs font-bold text-blue-700" /></div><div className="w-20 shrink-0 hidden md:block"><label className="text-[10px] font-bold text-slate-500 uppercase">Site</label><input type="text" value={form.siteType} disabled className="w-full mt-0.5 px-2 py-1 border border-dashed rounded text-[10px] font-semibold text-slate-500 bg-slate-50" /></div></div>
-                            <div className="col-span-1 md:col-span-8"><label className="text-[10px] font-bold text-slate-500 uppercase">บริษัทลูกค้า (Customer Name)</label><input type="text" value={form.customerName} onChange={e=>setForm({...form, customerName: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs" /></div>
-                            <div className="col-span-1 md:col-span-8"><label className="text-[10px] font-bold text-slate-500 uppercase">ที่อยู่ (Address)</label><input type="text" value={form.address} onChange={e=>setForm({...form, address: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs" /></div>
-                            <div className="col-span-1 md:col-span-4"><label className="text-[10px] font-bold text-slate-500 uppercase">เบอร์ติดต่อ</label><input type="text" value={form.phone} onChange={e=>setForm({...form, phone: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs" /></div>
-                            <div className="col-span-1 md:col-span-4"><label className="text-[10px] font-bold text-slate-500 uppercase">วันที่ยกเลิก (Due Job)</label><input type="text" value={form.cancelDate} onChange={e=>setForm({...form, cancelDate: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs text-red-600" /></div>
-                            <div className="col-span-1 md:col-span-8 flex gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200"><div className="flex-1"><label className="text-[10px] font-bold text-slate-500 uppercase">เข้าเก็บ (Getback Date)</label><input type="text" placeholder="ระบุวัน" value={form.getbackDate} onChange={e=>setForm({...form, getbackDate: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs" /></div><div className="flex-1"><label className="text-[10px] font-bold text-slate-500 uppercase">เวลา (Time)</label><input type="text" placeholder="ระบุเวลา" value={form.getbackTime} onChange={e=>setForm({...form, getbackTime: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs" /></div></div>
-                            <div className="col-span-1 md:col-span-12"><label className="text-[10px] font-bold text-slate-500 uppercase">รายละเอียดงาน (เพิ่มเติม)</label><textarea rows="1" value={form.details} onChange={e=>setForm({...form, details: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs"></textarea></div>
+                            <div className="col-span-1 md:col-span-4 flex gap-2">
+                                <div className="flex-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase">CIDs</label>
+                                    <input type="text" value={form.cid} onChange={e=>setForm({...form, cid: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs font-bold text-blue-700" />
+                                </div>
+                                <div className="w-20 shrink-0 hidden md:block">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Site</label>
+                                    <input type="text" value={form.siteType} disabled className="w-full mt-0.5 px-2 py-1 border border-dashed rounded text-[10px] font-semibold text-slate-500 bg-slate-50" />
+                                </div>
+                            </div>
+                            <div className="col-span-1 md:col-span-8">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase">บริษัทลูกค้า (Customer Name)</label>
+                                <input type="text" value={form.customerName} onChange={e=>setForm({...form, customerName: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs" />
+                            </div>
+
+                            <div className="col-span-1 md:col-span-8">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase">ที่อยู่ (Address)</label>
+                                <input type="text" value={form.address} onChange={e=>setForm({...form, address: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs" />
+                            </div>
+                            <div className="col-span-1 md:col-span-4">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase">เบอร์ติดต่อ</label>
+                                <input type="text" value={form.phone} onChange={e=>setForm({...form, phone: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs" />
+                            </div>
+                            
+                            <div className="col-span-1 md:col-span-4">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase">วันที่ยกเลิก (Due Job)</label>
+                                <input type="text" value={form.cancelDate} onChange={e=>setForm({...form, cancelDate: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs text-red-600" />
+                            </div>
+                            <div className="col-span-1 md:col-span-8 flex gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                                <div className="flex-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase">เข้าเก็บ (Getback Date)</label>
+                                    <input type="text" placeholder="ระบุวัน" value={form.getbackDate} onChange={e=>setForm({...form, getbackDate: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs" />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase">เวลา (Time)</label>
+                                    <input type="text" placeholder="ระบุเวลา" value={form.getbackTime} onChange={e=>setForm({...form, getbackTime: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs" />
+                                </div>
+                            </div>
+
+                            <div className="col-span-1 md:col-span-12">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase">รายละเอียดงาน (เพิ่มเติม)</label>
+                                <textarea rows="1" value={form.details} onChange={e=>setForm({...form, details: e.target.value})} className="w-full mt-0.5 px-2 py-1 border rounded text-xs"></textarea>
+                            </div>
                         </div>
+
                         <div className="mt-1 border rounded-lg p-2 bg-slate-50/50">
-                            <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-slate-600 uppercase">รายการอุปกรณ์ ({equipments.length} รายการ)</label><button onClick={addEquip} className="text-[10px] bg-slate-800 hover:bg-slate-700 text-white px-2 py-1 rounded shadow-sm transition-colors"><i className="fa-solid fa-plus"></i> เพิ่มอุปกรณ์</button></div>
-                            <div className="space-y-1.5 max-h-[30vh] overflow-y-auto custom-scrollbar pr-2 pb-1">{equipments.map((eq, i) => ( <div key={i} className="flex gap-2 items-center bg-white p-1.5 rounded border border-slate-200 shadow-sm hover:border-blue-300 transition-colors"><div className="w-6 text-center text-xs font-bold text-slate-300">{i+1}.</div><input type="text" placeholder="ชื่ออุปกรณ์" value={eq.name} onChange={e=>{let ne=[...equipments]; ne[i].name=e.target.value; setEquipments(ne);}} className="flex-1 px-2 py-1 border-b border-transparent hover:border-slate-200 focus:border-blue-400 text-xs outline-none font-semibold" /><div className="w-px h-4 bg-slate-200"></div><input type="text" placeholder="Serial Number" value={eq.serial} onChange={e=>{let ne=[...equipments]; ne[i].serial=e.target.value; setEquipments(ne);}} className="flex-1 px-2 py-1 border-b border-transparent hover:border-slate-200 focus:border-blue-400 text-xs outline-none text-indigo-700" />{equipments.length > 1 && <button onClick={()=>rmEquip(i)} className="text-slate-300 hover:text-red-500 px-1 transition-colors"><i className="fa-solid fa-circle-xmark"></i></button>}</div> ))}</div>
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="text-xs font-bold text-slate-600 uppercase">รายการอุปกรณ์ ({equipments.length} รายการ)</label>
+                                <button onClick={addEquip} className="text-[10px] bg-slate-800 hover:bg-slate-700 text-white px-2 py-1 rounded shadow-sm transition-colors"><i className="fa-solid fa-plus"></i> เพิ่มอุปกรณ์</button>
+                            </div>
+                            <div className="space-y-1.5 max-h-[30vh] overflow-y-auto custom-scrollbar pr-2 pb-1">
+                                {equipments.map((eq, i) => (
+                                    <div key={i} className="flex gap-2 items-center bg-white p-1.5 rounded border border-slate-200 shadow-sm hover:border-blue-300 transition-colors">
+                                        <div className="w-6 text-center text-xs font-bold text-slate-300">{i+1}.</div>
+                                        <input type="text" placeholder="ชื่ออุปกรณ์" value={eq.name} onChange={e=>{let ne=[...equipments]; ne[i].name=e.target.value; setEquipments(ne);}} className="flex-1 px-2 py-1 border-b border-transparent hover:border-slate-200 focus:border-blue-400 text-xs outline-none font-semibold" />
+                                        <div className="w-px h-4 bg-slate-200"></div>
+                                        <input type="text" placeholder="Serial Number" value={eq.serial} onChange={e=>{let ne=[...equipments]; ne[i].serial=e.target.value; setEquipments(ne);}} className="flex-1 px-2 py-1 border-b border-transparent hover:border-slate-200 focus:border-blue-400 text-xs outline-none text-indigo-700" />
+                                        {equipments.length > 1 && <button onClick={()=>rmEquip(i)} className="text-slate-300 hover:text-red-500 px-1 transition-colors"><i className="fa-solid fa-circle-xmark"></i></button>}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
+
                     <div className="w-full lg:w-[350px] flex flex-col shrink-0">
                         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
-                            <div className="bg-slate-800 text-white p-2.5 font-bold text-center flex justify-between items-center text-sm"><span><i className="fa-brands fa-line text-green-400 mr-1 text-base"></i> Line Preview</span></div>
-                            <div className="flex-1 line-preview p-3 overflow-y-auto custom-scrollbar flex flex-col"><div className="line-bubble p-3 text-xs text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">{generateMessage()}</div></div>
-                            <div className="p-3 bg-white border-t border-slate-200"><button onClick={submitJob} disabled={isSending} className={`w-full ${isSending ? 'bg-slate-400' : 'bg-[#06C755] hover:bg-[#05b34c]'} text-white font-bold py-2.5 rounded-lg shadow-sm transition-transform active:scale-95 flex items-center justify-center gap-2 text-sm`}><i className="fa-solid fa-paper-plane"></i> จ่ายงาน & ส่ง Line</button><button onClick={handleCopy} className="w-full mt-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-1.5 rounded-lg text-xs transition-colors"><i className="fa-regular fa-copy"></i> คัดลอก</button></div>
+                            <div className="bg-slate-800 text-white p-2.5 font-bold text-center flex justify-between items-center text-sm">
+                                <span><i className="fa-brands fa-line text-green-400 mr-1 text-base"></i> Line Preview</span>
+                            </div>
+                            <div className="flex-1 line-preview p-3 overflow-y-auto custom-scrollbar flex flex-col">
+                                <div className="line-bubble p-3 text-xs text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">
+                                    {generateMessage()}
+                                </div>
+                            </div>
+                            <div className="p-3 bg-white border-t border-slate-200">
+                                <button onClick={submitJob} disabled={isSending} className={`w-full ${isSending ? 'bg-slate-400' : 'bg-[#06C755] hover:bg-[#05b34c]'} text-white font-bold py-2.5 rounded-lg shadow-sm transition-transform active:scale-95 flex items-center justify-center gap-2 text-sm`}>
+                                    <i className="fa-solid fa-paper-plane"></i> จ่ายงาน & ส่ง Line
+                                </button>
+                                <button onClick={handleCopy} className="w-full mt-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-1.5 rounded-lg text-xs transition-colors">
+                                    <i className="fa-regular fa-copy"></i> คัดลอก
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -465,6 +1081,7 @@
           const [historyLogs, setHistoryLogs] = useState([]);
           const [showHistoryModal, setShowHistoryModal] = useState(false);
           const [masterData, setMasterData] = useState(defaultMasterData);
+          const [queueState, setQueueState] = useState({});
           
           const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
           const [isPendingTransition, startTransition] = useTransition();
@@ -474,66 +1091,113 @@
 
           const pendingUpdatesRef = useRef([]);
           const syncTimerRef = useRef(null);
-          const lastLocalEditRef = useRef(0);
 
+          // 🔥 Custom Alerts & Confirms State
           const [appAlert, setAppAlert] = useState({ show: false, message: '', type: 'success' });
           const [appConfirm, setAppConfirm] = useState({ show: false, message: '', onConfirm: null });
 
-          const customAlert = (message, type = 'success') => { setAppAlert({ show: true, message, type }); setTimeout(() => setAppAlert({ show: false, message: '', type: 'success' }), 3500); };
-          const customConfirm = (message, onConfirmCallback) => { setAppConfirm({ show: true, message, onConfirm: onConfirmCallback }); };
+          const customAlert = (message, type = 'success') => {
+              setAppAlert({ show: true, message, type });
+              setTimeout(() => setAppAlert({ show: false, message: '', type: 'success' }), 3500);
+          };
 
-          const getStatusColumnName = (cols) => { if (!cols) return ''; let exact = cols.find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc === 'status' || lc === 'สถานะ' || lc === 'statusjob' || lc === 'jobstatus'; }); if (exact) return exact; let partial = cols.find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return (lc.includes('status') || lc.includes('สถานะ')) && !lc.includes('change') && !lc.includes('เปลี่ยน') && !lc.includes('date') && !lc.includes('วันที่') && !lc.includes('time') && !lc.includes('เวลา'); }); if (partial) return partial; return cols[cols.length - 1] || ''; };
-          const getTeamColumnName = (cols) => { if (!cols) return ''; let exact = cols.find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc === 'ทีมงาน' || lc === 'team' || lc === 'nsresponsible' || lc === 'subcontract' || lc === 'ผู้รับผิดชอบ'; }); if (exact) return exact; let partial = cols.find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return (lc.includes('ทีม') || lc.includes('responsible') || lc.includes('รับผิดชอบ')) && !lc.includes('วันที่') && !lc.includes('date') && !lc.includes('time'); }); if (partial) return partial; return cols.length > 1 ? cols[1] : ''; };
+          const customConfirm = (message, onConfirmCallback) => {
+              setAppConfirm({ show: true, message, onConfirm: onConfirmCallback });
+          };
 
-          const currentColumnsTable = tasksSubTab === 'subcontract' ? columns : nsColumns;
+          // ================== VARIABLES DEFINITIONS ==================
+          const getStatusColumnName = (cols) => {
+              if (!cols) return '';
+              let exact = cols.find(c => {
+                  const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
+                  return lc === 'status' || lc === 'สถานะ' || lc === 'statusjob' || lc === 'jobstatus';
+              });
+              if (exact) return exact;
+              let partial = cols.find(c => {
+                  const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
+                  return (lc.includes('status') || lc.includes('สถานะ')) && !lc.includes('change') && !lc.includes('เปลี่ยน') && !lc.includes('date') && !lc.includes('วันที่') && !lc.includes('time') && !lc.includes('เวลา');
+              });
+              if (partial) return partial;
+              return cols[cols.length - 1] || '';
+          };
+
+          const getTeamColumnName = (cols) => {
+              if (!cols) return '';
+              let exact = cols.find(c => {
+                  const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
+                  return lc === 'ทีมงาน' || lc === 'team' || lc === 'nsresponsible' || lc === 'subcontract' || lc === 'ผู้รับผิดชอบ';
+              });
+              if (exact) return exact;
+              let partial = cols.find(c => {
+                  const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
+                  return (lc.includes('ทีม') || lc.includes('responsible') || lc.includes('รับผิดชอบ')) && !lc.includes('วันที่') && !lc.includes('date') && !lc.includes('time');
+              });
+              if (partial) return partial;
+              return cols.length > 1 ? cols[1] : '';
+          };
+
+          let currentColumnsTable = tasksSubTab === 'subcontract' ? [...columns] : [...nsColumns];
           const currentTasksTable = tasksSubTab === 'subcontract' ? tasks : nsTasks;
           
-          const displayColumns = useMemo(() => { let cols = [...currentColumnsTable]; if (tasksSubTab === 'subcontract' && cols.length > 0 && !cols.includes('Region_Respon')) { cols.push('Region_Respon'); } return cols; }, [currentColumnsTable, tasksSubTab]);
+          // 🟢 เพิ่มคอลัมน์จำลอง Region_Respon ในหน้า Subcontract
+          if (tasksSubTab === 'subcontract' && currentColumnsTable.length > 0 && !currentColumnsTable.includes('Region_Respon')) {
+              currentColumnsTable.push('Region_Respon');
+          }
 
+          // 🟢 ซ่อนคอลัมน์ "ประทับเวลา" อัตโนมัติในครั้งแรกที่โหลด
           const [hasAutoHidden, setHasAutoHidden] = useState(false);
           useEffect(() => {
               if (columns.length > 0 && !hasAutoHidden) {
                   const tsCol = columns.find(c => (c && String(c).toLowerCase().includes('ประทับเวลา')) || (c && String(c).toLowerCase().includes('timestamp')));
-                  if (tsCol && !hiddenColumns.includes(tsCol)) setHiddenColumns(prev => [...prev, tsCol]);
+                  if (tsCol && !hiddenColumns.includes(tsCol)) {
+                      setHiddenColumns(prev => [...prev, tsCol]);
+                  }
                   setHasAutoHidden(true);
               }
           }, [columns, hasAutoHidden, hiddenColumns]);
           
-          const visibleColumnsTable = (displayColumns || []).filter(col => !(hiddenColumns || []).includes(col));
+          const visibleColumnsTable = (currentColumnsTable || []).filter(col => !(hiddenColumns || []).includes(col));
           const pinnedColsListTable = visibleColumnsTable.filter(c => (pinnedColumns || []).includes(c));
           const unpinnedColsListTable = visibleColumnsTable.filter(c => !(pinnedColumns || []).includes(c));
           const orderedVisibleColumnsTable = [...pinnedColsListTable, ...unpinnedColsListTable];
 
-          const t_getCol = (keywords) => (displayColumns || []).find(c => keywords.some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,'')) : false)) || '';
+          const t_getCol = (keywords) => (currentColumnsTable || []).find(c => keywords.some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,'')) : false)) || '';
           
-          const t_statusCol = getStatusColumnName(displayColumns);
-          const t_teamCol = getTeamColumnName(displayColumns);
+          const t_statusCol = getStatusColumnName(currentColumnsTable);
+          const t_teamCol = getTeamColumnName(currentColumnsTable);
+          
           const t_cidCol = t_getCol(['cid', 'circuitno']) || '';
           const t_equipYearCol = t_getCol(['year', 'ปี']) || '';
-          const t_overDueCol = (displayColumns || []).find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc.includes('นัดหมายลูกค้า') || lc.includes('over3') || lc.includes('เกินกำหนด'); }) || '';
-          const t_collectionDateCol = (displayColumns || []).find(c => c ? String(c).replace(/[\s_]+/g, '').includes('วันที่เข้าเก็บ') : false) || t_getCol(['วันที่', 'date']) || displayColumns?.[0] || '';
-          const statusChangeColMatch = (displayColumns || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc === 'status_change' || lc === 'status change' || lc === 'status-change'; }) || '';
-          const contactJobColMatch = (displayColumns || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc.includes('customer contact') || lc.includes('customer_contract') || lc === 'contract' || lc.includes('ประสานงาน'); }) || '';
+          const t_overDueCol = (currentColumnsTable || []).find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc.includes('นัดหมายลูกค้า') || lc.includes('over3') || lc.includes('เกินกำหนด'); }) || '';
+          const t_collectionDateCol = (currentColumnsTable || []).find(c => c ? String(c).replace(/[\s_]+/g, '').includes('วันที่เข้าเก็บ') : false) || t_getCol(['วันที่', 'date']) || currentColumnsTable?.[0] || '';
+          
+          const statusChangeColMatch = (currentColumnsTable || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc === 'status_change' || lc === 'status change' || lc === 'status-change'; }) || '';
+          
+          // 🟢 ปรับให้ครอบคลุมคอลัมน์ Customer_Contract
+          const contactJobColMatch = (currentColumnsTable || []).find(c => {
+              const lc = c ? String(c).toLowerCase() : '';
+              return lc.includes('customer contact') || lc.includes('customer_contract') || lc === 'contract';
+          }) || '';
+          
           const itemColMatch = t_getCol(['itemname', 'อุปกรณ์']);
           const snColMatch = t_getCol(['serialno', 'serial', 'sn']);
           const siteTypeColMatch = t_getCol(['sitetype', 'site']);
-          const noteCol = (displayColumns || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc.includes('หมายเหตุ') || lc.includes('note'); }) || '';
+          const noteCol = (currentColumnsTable || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc.includes('หมายเหตุ') || lc.includes('note'); }) || '';
 
-          const skipColsInTooltip = [ t_teamCol, t_cidCol, t_equipYearCol, t_statusCol, t_overDueCol, t_collectionDateCol, ...(displayColumns || []).filter(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc.includes('แจ้งsub') || lc.includes('วันที่แจ้ง') || lc.includes('วันที่ลงข้อมูล') || lc.includes('วันที่รับงาน') || lc.includes('ประทับเวลา') || lc.includes('timestamp') || lc.includes('เวลาแจ้ง') || lc.includes('อีเมล') || lc.includes('email') || lc.includes('mail') || lc.includes('year') || lc.includes('ปี') || lc.includes('นัดหมายลูกค้า') || lc.includes('over3') || lc.includes('เกินกำหนด') || lc.includes('วันที่โทร') || lc.includes('โทรติดต่อ'); }) ].filter(Boolean);
+          const skipColsInTooltip = [ t_teamCol, t_cidCol, t_equipYearCol, t_statusCol, t_overDueCol, t_collectionDateCol, ...(currentColumnsTable || []).filter(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc.includes('แจ้งsub') || lc.includes('วันที่แจ้ง') || lc.includes('วันที่ลงข้อมูล') || lc.includes('วันที่รับงาน') || lc.includes('ประทับเวลา') || lc.includes('timestamp') || lc.includes('เวลาแจ้ง') || lc.includes('อีเมล') || lc.includes('email') || lc.includes('mail') || lc.includes('year') || lc.includes('ปี') || lc.includes('นัดหมายลูกค้า') || lc.includes('over3') || lc.includes('เกินกำหนด') || lc.includes('วันที่โทร') || lc.includes('โทรติดต่อ'); }) ].filter(Boolean);
 
           const tableUniqueTeams = t_teamCol ? [...new Set((currentTasksTable || []).map(t => getCleanTeam(t[t_teamCol])))].sort() : [];
           const tableUniqueStatuses = t_statusCol ? [...new Set((currentTasksTable || []).map(t => getCleanStatus(t[t_statusCol])))].sort() : [];
           const tableUniqueColMonths = [...new Set((currentTasksTable || []).map(t => { const d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null); return d ? d.getMonth() + 1 : null; }).filter(Boolean))].sort((a,b)=>a-b);
           const tableUniqueYears = t_equipYearCol ? [...new Set((currentTasksTable || []).map(t => t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : '').filter(Boolean))].sort() : [];
 
-          // 🟢 ฟังก์ชันโหลดข้อมูลหลักจาก GAS
-          const fetchAllDataFromServer = async (isSilent = false) => {
-              if (!isSilent) setIsLoading(true);
-              else setIsBackgroundSyncing(true);
-              
+          // ================== FIREBASE FETCHING (โหมดประหยัดโควต้า ฟรี 100%) ==================
+          const fetchAllDataFromServer = async () => {
+              setIsLoading(true);
               setFirebaseError(null);
               
               try {
+                  // 1. ดึง Master Data จาก Firebase (เสีย 1 โควต้า)
                   const masterDoc = await masterDataRef.get();
                   if (masterDoc.exists && masterDoc.data().zones) {
                       const data = masterDoc.data();
@@ -543,44 +1207,65 @@
                           nsTeams: Array.isArray(data.nsTeams) ? data.nsTeams.map(t => typeof t === 'string' ? {name: t, bg: '#e0f2fe', text: '#0369a1'} : t) : [],
                           nsStatuses: Array.isArray(data.nsStatuses) ? data.nsStatuses.map(s => typeof s === 'string' ? {name: s, bg: '#fef3c7', text: '#b45309'} : s) : []
                       });
+                      if (data.queue) setQueueState(data.queue);
                   }
 
+                  // 2. ดึงข้อมูล 2000 แถวจาก Google Sheet (GAS) ฟรี ไม่เสียโควต้า Firebase
                   const response = await fetch(GAS_WEB_APP_URL + "?action=getAllData");
                   const data = await response.json();
 
                   if (data.subcontract) {
-                      setColumns(data.subcontract.columns); localStorage.setItem('equip_tracker_columns', JSON.stringify(data.subcontract.columns));
-                      const validTasks = data.subcontract.tasks.filter(isValidTaskHelper); setTasks(validTasks); localStorage.setItem('equip_tracker_tasks', JSON.stringify(validTasks));
+                      setColumns(data.subcontract.columns);
+                      localStorage.setItem('equip_tracker_columns', JSON.stringify(data.subcontract.columns));
+                      const validTasks = data.subcontract.tasks.filter(isValidTaskHelper);
+                      setTasks(validTasks);
+                      localStorage.setItem('equip_tracker_tasks', JSON.stringify(validTasks));
                   }
                   
                   if (data.ns) {
-                      setNsColumns(data.ns.columns); localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(data.ns.columns));
-                      const validNsTasks = data.ns.tasks.filter(isValidTaskHelper); setNsTasks(validNsTasks); localStorage.setItem('equip_tracker_ns_tasks', JSON.stringify(validNsTasks));
+                      setNsColumns(data.ns.columns);
+                      localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(data.ns.columns));
+                      const validNsTasks = data.ns.tasks.filter(isValidTaskHelper);
+                      setNsTasks(validNsTasks);
+                      localStorage.setItem('equip_tracker_ns_tasks', JSON.stringify(validNsTasks));
                   }
+
               } catch (error) {
                   console.error("Fetch Error:", error);
-                  if (!isSilent) setFirebaseError('ไม่สามารถโหลดข้อมูลจากระบบได้ (โปรดตรวจสอบอินเทอร์เน็ต)');
+                  setFirebaseError('ไม่สามารถโหลดข้อมูลจากระบบได้ (โปรดตรวจสอบอินเทอร์เน็ต)');
               }
-              
               setIsLoading(false);
               setIsBackgroundSyncing(false);
           };
 
           useEffect(() => {
+              // 1. โหลดข้อมูลจาก Cache ขึ้นมาโชว์ก่อนทันที
               try {
-                  const cachedTasks = localStorage.getItem('equip_tracker_tasks'); const cachedNsTasks = localStorage.getItem('equip_tracker_ns_tasks');
-                  const cachedCols = localStorage.getItem('equip_tracker_columns'); const cachedNsCols = localStorage.getItem('equip_tracker_ns_columns');
-                  if (cachedTasks) setTasks(JSON.parse(cachedTasks)); if (cachedNsTasks) setNsTasks(JSON.parse(cachedNsTasks));
-                  if (cachedCols) setColumns(JSON.parse(cachedCols)); if (cachedNsCols) setNsColumns(JSON.parse(cachedNsCols));
+                  const cachedTasks = localStorage.getItem('equip_tracker_tasks');
+                  const cachedNsTasks = localStorage.getItem('equip_tracker_ns_tasks');
+                  const cachedCols = localStorage.getItem('equip_tracker_columns');
+                  const cachedNsCols = localStorage.getItem('equip_tracker_ns_columns');
+
+                  if (cachedTasks) setTasks(JSON.parse(cachedTasks));
+                  if (cachedNsTasks) setNsTasks(JSON.parse(cachedNsTasks));
+                  if (cachedCols) setColumns(JSON.parse(cachedCols));
+                  if (cachedNsCols) setNsColumns(JSON.parse(cachedNsCols));
               } catch(e) {}
               
-              fetchAllDataFromServer(false);
+              // 2. ดึงข้อมูลจริงจาก Server
+              fetchAllDataFromServer();
 
-              const unsubSync = syncRef.onSnapshot(doc => {
+              // 3. ติดตั้ง "กระดิ่ง" แจ้งเตือนจาก Firebase (ใช้แค่ 1 โควต้า)
+              const unsubSync = collectionRef.doc('_sync_status').onSnapshot(doc => {
                   if (doc.exists) {
                       const data = doc.data();
-                      const ts = parseInt(data.timestamp || 0);
-                      if (Date.now() - ts < 15000) fetchAllDataFromServer(true);
+                      const ts = parseInt(data.timestamp?.integerValue || data.timestamp || 0);
+                      
+                      // ถ้าเพิ่งมีคนอัปเดตข้อมูลไปหมาดๆ (ใน 20 วิที่ผ่านมา) ให้แอบไปดึงข้อมูล Sheet ใหม่มาอัปเดต
+                      if (Date.now() - ts < 20000) {
+                          setIsBackgroundSyncing(true);
+                          fetchAllDataFromServer();
+                      }
                   }
               });
 
@@ -590,52 +1275,147 @@
           useEffect(() => {
               if (showHistoryModal) {
                   historyRef.orderBy('updatedAt', 'desc').limit(50).get().then(snap => {
-                      const logs = []; snap.forEach(doc => logs.push({ id: doc.id, ...doc.data() })); setHistoryLogs(logs);
+                      const logs = [];
+                      snap.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
+                      setHistoryLogs(logs);
                   });
               }
           }, [showHistoryModal]);
 
-          const navigateCalendar = (dir) => { const nd = new Date(currentDate); if (calendarView === 'month') nd.setMonth(nd.getMonth() + dir); else if (calendarView === 'week') nd.setDate(nd.getDate() + (dir * 7)); else nd.setDate(nd.getDate() + dir); setCurrentDate(nd); };
-          const handlePointerDown = (e, col) => {
-              e.preventDefault(); e.stopPropagation(); const startX = e.pageX || (e.touches ? e.touches[0].pageX : 0); const th = e.currentTarget.closest('th'); const startWidth = th ? th.getBoundingClientRect().width : 150;
-              const onPointerMove = (me) => { const currentX = me.pageX || (me.touches ? me.touches[0].pageX : 0); setColWidths(prev => ({ ...prev, [col]: Math.max(50, startWidth + (currentX - startX)) })); };
-              const onPointerUp = () => { document.removeEventListener('pointermove', onPointerMove); document.removeEventListener('pointerup', onPointerUp); document.removeEventListener('touchmove', onPointerMove); document.removeEventListener('touchend', onPointerUp); };
-              document.addEventListener('pointermove', onPointerMove); document.addEventListener('pointerup', onPointerUp); document.addEventListener('touchmove', onPointerMove, { passive: false }); document.addEventListener('touchend', onPointerUp);
+          // ================== CORE HELPERS ==================
+
+          const navigateCalendar = (dir) => { 
+              const nd = new Date(currentDate); 
+              if (calendarView === 'month') nd.setMonth(nd.getMonth() + dir); 
+              else if (calendarView === 'week') nd.setDate(nd.getDate() + (dir * 7)); 
+              else nd.setDate(nd.getDate() + dir); 
+              setCurrentDate(nd); 
           };
 
-          useEffect(() => { setCurrentPage(1); }, [tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, searchTerm]);
+          const handlePointerDown = (e, col) => {
+              e.preventDefault(); e.stopPropagation(); 
+              const startX = e.pageX || (e.touches ? e.touches[0].pageX : 0); 
+              const th = e.currentTarget.closest('th');
+              const startWidth = th ? th.getBoundingClientRect().width : 150;
+              
+              const onPointerMove = (me) => {
+                  const currentX = me.pageX || (me.touches ? me.touches[0].pageX : 0);
+                  setColWidths(prev => ({ ...prev, [col]: Math.max(50, startWidth + (currentX - startX)) }));
+              };
+              const onPointerUp = () => { 
+                  document.removeEventListener('pointermove', onPointerMove); 
+                  document.removeEventListener('pointerup', onPointerUp); 
+                  document.removeEventListener('touchmove', onPointerMove); 
+                  document.removeEventListener('touchend', onPointerUp); 
+              };
+              
+              document.addEventListener('pointermove', onPointerMove); 
+              document.addEventListener('pointerup', onPointerUp);
+              document.addEventListener('touchmove', onPointerMove, { passive: false }); 
+              document.addEventListener('touchend', onPointerUp);
+          };
 
-          const handleDirectAssign = (cid, siteType) => { if(!cid || cid.trim() === '') return customAlert('ไม่พบข้อมูล CIDs ในรายการนี้', 'error'); setAutoAssignData({ cid, siteType: siteType || 'Terminate' }); startTransition(() => { setActiveTab('assign'); }); if (window.innerWidth <= 1024) setIsSidebarOpen(false); };
+          useEffect(() => {
+              setCurrentPage(1);
+          }, [tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, searchTerm]);
+
+          const handleDirectAssign = (cid, siteType) => {
+              if(!cid || cid.trim() === '') return customAlert('ไม่พบข้อมูล CIDs ในรายการนี้', 'error');
+              setAutoAssignData({ cid, siteType: siteType || 'Terminate' });
+              startTransition(() => { setActiveTab('assign'); });
+              if (window.innerWidth <= 1024) setIsSidebarOpen(false);
+          };
+
           const clearAutoAssignData = () => { setAutoAssignData(null); };
-          const handlePinToggle = (e, col) => { if (!(pinnedColumns || []).includes(col)) { if (!colWidths[col]) { const th = e.currentTarget.closest('th'); if (th) { const w = th.getBoundingClientRect().width; setColWidths(prev => ({ ...prev, [col]: w })); } } } setPinnedColumns(prev => (prev || []).includes(col) ? (prev || []).filter(c => c !== col) : [...(prev || []), col]); };
+
+          const handlePinToggle = (e, col) => {
+              if (!(pinnedColumns || []).includes(col)) {
+                  if (!colWidths[col]) {
+                      const th = e.currentTarget.closest('th');
+                      if (th) {
+                          const w = th.getBoundingClientRect().width;
+                          setColWidths(prev => ({ ...prev, [col]: w }));
+                      }
+                  }
+              }
+              setPinnedColumns(prev => (prev || []).includes(col) ? (prev || []).filter(c => c !== col) : [...(prev || []), col]);
+          };
+
           const getColWidth = (col) => colWidths[col] || 150; 
-          const getPinnedLeftPos = (colName, colsArray) => { let left = 0; const targetIdx = (colsArray || []).indexOf(colName); for (let i = 0; i < targetIdx; i++) { if ((pinnedColumns || []).includes(colsArray[i])) left += getColWidth(colsArray[i]); } return left; };
+          const getPinnedLeftPos = (colName, colsArray) => {
+              let left = 0;
+              const targetIdx = (colsArray || []).indexOf(colName);
+              for (let i = 0; i < targetIdx; i++) {
+                  if ((pinnedColumns || []).includes(colsArray[i])) left += getColWidth(colsArray[i]);
+              }
+              return left;
+          };
+
           const handleSort = (key) => setSortConfig({ key, direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc' });
 
-          const resetFilters = () => { setFilterMonth('All'); setFilterTeams([]); setSearchTerm(''); setTableFilterTeams([]); setTableFilterDate([]); setTableFilterYear([]); setTableFilterStatus([]); setTableFilterOverdue([]); setSortConfig({ key: null, direction: null }); setCurrentPage(1); setShowDuplicatesOnly(false); };
+          const resetFilters = () => {
+              setFilterMonth('All'); setFilterTeams([]); setSearchTerm(''); setTableFilterTeams([]);
+              setTableFilterDate([]); setTableFilterYear([]); setTableFilterStatus([]);
+              setTableFilterOverdue([]); setSortConfig({ key: null, direction: null });
+              setCurrentPage(1);
+              setShowDuplicatesOnly(false);
+          };
 
           const handleDeleteTask = (taskObj) => {
               const docIds = taskObj._groupDocs || [taskObj.id];
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
+
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
                   const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
-                  
-                  lastLocalEditRef.current = Date.now(); 
 
-                  if (tasksSubTab === 'subcontract') setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
-                  else setNsTasks(prev => prev.filter(t => !docIds.includes(t.id)));
+                  if (tasksSubTab === 'subcontract') {
+                      setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
+                  } else {
+                      setNsTasks(prev => prev.filter(t => !docIds.includes(t.id)));
+                  }
 
                   try {
                       if (GAS_WEB_APP_URL) {
-                          fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'deleteRows', sheetName: targetSheetName, rows: rowIndices }) }).catch(e => console.error("Failed to delete from sheet:", e));
+                          const payloadData = JSON.stringify({
+                              action: 'deleteRows',
+                              sheetName: targetSheetName,
+                              rows: rowIndices
+                          });
+
+                          fetch(GAS_WEB_APP_URL, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                              body: payloadData
+                          }).catch(e => console.error("Failed to delete from sheet:", e));
                       }
+
                       customAlert('ลบข้อมูลสำเร็จ', 'success');
-                  } catch (error) { customAlert('เกิดข้อผิดพลาดในการลบข้อมูล', 'error'); }
+                  } catch (error) {
+                      console.error("Error deleting task:", error);
+                      customAlert('เกิดข้อผิดพลาดในการลบข้อมูล', 'error');
+                  }
               });
           };
 
-          const handleCellDoubleClick = (e, cellId) => { setEditingCell(cellId); const el = e.target; setTimeout(() => { el.focus(); if (typeof window.getSelection !== "undefined" && typeof document.createRange !== "undefined") { const range = document.createRange(); range.selectNodeContents(el); range.collapse(false); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); } }, 10); };
-          const handleMouseMove = (e, task) => { const tooltipWidth = 320, tooltipHeight = Math.min(350, window.innerHeight - 40); let x = e.clientX + 15, y = e.clientY + 15; if (x + tooltipWidth > window.innerWidth) x = e.clientX - tooltipWidth - 15; if (y + tooltipHeight > window.innerHeight) y = e.clientY - tooltipHeight - 15; setTooltipData({ visible: true, task, x: Math.max(10, x), y: Math.max(10, y) }); };
+          const handleCellDoubleClick = (e, cellId) => {
+              setEditingCell(cellId); const el = e.target;
+              setTimeout(() => {
+                  el.focus();
+                  if (typeof window.getSelection !== "undefined" && typeof document.createRange !== "undefined") {
+                      const range = document.createRange(); range.selectNodeContents(el); range.collapse(false);
+                      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+                  }
+              }, 10);
+          };
+
+          const handleMouseMove = (e, task) => {
+              const tooltipWidth = 320, tooltipHeight = Math.min(350, window.innerHeight - 40); 
+              let x = e.clientX + 15, y = e.clientY + 15;
+              if (x + tooltipWidth > window.innerWidth) x = e.clientX - tooltipWidth - 15;
+              if (y + tooltipHeight > window.innerHeight) y = e.clientY - tooltipHeight - 15;
+              setTooltipData({ visible: true, task, x: Math.max(10, x), y: Math.max(10, y) });
+          };
+          
           const handleMouseLeave = () => setTooltipData({ visible: false, task: null, x: 0, y: 0 });
 
           // 🔥 ฟังก์ชันอัปเดตแผ่นงาน
@@ -647,16 +1427,26 @@
               const itemColMatchLocal = t_getColLocal(['itemname', 'อุปกรณ์']);
               const snColMatchLocal = t_getColLocal(['serialno', 'serial', 'sn']);
               
-              if (docIds.length > 1 && (field === itemColMatchLocal || field === snColMatchLocal)) { customAlert('ไม่สามารถแก้ไขข้อมูลอุปกรณ์/ซีเรียล ที่ถูกจัดกลุ่มรวมกันได้', 'error'); return false; }
-              const oldValue = taskObj[field] || ''; if(oldValue === value) return true;
-              if (docIds.length > 20) { customAlert(`⚠️ ระบบระงับการทำงานชั่วคราว! อัปเดตข้อมูลพร้อมกันเกินกำหนด`, 'error'); return false; }
+              if (docIds.length > 1 && (field === itemColMatchLocal || field === snColMatchLocal)) {
+                  customAlert('ไม่สามารถแก้ไขข้อมูลอุปกรณ์/ซีเรียล ที่ถูกจัดกลุ่มรวมกันได้ กรุณาแก้ไขแยกทีละบรรทัดใน Google Sheet แทนครับ', 'error');
+                  return false; 
+              }
 
-              lastLocalEditRef.current = Date.now();
+              const oldValue = taskObj[field] || '';
+              if(oldValue === value) return true;
+
+              if (docIds.length > 20) {
+                  customAlert(`⚠️ ระบบระงับการทำงานชั่วคราว! ตรวจพบความพยายามอัปเดตข้อมูลพร้อมกันถึง ${docIds.length} แถว คำแนะนำ: กรุณาลบแถวว่างใน Google Sheet ทิ้งก่อนครับ`, 'error');
+                  return false; 
+              }
 
               const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
-              if (tasksSubTab === 'subcontract') setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
-              else setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
+              if (tasksSubTab === 'subcontract') {
+                  setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
+              } else {
+                  setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
+              }
 
               try {
                   const cCompCol = (currentColumnsTableLocal || []).find(c => ['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
@@ -666,29 +1456,76 @@
               try {
                   if (GAS_WEB_APP_URL) {
                       let hasValidUpdate = false;
+
                       docIds.forEach((id, idx) => {
                           let rNum = rowIndices[idx];
                           if (!rNum || rNum === 999999 || rNum === 0 || isNaN(parseInt(rNum))) {
-                             const parsed = parseInt(String(id).replace('task_', '').replace('NS_task_', '')); 
-                             rNum = (!isNaN(parsed) && parsed > 1 && parsed <= 50000) ? parsed : null;
+                             const parsedId = String(id).replace('task_', '').replace('NS_task_', '');
+                             const parsed = parseInt(parsedId); 
+                             if(!isNaN(parsed) && parsed > 1 && parsed <= 50000) rNum = parsed;
+                             else rNum = null;
                           }
-                          if (rNum) {
+
+                          if (rNum && rNum > 1 && rNum <= 50000) {
                               pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === field && u.sheetName === targetSheetName));
                               pendingUpdatesRef.current.push({ row: rNum, field: field, value: value, sheetName: targetSheetName });
                               hasValidUpdate = true;
+                          } else {
+                              console.warn(`⚠️ [Blocked] ข้ามการส่งซิงค์ลง Sheet งาน ${id} เนื่องจากเลขบรรทัดผิดปกติ (${rNum})`);
                           }
                       });
-                      if (!hasValidUpdate) { customAlert('เกิดข้อผิดพลาดในการหาเลขบรรทัด', 'warning'); return true; }
 
+                      if (!hasValidUpdate) {
+                          customAlert('ข้อมูลงานนี้กำลังซิงค์อยู่ หรือหาเลขบรรทัดใน Sheet ไม่พบ กรุณารอสักครู่แล้วรีเฟรชหน้าเว็บอีกครั้งครับ', 'warning');
+                          return true;
+                      }
+
+                      setIsBackgroundSyncing(true);
                       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+
                       syncTimerRef.current = setTimeout(() => {
                           if (pendingUpdatesRef.current.length === 0) return;
-                          const updatesToSync = [...pendingUpdatesRef.current]; pendingUpdatesRef.current = [];
-                          fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'updateBatch', sheetName: targetSheetName, updates: updatesToSync }) }).catch(err => console.error('❌ ไม่สามารถอัปเดต Google Sheet ได้:', err));
+
+                          const updatesToSync = [...pendingUpdatesRef.current];
+                          pendingUpdatesRef.current = [];
+
+                          const updatesBySheet = {};
+                          updatesToSync.forEach(u => {
+                              if(!updatesBySheet[u.sheetName]) updatesBySheet[u.sheetName] = [];
+                              updatesBySheet[u.sheetName].push(u);
+                          });
+
+                          Object.keys(updatesBySheet).forEach(sheet => {
+                              const payloadData = JSON.stringify({ 
+                                  action: 'updateBatch', 
+                                  sheetName: sheet, 
+                                  updates: updatesBySheet[sheet],
+                                  row: updatesBySheet[sheet][0].row,
+                                  field: updatesBySheet[sheet][0].field,
+                                  value: updatesBySheet[sheet][0].value
+                              });
+                              
+                              fetch(GAS_WEB_APP_URL, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                                  body: payloadData
+                              }).then(res => res.json()).then(data => {
+                                  // ให้ GAS กดกระดิ่งเตือนเครื่องอื่นว่ามีข้อมูลใหม่
+                                  collectionRef.doc('_sync_status').set({ status: 'syncing', timestamp: Date.now() });
+                              }).catch(err => {
+                                  console.error('❌ ไม่สามารถอัปเดต Google Sheet ได้:', err);
+                              });
+                          });
+
+                          setTimeout(() => setIsBackgroundSyncing(false), 2000);
                       }, 1500);
                   }
                   return true;
-              } catch (e) { customAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error'); return false; }
+              } catch (e) {
+                  console.error("Error updating document: ", e); 
+                  customAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+                  return false;
+              }
           };
 
           // ================== DATA PROCESSING & TABLE ==================
@@ -697,8 +1534,16 @@
 
               if (showDuplicatesOnly && t_cidCol) {
                   const cidCounts = {};
-                  tableTasks.forEach(t => { const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : ''; if (cid && cid !== '-' && cid.toLowerCase() !== 'n/a') cidCounts[cid] = (cidCounts[cid] || 0) + 1; });
-                  tableTasks = tableTasks.filter(t => { const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : ''; return cidCounts[cid] > 1; });
+                  tableTasks.forEach(t => {
+                      const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
+                      if (cid && cid !== '-' && cid.toLowerCase() !== 'n/a') {
+                          cidCounts[cid] = (cidCounts[cid] || 0) + 1;
+                      }
+                  });
+                  tableTasks = tableTasks.filter(t => {
+                      const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
+                      return cidCounts[cid] > 1;
+                  });
               }
 
               if (tableFilterTeams?.length > 0 && t_teamCol) tableTasks = tableTasks.filter(t => tableFilterTeams.includes(getCleanTeam(t[t_teamCol])));
@@ -712,36 +1557,75 @@
                       const match = cleanVal.match(/-?\d+/); const num = match ? parseInt(match[0], 10) : NaN;
                       const isOverdue = cleanVal.includes('เกิน') || cleanVal.includes('over') || num < 0;
                       const isDue = !isOverdue && (num === 0 || cleanVal === '0' || cleanVal.includes('ครบกำหนด'));
-                      return tableFilterOverdue.includes(isOverdue ? 'เกินกำหนด' : (isDue ? 'ครบกำหนด' : 'ยังไม่ครบกำหนด'));
+                      const statusStr = isOverdue ? 'เกินกำหนด' : (isDue ? 'ครบกำหนด' : 'ยังไม่ครบกำหนด');
+                      return tableFilterOverdue.includes(statusStr);
                   });
               }
               
-              if (sortConfig.key && sortConfig.direction) { tableTasks.sort((a, b) => sortConfig.direction === 'asc' ? String(a[sortConfig.key] || '').localeCompare(String(b[sortConfig.key] || ''), 'th', { numeric: true }) : String(b[sortConfig.key] || '').localeCompare(String(a[sortConfig.key] || ''), 'th', { numeric: true })); } else { tableTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex)); }
+              if (sortConfig.key && sortConfig.direction) {
+                  tableTasks.sort((a, b) => sortConfig.direction === 'asc' ? String(a[sortConfig.key] || '').localeCompare(String(b[sortConfig.key] || ''), 'th', { numeric: true }) : String(b[sortConfig.key] || '').localeCompare(String(a[sortConfig.key] || ''), 'th', { numeric: true }));
+              } else {
+                  tableTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex));
+              }
+              
               if (searchTerm) tableTasks = tableTasks.filter(t => Object.values(t).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase())));
               
               let processedTasks = tableTasks;
 
+              // 🟢 ดึงข้อมูล Region_Respon มาใส่ในหน้า Subcontract โดยเทียบ CID
               if (tasksSubTab === 'subcontract') {
                   const nsTeamCol = getTeamColumnName(nsColumns);
                   const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
+                  
                   const nsCidMap = {};
-                  if (nsCidCol && nsTeamCol) { nsTasks.forEach(nt => { const cid = nt[nsCidCol] ? String(nt[nsCidCol]).trim() : ''; if (cid) nsCidMap[cid] = nt[nsTeamCol]; }); }
-                  processedTasks = processedTasks.map(t => { const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : ''; return { ...t, 'Region_Respon': nsCidMap[cid] || '-' }; });
+                  if (nsCidCol && nsTeamCol) {
+                      nsTasks.forEach(nt => {
+                          const cid = nt[nsCidCol] ? String(nt[nsCidCol]).trim() : '';
+                          if (cid) nsCidMap[cid] = nt[nsTeamCol];
+                      });
+                  }
+
+                  processedTasks = processedTasks.map(t => {
+                      const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
+                      return { ...t, 'Region_Respon': nsCidMap[cid] || '-' };
+                  });
               }
 
               if (tasksSubTab === 'ns') {
                   const grouped = new Map();
                   processedTasks.forEach(t => {
-                      const cid = t_cidCol ? t[t_cidCol] : ''; const st = siteTypeColMatch ? t[siteTypeColMatch] : ''; const cleanCid = String(cid).trim();
-                      if (!cleanCid || cleanCid === '-' || cleanCid.toLowerCase().includes('ไม่ระบุ') || cleanCid.length < 3) { grouped.set(t.id, { ...t, _groupDocs: [t.id], _groupRows: [t._rowIndex] }); return; }
+                      const cid = t_cidCol ? t[t_cidCol] : '';
+                      const st = siteTypeColMatch ? t[siteTypeColMatch] : '';
+                      const cleanCid = String(cid).trim();
+                      
+                      if (!cleanCid || cleanCid === '-' || cleanCid.toLowerCase().includes('ไม่ระบุ') || cleanCid.length < 3) {
+                          grouped.set(t.id, { ...t, _groupDocs: [t.id], _groupRows: [t._rowIndex] });
+                          return;
+                      }
+                      
                       const groupKey = `${cleanCid}_${st}`.trim();
-                      if (!grouped.has(groupKey)) { grouped.set(groupKey, { ...t, _groupDocs: [t.id], _groupRows: [t._rowIndex], _equipList: [{ item: t[itemColMatch]||'', sn: t[snColMatch]||'' }] }); } 
-                      else { const existing = grouped.get(groupKey); existing._groupDocs.push(t.id); existing._groupRows.push(t._rowIndex); existing._equipList.push({ item: t[itemColMatch]||'', sn: t[snColMatch]||'' }); }
+                      if (!grouped.has(groupKey)) {
+                          grouped.set(groupKey, { 
+                              ...t, 
+                              _groupDocs: [t.id],
+                              _groupRows: [t._rowIndex],
+                              _equipList: [{ item: t[itemColMatch]||'', sn: t[snColMatch]||'' }]
+                          });
+                      } else {
+                          const existing = grouped.get(groupKey);
+                          existing._groupDocs.push(t.id);
+                          existing._groupRows.push(t._rowIndex);
+                          existing._equipList.push({ item: t[itemColMatch]||'', sn: t[snColMatch]||'' });
+                      }
                   });
 
                   processedTasks = Array.from(grouped.values()).map(group => {
                       if (group._equipList && group._equipList.length > 0) {
-                          group._equipList.sort((a, b) => { const aHasSn = (a.sn || '').trim() !== '' ? 1 : 0; const bHasSn = (b.sn || '').trim() !== '' ? 1 : 0; return bHasSn - aHasSn; });
+                          group._equipList.sort((a, b) => {
+                              const aHasSn = (a.sn || '').trim() !== '' ? 1 : 0;
+                              const bHasSn = (b.sn || '').trim() !== '' ? 1 : 0;
+                              return bHasSn - aHasSn;
+                          });
                           if(itemColMatch) group[itemColMatch] = group._equipList.map((e, i) => `${i+1}. ${e.item} [ SN: ${e.sn||'-'} ]`).join('\n');
                           if(snColMatch) group[snColMatch] = group._equipList.map(e => e.sn).join('\n');
                       }
@@ -870,6 +1754,7 @@
               textStrokeWidth: 4 
           };
 
+          // 🟢 คำนวณ % Complete รวมสำหรับ Doughnut Chart
           const totalCompletedCount = chartFilteredTasks.filter(t => getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/)).length;
           const overallPercentComplete = totalTasksCount > 0 ? Math.round((totalCompletedCount / totalTasksCount) * 100) : 0;
 
@@ -888,11 +1773,13 @@
                   }
               });
               
+              // 🟢 คำนวณ % Complete ของแต่ละเดือน
               for (let i = 1; i <= 12; i++) {
                   const totalMonth = monthlyData[i].collected + monthlyData[i].ongoing;
                   monthlyData[i].percent = totalMonth > 0 ? Math.round((monthlyData[i].collected / totalMonth) * 100) : 0;
               }
 
+              // 🟢 เพิ่ม % ลงใน Labels แกน X
               const monthLabelsWithPercent = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].map((m, i) => [m, `${monthlyData[i+1].percent}%`]);
 
               barChartData = { labels: monthLabelsWithPercent, datasets: [ { label: 'Collected (CIDs)', data: Object.values(monthlyData).map(d => d.collected), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }, { label: 'Ongoing (CIDs)', data: Object.values(monthlyData).map(d => d.ongoing), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } ] };
@@ -903,16 +1790,20 @@
               chartFilteredTasks.forEach(t => {
                   let yStr = d_equipYearCol && t[d_equipYearCol] ? String(t[d_equipYearCol]).trim() : '';
                   if (!yStr) yStr = 'ไม่ระบุปี';
+                  
                   if (!yearlyData[yStr]) yearlyData[yStr] = { collected: 0, ongoing: 0 };
+                  
                   const isCollected = getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/);
                   if (isCollected) yearlyData[yStr].collected++; else yearlyData[yStr].ongoing++;
               });
               
               const sortedYears = Object.keys(yearlyData).sort((a, b) => {
-                  if (a === 'ไม่ระบุปี') return 1; if (b === 'ไม่ระบุปี') return -1;
+                  if (a === 'ไม่ระบุปี') return 1;
+                  if (b === 'ไม่ระบุปี') return -1;
                   return a.localeCompare(b, 'en', { numeric: true });
               });
 
+              // 🟢 คำนวณ % Complete ของแต่ละปี
               const yearLabelsWithPercent = sortedYears.map(y => {
                   const totalYear = yearlyData[y].collected + yearlyData[y].ongoing;
                   const pct = totalYear > 0 ? Math.round((yearlyData[y].collected / totalYear) * 100) : 0;
@@ -982,6 +1873,7 @@
               <DraggableFAB onClick={() => setIsSidebarOpen(true)} />
               {isSidebarOpen && <div className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
 
+              {/* Global Alert Toast */}
               {appAlert.show && (
                   <div className={`fixed top-5 right-5 z-[9999] px-6 py-3 rounded-xl shadow-lg border flex items-center gap-3 animate-slide-in-down ${appAlert.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : appAlert.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
                       <i className={`fa-solid ${appAlert.type === 'error' ? 'fa-circle-xmark' : appAlert.type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-check'} text-xl`}></i>
@@ -989,10 +1881,13 @@
                   </div>
               )}
 
+              {/* Global Confirm Modal */}
               {appConfirm.show && (
                   <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4 animate-fade-in">
                       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden p-6 text-center">
-                          <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner"><i className="fa-solid fa-question text-3xl"></i></div>
+                          <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                              <i className="fa-solid fa-question text-3xl"></i>
+                          </div>
                           <h3 className="text-lg font-bold text-slate-800 mb-2">ยืนยันการดำเนินการ</h3>
                           <p className="text-sm text-slate-600 mb-6 whitespace-pre-wrap">{appConfirm.message}</p>
                           <div className="flex justify-center gap-3 w-full">
@@ -1003,6 +1898,7 @@
                   </div>
               )}
 
+              {/* SIDEBAR */}
               <aside className={`bg-white text-slate-800 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.05)] z-50 shrink-0 transition-all duration-300 ease-in-out absolute lg:relative h-full ${isSidebarOpen ? 'w-72 translate-x-0' : 'w-0 -translate-x-full lg:translate-x-0 overflow-hidden'} border-r border-slate-200`}>
                 <div className="p-6 h-auto min-h-[80px] flex items-center border-b border-slate-100 shrink-0">
                   <h1 className="text-base md:text-lg font-bold flex items-center gap-3 leading-snug whitespace-normal">
@@ -1011,6 +1907,7 @@
                   </h1>
                 </div>
                 
+                {/* Main Navigation */}
                 <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
                   <div className="space-y-1">
                     <button onClick={() => { startTransition(() => { setActiveTab('dashboard'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-700 font-bold shadow-sm border border-blue-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>
@@ -1066,7 +1963,7 @@
                 <div className="p-3 bg-slate-50 flex items-center justify-between gap-2 text-xs font-medium shrink-0 border-t border-slate-200">
                   <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${isLoading || isBackgroundSyncing || isPendingTransition ? 'bg-blue-400 animate-pulse' : 'bg-emerald-500'}`}></div>
-                      {isLoading || isBackgroundSyncing || isPendingTransition ? <span className="text-blue-500 font-bold">Syncing...</span> : firebaseError ? <span className="text-red-500 text-center"><i className="fa-solid fa-circle-xmark"></i> Error</span> : <span className="text-emerald-600 font-bold">Live Synced (Zero-Quota)</span>}
+                      {isLoading || isBackgroundSyncing || isPendingTransition ? <span className="text-blue-500 font-bold">Syncing...</span> : firebaseError ? <span className="text-red-500 text-center"><i className="fa-solid fa-circle-xmark"></i> Error</span> : <span className="text-emerald-600 font-bold">Ready (ประหยัดโควต้า)</span>}
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold">v{APP_VERSION}</span>
                 </div>
@@ -1130,6 +2027,7 @@
                               <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2"><div className="min-w-[500px] md:min-w-[600px] h-full">{chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}</div></div>
                           </div>
                           
+                          {/* กราฟเกินกำหนดนัดหมาย (แสดงเฉพาะหน้า Subcontract) */}
                           {dashboardView === 'subcontract' && (
                               <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                                   <div className="flex justify-between items-center mb-4"><h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> เกินกำหนดนัดหมาย</h3></div>
@@ -1176,7 +2074,7 @@
                                         <i className="fa-solid fa-copy"></i> {showDuplicatesOnly ? 'แสดงทั้งหมด' : 'เช็ค CID ซ้ำ'}
                                     </button>
                                 )}
-                                <ColumnToggle columns={displayColumns} hiddenColumns={hiddenColumns} setHiddenColumns={setHiddenColumns} />
+                                <ColumnToggle columns={currentColumnsTable} hiddenColumns={hiddenColumns} setHiddenColumns={setHiddenColumns} />
                                 <button onClick={resetFilters} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs md:text-sm font-bold text-red-600 bg-red-50 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg border h-[38px]">ล้างตัวกรอง</button>
                             </div>
                         </div>
@@ -1236,7 +2134,7 @@
                             : (currentTasksTable?.length || 0) === 0 ? <tr><td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-8 text-center text-slate-500">ฐานข้อมูลว่างเปล่า</td></tr>
                             : (finalTableTasks?.length || 0) === 0 ? <tr><td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-8 text-center text-slate-500">ไม่พบข้อมูล...</td></tr>
                             : (paginatedTasks || []).map((task) => (
-                              <tr key={task.id} className="transition-colors hover:bg-slate-50">
+                              <tr key={task.id} className={`transition-colors tr-hover ${isBackgroundSyncing ? 'opacity-70 pointer-events-none' : 'hover:bg-slate-50'}`}>
                                 {(orderedVisibleColumnsTable || []).map((col, idx) => {
                                     const hasFixedWidth = colWidths[col] !== undefined;
                                     
@@ -1248,10 +2146,7 @@
                                     const isRegionResponCell = col === 'Region_Respon';
                                     
                                     const isStatusChangeCell = col === statusChangeColMatch;
-                                    
-                                    const colStr = String(col).toLowerCase();
-                                    const isAddressCell = colStr.includes('address') || colStr.includes('ที่อยู่');
-                                    const isContactJobCell = colStr.includes('customer contact') || colStr.includes('customer_contract') || colStr === 'contract' || colStr.includes('ประสานงาน');
+                                    const isContactJobCell = col === contactJobColMatch;
 
                                     const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
                                     
@@ -1295,13 +2190,8 @@
                                         if (isStatusChangeCell) {
                                             tdStyle.maxWidth = '250px';
                                         }
-                                        if (isAddressCell) {
-                                            tdStyle.minWidth = '250px';
-                                            tdStyle.maxWidth = '350px';
-                                        }
                                         if (isContactJobCell) {
-                                            tdStyle.minWidth = '150px';
-                                            tdStyle.maxWidth = '250px';
+                                            tdStyle.minWidth = '200px';
                                         }
                                     }
 
@@ -1319,8 +2209,8 @@
                                         tdWhiteSpace = 'pre-wrap';
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'auto';
-                                    } else if ((isStatusChangeCell || isContactJobCell || isAddressCell) && !hasFixedWidth) {
-                                        tdWhiteSpace = 'pre-wrap';
+                                    } else if ((isStatusChangeCell || isContactJobCell) && !hasFixedWidth) {
+                                        tdWhiteSpace = 'normal';
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'visible';
                                     }
@@ -1396,7 +2286,7 @@
                                     } else {
                                         return (
                                             <td key={idx} className={tdClass} style={tdStyle}>
-                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={cellClasses} style={{ ...styleObj, cursor: isEditing ? 'text' : 'pointer', textAlign: textAlignment, lineHeight: (isGroupedMultiLine || isContactJobCell || isAddressCell) ? '1.5' : '20px', overflow: tdOverflow, maxHeight: isGroupedMultiLine ? '120px' : 'none' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
+                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={cellClasses} style={{ ...styleObj, minHeight: '28px', cursor: isEditing ? 'text' : 'pointer', whiteSpace: tdWhiteSpace, wordBreak: tdWordBreak, textAlign: textAlignment, lineHeight: isGroupedMultiLine ? '1.8' : '20px', overflow: tdOverflow, textOverflow: isGroupedMultiLine ? 'clip' : 'ellipsis', maxHeight: isGroupedMultiLine ? '120px' : 'none' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
                                             </td>
                                         );
                                     }
@@ -1806,3 +2696,4 @@
     </script>
 </body>
 </html>
+```
