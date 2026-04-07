@@ -653,7 +653,7 @@
                 }
             }, [autoAssignData]);
 
-            const executeAutoFill = (searchCidValue, currentSiteType) => {
+            const executeAutoFill = (searchCidValue, currentSiteType, isManualSwitch = false) => {
                 if (!searchCidValue.trim()) return;
                 
                 const matchedCids = (nsTasks || []).filter(t => {
@@ -671,18 +671,20 @@
                 
                 let matchedRows = matchedCids.filter(t => {
                     const st = getVal(t, siteTypeKeys);
-                    return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase();
+                    // ปรับให้ค้นหาแบบยืดหยุ่นขึ้น (เผื่อพิมพ์เว้นวรรคผิด)
+                    return st && String(st).trim().toLowerCase().includes(actualSiteType.toLowerCase().substring(0, 3));
                 });
 
                 let isAutoSwitched = false;
 
-                if (matchedRows.length === 0) {
+                // ถ้าหาไม่เจอ และ "ไม่ได้กดเปลี่ยนเองจาก Dropdown" ให้ลองสลับ Site Type ดู
+                if (matchedRows.length === 0 && !isManualSwitch) {
                     const firstSt = String(getVal(matchedCids[0], siteTypeKeys)).trim();
                     if (firstSt) {
-                        actualSiteType = firstSt;
+                        actualSiteType = firstSt.toLowerCase().includes('ori') ? 'Originate' : 'Terminate';
                         matchedRows = matchedCids.filter(t => {
                             const st = getVal(t, siteTypeKeys);
-                            return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase();
+                            return st && String(st).trim().toLowerCase().includes(actualSiteType.toLowerCase().substring(0, 3));
                         });
                         isAutoSwitched = true;
                     } else {
@@ -690,74 +692,73 @@
                     }
                 }
 
-                if (matchedRows.length > 0) {
-                    const first = matchedRows[0];
-                    
-                    const rawAmphur = getVal(first, ['amphur', 'อำเภอ', 'เขต', 'district']) || '';
-                    let matchedZoneId = '';
-                    let matchedTeam = '';
-                    let matchedNextTeam = '';
-                    let displayDistrict = '';
+                // ถ้ากดเปลี่ยนเองแล้วไม่เจอข้อมูล ให้ใช้ข้อมูลแถวแรกมาเติมฟอร์ม แต่ปล่อยช่องอุปกรณ์ว่างไว้
+                const baseRow = matchedRows.length > 0 ? matchedRows[0] : matchedCids[0];
 
-                    if (rawAmphur) {
-                        const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
-                        const foundDistrict = allDistrictsMap.find(d => {
-                            const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
-                            return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur);
-                        });
+                const rawAmphur = getVal(baseRow, ['amphur', 'อำเภอ', 'เขต', 'district']) || '';
+                let matchedZoneId = '';
+                let matchedTeam = '';
+                let matchedNextTeam = '';
+                let displayDistrict = '';
 
-                        if (foundDistrict) {
-                            displayDistrict = foundDistrict.name;
-                            matchedZoneId = foundDistrict.zoneId;
-                            const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
-                            if (zone) {
-                                const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
-                                let currentQ = queueState[zone.id] || 0;
-                                matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : '';
-                                matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : '';
-                            }
-                        } else {
-                            displayDistrict = rawAmphur;
-                        }
-                    }
-
-                    setForm(prev => ({
-                        ...prev,
-                        cid: getVal(first, ['circuitno', 'cid']) || prev.cid, 
-                        siteType: actualSiteType, 
-                        customerName: getVal(first, ['customername', 'company', 'บริษัท']) || '',
-                        address: getVal(first, ['address', 'ที่อยู่']) || '', phone: getVal(first, ['customercontract', 'customer_contract', 'contract', 'เบอร์']) || '',
-                        cancelDate: getVal(first, ['duejob', 'due', 'ยกเลิก']) || '',
-                        getbackDate: getVal(first, ['getbackdate', 'getback_date', 'วันที่เข้าเก็บ']) || '',
-                        getbackTime: getVal(first, ['getbacktime', 'getback_time', 'เวลาเข้าเก็บ']) || '',
-                        districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId,
-                        team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' 
-                    }));
-
-                    const equips = matchedRows.map(t => ({
-                        name: getVal(t, ['itemname', 'item name', 'อุปกรณ์', 'item']) || '',
-                        serial: getVal(t, ['serialno', 'serial', 'sn']) || ''
-                    })).filter(e => e.name || e.serial);
-
-                    equips.sort((a, b) => {
-                        const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0;
-                        const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0;
-                        return bHasSn - aHasSn;
+                if (rawAmphur) {
+                    const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                    const foundDistrict = allDistrictsMap.find(d => {
+                        const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                        return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur);
                     });
 
-                    if (equips.length > 0) {
-                        setEquipments(equips);
+                    if (foundDistrict) {
+                        displayDistrict = foundDistrict.name;
+                        matchedZoneId = foundDistrict.zoneId;
+                        const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
+                        if (zone) {
+                            const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
+                            let currentQ = queueState[zone.id] || 0;
+                            matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : '';
+                            matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : '';
+                        }
                     } else {
-                        setEquipments([{ name: '', serial: '' }]);
-                    }
-                    
-                    if (isAutoSwitched && !autoAssignData) {
-                        customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! (สลับ Site Type เป็น "${actualSiteType}" ให้อัตโนมัติ)`, 'success');
-                    } else if (!autoAssignData) {
-                        customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
+                        displayDistrict = rawAmphur;
                     }
                 }
-            };
+
+                setForm(prev => ({
+                    ...prev,
+                    cid: getVal(baseRow, ['circuitno', 'cid']) || prev.cid, 
+                    siteType: actualSiteType, 
+                    customerName: getVal(baseRow, ['customername', 'company', 'บริษัท']) || '',
+                    address: getVal(baseRow, ['address', 'ที่อยู่']) || '', phone: getVal(baseRow, ['customercontract', 'customer_contract', 'contract', 'เบอร์']) || '',
+                    cancelDate: getVal(baseRow, ['duejob', 'due', 'ยกเลิก']) || '',
+                    getbackDate: getVal(baseRow, ['getbackdate', 'getback_date', 'วันที่เข้าเก็บ']) || '',
+                    getbackTime: getVal(baseRow, ['getbacktime', 'getback_time', 'เวลาเข้าเก็บ']) || '',
+                    districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId,
+                    team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' 
+                }));
+
+                const equips = matchedRows.map(t => ({
+                    name: getVal(t, ['itemname', 'item name', 'อุปกรณ์', 'item']) || '',
+                    serial: getVal(t, ['serialno', 'serial', 'sn']) || ''
+                })).filter(e => e.name || e.serial);
+
+                equips.sort((a, b) => {
+                    const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0;
+                    const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0;
+                    return bHasSn - aHasSn;
+                });
+
+                if (equips.length > 0) {
+                    setEquipments(equips);
+                } else {
+                    setEquipments([{ name: '', serial: '' }]);
+                }
+                
+                if (isAutoSwitched && !autoAssignData) {
+                    customAlert(`✅ ดึงข้อมูลสำเร็จ! (สลับเป็น "${actualSiteType}" ให้อัตโนมัติ)`, 'success');
+                } else if (!autoAssignData && !isManualSwitch) {
+                    customAlert(`✅ ดึงข้อมูลสำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
+                }
+                };
 
             const handleAutoFillClick = () => {
                 executeAutoFill(searchCid, form.siteType);
