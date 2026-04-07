@@ -2242,17 +2242,17 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     let tdWordBreak = 'normal';
                                     let tdOverflow = 'hidden';
                                     let innerWidth = colWidth;
-
+                                    
                                     if (isGroupedMultiLine) {
                                         tdWhiteSpace = 'pre-wrap';
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'auto';
-                                    } else if (isContactJobCell && !hasFixedWidth) {
-                                        // 🔥 ใช้ pre-wrap เพื่อให้มันขึ้นบรรทัดใหม่ตาม Google Sheet เป๊ะๆ
+                                    } else if (isContactJobCell || isAddressCell) { 
+                                        // 🔥 บังคับใช้ pre-wrap เพื่อให้ห่อคำและขึ้นบรรทัดใหม่เสมอ
                                         tdWhiteSpace = 'pre-wrap'; 
                                         tdWordBreak = 'break-word';
-                                        tdOverflow = 'hidden';
-                                        innerWidth = '180px';
+                                        tdOverflow = 'visible';
+                                        if (!hasFixedWidth) innerWidth = '180px'; // ตั้งค่าเริ่มต้น 180px
                                     } else if (isStatusChangeCell && !hasFixedWidth) {
                                         tdWhiteSpace = 'normal';
                                         tdWordBreak = 'break-word';
@@ -2330,7 +2330,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     } else {
                                         return (
                                             <td key={idx} className={tdClass} style={tdStyle}>
-                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={cellClasses} style={{ ...styleObj, width: innerWidth, minWidth: innerWidth, maxWidth: innerWidth, minHeight: '28px', cursor: isEditing ? 'text' : 'pointer', whiteSpace: tdWhiteSpace, wordBreak: tdWordBreak, textAlign: textAlignment, lineHeight: isGroupedMultiLine ? '1.8' : '20px', overflow: tdOverflow, textOverflow: isGroupedMultiLine ? 'clip' : 'ellipsis', maxHeight: isGroupedMultiLine ? '120px' : 'none' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
+                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={cellClasses} style={{ ...styleObj, width: innerWidth, minWidth: innerWidth, maxWidth: innerWidth, minHeight: '28px', cursor: isEditing ? 'text' : 'pointer', whiteSpace: tdWhiteSpace, wordBreak: tdWordBreak, textAlign: textAlignment, lineHeight: (isGroupedMultiLine || isContactJobCell || isAddressCell) ? '1.5' : '20px', overflow: tdOverflow, textOverflow: (isGroupedMultiLine || isContactJobCell || isAddressCell) ? 'clip' : 'ellipsis', maxHeight: 'none' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
                                             </td>
                                         );
                                     }
