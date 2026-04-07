@@ -653,125 +653,118 @@
                 }
             }, [autoAssignData]);
 
-            const executeAutoFill = (searchCidValue, requestedSiteType, isManualSwitch = false) => {
+            const executeAutoFill = (searchCidValue, currentSiteType) => {
                 if (!searchCidValue.trim()) return;
                 
+                // ล็อคเป้าตรวจสอบจากคอลัมน์ CIRCUIT NO.
                 const matchedCids = (nsTasks || []).filter(t => {
-                    const cid = getVal(t, ['circuitno', 'cid']);
+                    const cid = getVal(t, ['circuitno']);
                     return String(cid).trim().toLowerCase() === searchCidValue.trim().toLowerCase();
                 });
 
                 if (matchedCids.length === 0) {
-                    customAlert(`❌ ไม่พบข้อมูล CID: "${searchCidValue}" ในฐานข้อมูล NS`, 'error');
+                    alert(`❌ ไม่พบข้อมูล CID: "${searchCidValue}" ในฐานข้อมูล NS ครับ`);
                     return;
                 }
 
-                const siteTypeKeys = ['sitetype', 'site', 'site_type']; 
-                let finalSiteType = requestedSiteType || 'Terminate';
+                let actualSiteType = currentSiteType || 'Terminate';
+                // ล็อคเป้าตรวจสอบจากคอลัมน์ SITE_TYPE เท่านั้น
+                const siteTypeKeys = ['sitetype']; 
                 
-                // กรองหาแถวที่ Site Type ตรงกับที่เลือก
                 let matchedRows = matchedCids.filter(t => {
                     const st = getVal(t, siteTypeKeys);
-                    return st && String(st).trim().toLowerCase().includes(finalSiteType.toLowerCase().substring(0, 3));
+                    return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase();
                 });
 
                 let isAutoSwitched = false;
 
-                // ถ้าหาไม่เจอ และ "ไม่ได้กดเปลี่ยนเองจาก Dropdown" ให้ลองสลับ Site Type ดู
-                if (matchedRows.length === 0 && !isManualSwitch) {
+                if (matchedRows.length === 0) {
                     const firstSt = String(getVal(matchedCids[0], siteTypeKeys)).trim();
                     if (firstSt) {
-                        finalSiteType = firstSt.toLowerCase().includes('ori') ? 'Originate' : 'Terminate';
+                        actualSiteType = firstSt;
                         matchedRows = matchedCids.filter(t => {
                             const st = getVal(t, siteTypeKeys);
-                            return st && String(st).trim().toLowerCase().includes(finalSiteType.toLowerCase().substring(0, 3));
+                            return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase();
                         });
                         isAutoSwitched = true;
+                    } else {
+                        // 🔥 กรณีหาคอลัมน์ Site ไม่เจอ หรือเป็นค่าว่าง ให้ดึงข้อมูลทั้งหมดของ CID นี้เลย
+                        matchedRows = matchedCids;
                     }
                 }
 
-                // ใช้ข้อมูลลูกค้าจากแถวที่ตรง (ถ้ามี) หรือแถวแรกของ CID นั้น
-                const baseRow = matchedRows.length > 0 ? matchedRows[0] : matchedCids[0];
+                if (matchedRows.length > 0) {
+                    const first = matchedRows[0];
+                    
+                    const rawAmphur = getVal(first, ['amphur', 'อำเภอ', 'เขต', 'district']) || '';
+                    let matchedZoneId = '';
+                    let matchedTeam = '';
+                    let matchedNextTeam = '';
+                    let displayDistrict = '';
 
-                const rawAmphur = getVal(baseRow, ['amphur', 'อำเภอ', 'เขต', 'district']) || '';
-                let matchedZoneId = '';
-                let matchedTeam = '';
-                let matchedNextTeam = '';
-                let displayDistrict = '';
+                    if (rawAmphur) {
+                        const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                        const foundDistrict = allDistrictsMap.find(d => {
+                            const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                            return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur);
+                        });
 
-                if (rawAmphur) {
-                    const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
-                    const foundDistrict = allDistrictsMap.find(d => {
-                        const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
-                        return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur);
+                        if (foundDistrict) {
+                            displayDistrict = foundDistrict.name;
+                            matchedZoneId = foundDistrict.zoneId;
+                            const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
+                            if (zone) {
+                                const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
+                                let currentQ = queueState[zone.id] || 0;
+                                matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : '';
+                                matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : '';
+                            }
+                        } else {
+                            displayDistrict = rawAmphur;
+                        }
+                    }
+
+                    // 🔥 ล็อคชื่อคอลัมน์ทั้งหมดตามที่ระบุไว้
+                    setForm(prev => ({
+                        ...prev,
+                        cid: getVal(first, ['circuitno']) || prev.cid, 
+                        siteType: actualSiteType,
+                        customerName: getVal(first, ['customername']) || '',
+                        address: getVal(first, ['address']) || '',
+                        phone: getVal(first, ['customercontract']) || '',
+                        cancelDate: getVal(first, ['duejob']) || '',
+                        getbackDate: getVal(first, ['getbackdate']) || '',
+                        getbackTime: getVal(first, ['getbacktime']) || '',
+                        districtSearch: displayDistrict || prev.districtSearch,
+                        zoneId: matchedZoneId || prev.zoneId,
+                        team: matchedTeam || prev.team,
+                        nextTeam: matchedNextTeam || prev.nextTeam,
+                        details: '' 
+                    }));
+
+                    // 🔥 ล็อคเป้าคอลัมน์ ITEM NAME และ SERIALNO
+                    const equips = matchedRows.map(t => ({
+                        name: getVal(t, ['itemname']) || '',
+                        serial: getVal(t, ['serialno']) || ''
+                    })).filter(e => e.name || e.serial);
+
+                    equips.sort((a, b) => {
+                        const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0;
+                        const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0;
+                        return bHasSn - aHasSn;
                     });
 
-                    if (foundDistrict) {
-                        displayDistrict = foundDistrict.name;
-                        matchedZoneId = foundDistrict.zoneId;
-                        const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
-                        if (zone) {
-                            const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
-                            let currentQ = queueState[zone.id] || 0;
-                            matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : '';
-                            matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : '';
-                        }
-                    } else {
-                        displayDistrict = rawAmphur;
-                    }
-                }
-
-                setForm(prev => ({
-                    ...prev,
-                    cid: getVal(baseRow, ['circuitno', 'cid']) || prev.cid, 
-                    siteType: finalSiteType, 
-                    customerName: getVal(baseRow, ['customername', 'company', 'บริษัท']) || '',
-                    address: getVal(baseRow, ['address', 'ที่อยู่']) || '', phone: getVal(baseRow, ['customercontract', 'customer_contract', 'contract', 'เบอร์']) || '',
-                    cancelDate: getVal(baseRow, ['duejob', 'due', 'ยกเลิก']) || '',
-                    getbackDate: getVal(baseRow, ['getbackdate', 'getback_date', 'วันที่เข้าเก็บ']) || '',
-                    getbackTime: getVal(baseRow, ['getbacktime', 'getback_time', 'เวลาเข้าเก็บ']) || '',
-                    districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId,
-                    team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' 
-                }));
-
-                // ฟังก์ชันดึงอุปกรณ์ (รองรับชื่อคอลัมน์หลายรูปแบบ รวมถึง ITEM NAME)
-                const extractEquips = (rows) => {
-                    return rows.map(t => ({
-                        name: getVal(t, ['itemname', 'item name', 'item_name', 'อุปกรณ์', 'item', 'equipment', 'product']) || '',
-                        serial: getVal(t, ['serialno', 'serial', 'sn', 's/n', 'mac']) || ''
-                    })).filter(e => e.name || e.serial);
-                };
-
-                // 1. ลองดึงอุปกรณ์จากบรรทัดที่ Site Type ตรงกันก่อน
-                let equips = extractEquips(matchedRows);
-
-                // 2. Fallback: ถ้าไม่มีอุปกรณ์เลย ให้กวาดดึงจากทุกบรรทัดของ CID นี้ (แก้ปัญหา Sheet เว้นว่าง Site Type)
-                if (equips.length === 0) {
-                    equips = extractEquips(matchedCids);
-                }
-
-                equips.sort((a, b) => {
-                    const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0;
-                    const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0;
-                    return bHasSn - aHasSn;
-                });
-
-                if (equips.length > 0) {
-                    setEquipments(equips);
-                } else {
-                    setEquipments([{ name: '', serial: '' }]);
-                }
-                
-                if (isAutoSwitched && !autoAssignData) {
-                    customAlert(`✅ ดึงข้อมูลสำเร็จ! (สลับเป็น "${finalSiteType}" ให้อัตโนมัติ)`, 'success');
-                } else if (!autoAssignData && !isManualSwitch) {
                     if (equips.length > 0) {
-                        customAlert(`✅ ดึงข้อมูลสำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
+                        setEquipments(equips);
                     } else {
-                        customAlert(`✅ ดึงข้อมูลสำเร็จ! แต่ไม่พบรายการอุปกรณ์ในระบบ`, 'warning');
+                        setEquipments([{ name: '', serial: '' }]);
                     }
-                } else if (isManualSwitch && matchedRows.length === 0) {
-                    customAlert(`⚠️ เปลี่ยนเป็น ${finalSiteType} แล้ว (ดึงข้อมูลอุปกรณ์รวมของ CID นี้)`, 'warning');
+                    
+                    if (isAutoSwitched && !autoAssignData) {
+                        alert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ!\n(ระบบสลับ Site Type เป็น "${actualSiteType}" ให้อัตโนมัติ)\nพบอุปกรณ์ทั้งหมด ${equips.length} รายการ`);
+                    } else if (!autoAssignData) {
+                        alert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ!\nพบอุปกรณ์ทั้งหมด ${equips.length} รายการ`);
+                    }
                 }
             };
 
