@@ -723,19 +723,15 @@
 
                     setForm(prev => ({
                         ...prev,
-                        cid: getVal(first, ['circuitno']) || prev.cid, 
-                        siteType: actualSiteType,
+                        cid: getVal(first, ['circuitno', 'cid']) || prev.cid, 
+                        siteType: actualSiteType, 
                         customerName: getVal(first, ['customername', 'company', 'บริษัท']) || '',
-                        address: getVal(first, ['address', 'ที่อยู่']) || '',
-                        phone: getVal(first, ['customercontract', 'contract', 'เบอร์']) || '',
+                        address: getVal(first, ['address', 'ที่อยู่']) || '', phone: getVal(first, ['customercontract', 'customer_contract', 'contract', 'เบอร์']) || '',
                         cancelDate: getVal(first, ['duejob', 'due', 'ยกเลิก']) || '',
-                        getbackDate: getVal(first, ['getbackdate', 'วันที่เข้าเก็บ', 'date']) || '',
-                        getbackTime: getVal(first, ['getbacktime', 'เวลาเข้าเก็บ', 'time']) || '',
-                        districtSearch: displayDistrict || prev.districtSearch,
-                        zoneId: matchedZoneId || prev.zoneId,
-                        team: matchedTeam || prev.team,
-                        nextTeam: matchedNextTeam || prev.nextTeam,
-                        details: '' 
+                        getbackDate: getVal(first, ['getbackdate', 'getback_date', 'วันที่เข้าเก็บ']) || '',
+                        getbackTime: getVal(first, ['getbacktime', 'getback_time', 'เวลาเข้าเก็บ']) || '',
+                        districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId,
+                        team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' 
                     }));
 
                     const equips = matchedRows.map(t => ({
@@ -1190,6 +1186,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const tableUniqueStatuses = t_statusCol ? [...new Set((currentTasksTable || []).map(t => getCleanStatus(t[t_statusCol])))].sort() : [];
           const tableUniqueColMonths = [...new Set((currentTasksTable || []).map(t => { const d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null); return d ? d.getMonth() + 1 : null; }).filter(Boolean))].sort((a,b)=>a-b);
           const tableUniqueYears = t_equipYearCol ? [...new Set((currentTasksTable || []).map(t => t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : '').filter(Boolean))].sort() : [];
+          const subconStatusCol = getStatusColumnName(columns);
+          const subcontractStatuses = [...new Set((tasks || []).map(t => getCleanStatus(t[subconStatusCol])))].sort();
 
           // ================== FIREBASE FETCHING (โหมดประหยัดโควต้า ฟรี 100%) ==================
           const fetchAllDataFromServer = async () => {
@@ -2333,8 +2331,18 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               
                               {totalPages > 1 && (
                                   <div className="flex items-center gap-2">
-                                      <span className="text-xs text-slate-500 hidden sm:block mr-2">หน้า {currentPage} จาก {totalPages}</span>
                                       <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md text-xs font-semibold disabled:opacity-50 transition-colors"><i className="fa-solid fa-chevron-left sm:mr-1"></i><span className="hidden sm:inline"> ก่อนหน้า</span></button>
+                                      
+                                      <div className="flex items-center gap-1">
+                                          <span className="text-xs text-slate-500 hidden sm:block">หน้า</span>
+                                          <select value={currentPage} onChange={(e) => setCurrentPage(Number(e.target.value))} className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 bg-white outline-none focus:border-blue-500 cursor-pointer shadow-sm">
+                                              {[...Array(totalPages)].map((_, i) => (
+                                                  <option key={i + 1} value={i + 1}>{i + 1}</option>
+                                              ))}
+                                          </select>
+                                          <span className="text-xs text-slate-500 hidden sm:block">จาก {totalPages}</span>
+                                      </div>
+
                                       <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md text-xs font-semibold disabled:opacity-50 transition-colors"><span className="hidden sm:inline">ถัดไป </span><i className="fa-solid fa-chevron-right sm:ml-1"></i></button>
                                   </div>
                               )}
