@@ -2096,7 +2096,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       thStyle.width = colWidth;
                                       thStyle.minWidth = colWidth;
                                       thStyle.maxWidth = colWidth;
+                                  } else if (col === contactJobColMatch) {
+                                      // บังคับหัวตารางให้กว้างแค่ 150px
+                                      thStyle.width = '150px';
+                                      thStyle.minWidth = '150px';
+                                      thStyle.maxWidth = '150px';
+                                      thStyle.whiteSpace = 'normal';
                                   }
+
                                   if (isPinned) {
                                       thStyle.position = 'sticky';
                                       thStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
@@ -2191,7 +2198,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                             tdStyle.maxWidth = '250px';
                                         }
                                         if (isContactJobCell) {
-                                            // บังคับขนาดตายตัวเพื่อไม่ให้ตารางขยายตามข้อความ
+                                            // บังคับเนื้อหาให้กว้างแค่ 150px เท่ากับหัวตาราง
                                             tdStyle.width = '150px';
                                             tdStyle.minWidth = '150px';
                                             tdStyle.maxWidth = '150px';
