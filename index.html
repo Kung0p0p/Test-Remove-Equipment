@@ -1182,7 +1182,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           // 🟢 ปรับให้ครอบคลุมคอลัมน์ Customer_Contract
           const contactJobColMatch = (currentColumnsTable || []).find(c => {
               const lc = c ? String(c).toLowerCase() : '';
-              return lc.includes('customer contact') || lc.includes('customer_contract') || lc === 'contract';
+              return lc.includes('customer contact') || lc.includes('customer_contact') || lc === 'contact';
           }) || '';
           
           const itemColMatch = t_getCol(['itemname', 'อุปกรณ์']);
