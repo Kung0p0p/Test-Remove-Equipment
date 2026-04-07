@@ -2339,13 +2339,28 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md text-xs font-semibold disabled:opacity-50 transition-colors"><i className="fa-solid fa-chevron-left sm:mr-1"></i><span className="hidden sm:inline"> ก่อนหน้า</span></button>
                                       
                                       <div className="flex items-center gap-1">
-                                          <span className="text-xs text-slate-500 hidden sm:block">หน้า</span>
-                                          <select value={currentPage} onChange={(e) => setCurrentPage(Number(e.target.value))} className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 bg-white outline-none focus:border-blue-500 cursor-pointer shadow-sm">
-                                              {[...Array(totalPages)].map((_, i) => (
-                                                  <option key={i + 1} value={i + 1}>{i + 1}</option>
-                                              ))}
-                                          </select>
-                                          <span className="text-xs text-slate-500 hidden sm:block">จาก {totalPages}</span>
+                                          <span className="text-xs text-slate-500 hidden sm:block mr-1">หน้า</span>
+                                          {(() => {
+                                              // คำนวณให้โชว์แค่ 10 หน้าแบบเลื่อนได้
+                                              let startPage = Math.max(1, currentPage - 4);
+                                              let endPage = Math.min(totalPages, startPage + 9);
+                                              if (endPage - startPage < 9) {
+                                                  startPage = Math.max(1, endPage - 9);
+                                              }
+                                              const pages = [];
+                                              for (let i = startPage; i <= endPage; i++) pages.push(i);
+                                              
+                                              return (
+                                                  <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar px-1 py-1 max-w-[200px] md:max-w-[300px]">
+                                                      {pages.map(p => (
+                                                          <button key={p} onClick={() => setCurrentPage(p)} className={`px-2.5 py-1 min-w-[32px] rounded text-xs font-bold transition-colors shrink-0 ${currentPage === p ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50'}`}>
+                                                              {p}
+                                                          </button>
+                                                      ))}
+                                                  </div>
+                                              );
+                                          })()}
+                                          <span className="text-xs text-slate-500 hidden sm:block ml-1">จาก {totalPages}</span>
                                       </div>
 
                                       <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md text-xs font-semibold disabled:opacity-50 transition-colors"><span className="hidden sm:inline">ถัดไป </span><i className="fa-solid fa-chevron-right sm:ml-1"></i></button>
