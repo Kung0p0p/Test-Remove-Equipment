@@ -653,7 +653,7 @@
                 }
             }, [autoAssignData]);
 
-            const executeAutoFill = (searchCidValue, currentSiteType) => {
+            const executeAutoFill = (searchCidValue, currentSiteType, isManualSwitch = false) => {
                 if (!searchCidValue.trim()) return;
                 
                 const matchedCids = (nsTasks || []).filter(t => {
@@ -669,93 +669,93 @@
                 let actualSiteType = currentSiteType || 'Terminate';
                 const siteTypeKeys = ['sitetype', 'site', 'site_type']; 
                 
+                // กรองหาแถวที่ Site Type ตรงกับที่เลือก
                 let matchedRows = matchedCids.filter(t => {
                     const st = getVal(t, siteTypeKeys);
-                    return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase();
+                    return st && String(st).trim().toLowerCase().includes(actualSiteType.toLowerCase().substring(0, 3));
                 });
 
                 let isAutoSwitched = false;
 
-                if (matchedRows.length === 0) {
+                // ถ้าหาไม่เจอ และ "ไม่ได้กดเปลี่ยนเองจาก Dropdown" ให้ลองสลับ Site Type ดู
+                if (matchedRows.length === 0 && !isManualSwitch) {
                     const firstSt = String(getVal(matchedCids[0], siteTypeKeys)).trim();
                     if (firstSt) {
-                        actualSiteType = firstSt;
+                        actualSiteType = firstSt.toLowerCase().includes('ori') ? 'Originate' : 'Terminate';
                         matchedRows = matchedCids.filter(t => {
                             const st = getVal(t, siteTypeKeys);
-                            return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase();
+                            return st && String(st).trim().toLowerCase().includes(actualSiteType.toLowerCase().substring(0, 3));
                         });
                         isAutoSwitched = true;
-                    } else {
-                        matchedRows = matchedCids;
                     }
                 }
 
-                if (matchedRows.length > 0) {
-                    const first = matchedRows[0];
-                    
-                    const rawAmphur = getVal(first, ['amphur', 'อำเภอ', 'เขต', 'district']) || '';
-                    let matchedZoneId = '';
-                    let matchedTeam = '';
-                    let matchedNextTeam = '';
-                    let displayDistrict = '';
+                // ใช้ข้อมูลลูกค้าจากแถวที่ตรงกับ Site Type (ถ้ามี) ถ้าไม่มีให้ดึงจากแถวแรกของ CID นั้น
+                const baseRow = matchedRows.length > 0 ? matchedRows[0] : matchedCids[0];
 
-                    if (rawAmphur) {
-                        const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
-                        const foundDistrict = allDistrictsMap.find(d => {
-                            const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
-                            return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur);
-                        });
+                const rawAmphur = getVal(baseRow, ['amphur', 'อำเภอ', 'เขต', 'district']) || '';
+                let matchedZoneId = '';
+                let matchedTeam = '';
+                let matchedNextTeam = '';
+                let displayDistrict = '';
 
-                        if (foundDistrict) {
-                            displayDistrict = foundDistrict.name;
-                            matchedZoneId = foundDistrict.zoneId;
-                            const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
-                            if (zone) {
-                                const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
-                                let currentQ = queueState[zone.id] || 0;
-                                matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : '';
-                                matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : '';
-                            }
-                        } else {
-                            displayDistrict = rawAmphur;
-                        }
-                    }
-
-                    setForm(prev => ({
-                        ...prev,
-                        cid: getVal(first, ['circuitno', 'cid']) || prev.cid, 
-                        siteType: actualSiteType, 
-                        customerName: getVal(first, ['customername', 'company', 'บริษัท']) || '',
-                        address: getVal(first, ['address', 'ที่อยู่']) || '', phone: getVal(first, ['customercontract', 'customer_contract', 'contract', 'เบอร์']) || '',
-                        cancelDate: getVal(first, ['duejob', 'due', 'ยกเลิก']) || '',
-                        getbackDate: getVal(first, ['getbackdate', 'getback_date', 'วันที่เข้าเก็บ']) || '',
-                        getbackTime: getVal(first, ['getbacktime', 'getback_time', 'เวลาเข้าเก็บ']) || '',
-                        districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId,
-                        team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' 
-                    }));
-
-                    const equips = matchedRows.map(t => ({
-                        name: getVal(t, ['itemname', 'item name', 'อุปกรณ์', 'item']) || '',
-                        serial: getVal(t, ['serialno', 'serial', 'sn']) || ''
-                    })).filter(e => e.name || e.serial);
-
-                    equips.sort((a, b) => {
-                        const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0;
-                        const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0;
-                        return bHasSn - aHasSn;
+                if (rawAmphur) {
+                    const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                    const foundDistrict = allDistrictsMap.find(d => {
+                        const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                        return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur);
                     });
 
-                    if (equips.length > 0) {
-                        setEquipments(equips);
+                    if (foundDistrict) {
+                        displayDistrict = foundDistrict.name;
+                        matchedZoneId = foundDistrict.zoneId;
+                        const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
+                        if (zone) {
+                            const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
+                            let currentQ = queueState[zone.id] || 0;
+                            matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : '';
+                            matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : '';
+                        }
                     } else {
-                        setEquipments([{ name: '', serial: '' }]);
+                        displayDistrict = rawAmphur;
                     }
-                    
-                    if (isAutoSwitched && !autoAssignData) {
-                        customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! (สลับ Site Type เป็น "${actualSiteType}" ให้อัตโนมัติ)`, 'success');
-                    } else if (!autoAssignData) {
-                        customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
-                    }
+                }
+
+                setForm(prev => ({
+                    ...prev,
+                    cid: getVal(baseRow, ['circuitno', 'cid']) || prev.cid, 
+                    siteType: actualSiteType, // บังคับใช้ค่าที่เลือกเสมอ
+                    customerName: getVal(baseRow, ['customername', 'company', 'บริษัท']) || '',
+                    address: getVal(baseRow, ['address', 'ที่อยู่']) || '', phone: getVal(baseRow, ['customercontract', 'customer_contract', 'contract', 'เบอร์']) || '',
+                    cancelDate: getVal(baseRow, ['duejob', 'due', 'ยกเลิก']) || '',
+                    getbackDate: getVal(baseRow, ['getbackdate', 'getback_date', 'วันที่เข้าเก็บ']) || '',
+                    getbackTime: getVal(baseRow, ['getbacktime', 'getback_time', 'เวลาเข้าเก็บ']) || '',
+                    districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId,
+                    team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' 
+                }));
+
+                // ดึงอุปกรณ์เฉพาะแถวที่ตรงกับ Site Type เท่านั้น
+                const equips = matchedRows.map(t => ({
+                    name: getVal(t, ['itemname', 'item name', 'อุปกรณ์', 'item']) || '',
+                    serial: getVal(t, ['serialno', 'serial', 'sn']) || ''
+                })).filter(e => e.name || e.serial);
+
+                equips.sort((a, b) => {
+                    const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0;
+                    const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0;
+                    return bHasSn - aHasSn;
+                });
+
+                if (equips.length > 0) {
+                    setEquipments(equips);
+                } else {
+                    setEquipments([{ name: '', serial: '' }]);
+                }
+                
+                if (isAutoSwitched && !autoAssignData) {
+                    customAlert(`✅ ดึงข้อมูลสำเร็จ! (สลับเป็น "${actualSiteType}" ให้อัตโนมัติ)`, 'success');
+                } else if (!autoAssignData && !isManualSwitch) {
+                    customAlert(`✅ ดึงข้อมูลสำเร็จ! พบอุปกรณ์ ${equips.length} รายการ`, 'success');
                 }
             };
 
@@ -1633,8 +1633,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               return processedTasks;
           }, [currentTasksTable, currentColumnsTable, tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, sortConfig, searchTerm, showDuplicatesOnly]);
 
-          const totalPages = rowsPerPage === 'All' ? 1 : Math.ceil((finalTableTasks?.length || 0) / rowsPerPage);
-          const paginatedTasks = rowsPerPage === 'All' ? (finalTableTasks || []) : (finalTableTasks || []).slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+          // บังคับให้หน้า NS แสดงข้อมูลทั้งหมด (All) เสมอ
+          const effectiveRowsPerPage = tasksSubTab === 'ns' ? 'All' : rowsPerPage;
+          const totalPages = effectiveRowsPerPage === 'All' ? 1 : Math.ceil((finalTableTasks?.length || 0) / effectiveRowsPerPage);
+          const paginatedTasks = effectiveRowsPerPage === 'All' ? (finalTableTasks || []) : (finalTableTasks || []).slice((currentPage - 1) * effectiveRowsPerPage, currentPage * effectiveRowsPerPage);
 
           // --- Dashboard Variables ---
           const dashboardTasks = dashboardView === 'subcontract' ? tasks : nsTasks;
@@ -2189,7 +2191,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                             tdStyle.maxWidth = '250px';
                                         }
                                         if (isContactJobCell) {
-                                            tdStyle.minWidth = '120px';
+                                            // บังคับขนาดตายตัวเพื่อไม่ให้ตารางขยายตามข้อความ
+                                            tdStyle.width = '150px';
+                                            tdStyle.minWidth = '150px';
                                             tdStyle.maxWidth = '150px';
                                         }
                                     }
@@ -2211,7 +2215,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     } else if ((isStatusChangeCell || isContactJobCell) && !hasFixedWidth) {
                                         tdWhiteSpace = 'normal';
                                         tdWordBreak = 'break-word';
-                                        tdOverflow = 'visible';
+                                        tdOverflow = 'hidden'; // ซ่อนส่วนเกิน
                                     }
 
                                     const textAlignment = isGroupedMultiLine ? 'left' : (isTeamCell || isStatusCell || isEquipYearCell || isOverDueCell || isCidCell || isRegionResponCell ? 'center' : 'left');
@@ -2316,21 +2320,23 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           <div className="text-xs md:text-sm font-semibold text-blue-700 flex items-center gap-2 bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm w-full sm:w-auto justify-center"><i className="fa-solid fa-list-check"></i>แสดงผลทั้งหมด {finalTableTasks?.length || 0} รายการ</div>
                           
                           <div className="flex items-center justify-between w-full sm:w-auto gap-4">
-                              <div className="flex items-center gap-2">
-                                  <span className="text-xs text-slate-500">แสดงหน้าละ:</span>
-                                  <select 
-                                      value={rowsPerPage} 
-                                      onChange={(e) => { setRowsPerPage(e.target.value === 'All' ? 'All' : Number(e.target.value)); setCurrentPage(1); }}
-                                      className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 bg-white outline-none focus:border-blue-500 cursor-pointer shadow-sm"
-                                  >
-                                      <option value={20}>20</option>
-                                      <option value={50}>50</option>
-                                      <option value={100}>100</option>
-                                      <option value="All">ทั้งหมด</option>
-                                  </select>
-                              </div>
+                              {tasksSubTab !== 'ns' && (
+                                  <div className="flex items-center gap-2">
+                                      <span className="text-xs text-slate-500">แสดงหน้าละ:</span>
+                                      <select 
+                                          value={rowsPerPage} 
+                                          onChange={(e) => { setRowsPerPage(e.target.value === 'All' ? 'All' : Number(e.target.value)); setCurrentPage(1); }}
+                                          className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 bg-white outline-none focus:border-blue-500 cursor-pointer shadow-sm"
+                                      >
+                                          <option value={20}>20</option>
+                                          <option value={50}>50</option>
+                                          <option value={100}>100</option>
+                                          <option value="All">ทั้งหมด</option>
+                                      </select>
+                                  </div>
+                              )}
                               
-                              {totalPages > 1 && (
+                              {tasksSubTab !== 'ns' && totalPages > 1 && (
                                   <div className="flex items-center gap-2">
                                       <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md text-xs font-semibold disabled:opacity-50 transition-colors"><i className="fa-solid fa-chevron-left sm:mr-1"></i><span className="hidden sm:inline"> ก่อนหน้า</span></button>
                                       
