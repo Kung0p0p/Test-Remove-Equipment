@@ -667,7 +667,7 @@
                 }
 
                 let actualSiteType = currentSiteType || 'Terminate';
-                const siteTypeKeys = ['sitetype', 'site']; 
+                const siteTypeKeys = ['sitetype', 'site', 'site_type']; 
                 
                 let matchedRows = matchedCids.filter(t => {
                     const st = getVal(t, siteTypeKeys);
@@ -735,7 +735,7 @@
                     }));
 
                     const equips = matchedRows.map(t => ({
-                        name: getVal(t, ['itemname', 'อุปกรณ์', 'item']) || '',
+                        name: getVal(t, ['itemname', 'item name', 'อุปกรณ์', 'item']) || '',
                         serial: getVal(t, ['serialno', 'serial', 'sn']) || ''
                     })).filter(e => e.name || e.serial);
 
@@ -899,7 +899,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                 <div className="flex-1 flex gap-2">
                                     <input type="text" placeholder="พิมพ์ CIRCUIT NO..." value={searchCid} onChange={e => setSearchCid(e.target.value)} className="flex-1 px-3 py-1.5 rounded-md border border-indigo-300 outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold shadow-inner" list="ns-cids-list" />
                                     <datalist id="ns-cids-list">{(nsCidOptions || []).map((c, i) => <option key={i} value={c} />)}</datalist>
-                                    <select value={form.siteType} onChange={e=>setForm({...form, siteType: e.target.value})} className="px-2 py-1.5 border border-indigo-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-indigo-800 bg-white shadow-inner w-28 shrink-0">
+                                    <select value={form.siteType} onChange={e=>{
+                                        const newType = e.target.value;
+                                        setForm({...form, siteType: newType});
+                                        if(searchCid) executeAutoFill(searchCid, newType);
+                                    }} className="px-2 py-1.5 border border-indigo-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-indigo-800 bg-white shadow-inner w-28 shrink-0">
                                         <option value="Terminate">Terminate</option>
                                         <option value="Originate">Originate</option>
                                     </select>
@@ -1190,8 +1194,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const subcontractStatuses = [...new Set((tasks || []).map(t => getCleanStatus(t[subconStatusCol])))].sort();
 
           // ================== FIREBASE FETCHING (โหมดประหยัดโควต้า ฟรี 100%) ==================
-          const fetchAllDataFromServer = async () => {
-              setIsLoading(true);
+          const fetchAllDataFromServer = async (isBackground = false) => {
+              if (!isBackground) setIsLoading(true);
               setFirebaseError(null);
               
               try {
@@ -1230,9 +1234,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
               } catch (error) {
                   console.error("Fetch Error:", error);
-                  setFirebaseError('ไม่สามารถโหลดข้อมูลจากระบบได้ (โปรดตรวจสอบอินเทอร์เน็ต)');
+                  if (!isBackground) setFirebaseError('ไม่สามารถโหลดข้อมูลจากระบบได้ (โปรดตรวจสอบอินเทอร์เน็ต)');
               }
-              setIsLoading(false);
+              if (!isBackground) setIsLoading(false);
               setIsBackgroundSyncing(false);
           };
 
@@ -1262,7 +1266,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       // ถ้าเพิ่งมีคนอัปเดตข้อมูลไปหมาดๆ (ใน 20 วิที่ผ่านมา) ให้แอบไปดึงข้อมูล Sheet ใหม่มาอัปเดต
                       if (Date.now() - ts < 20000) {
                           setIsBackgroundSyncing(true);
-                          fetchAllDataFromServer();
+                          fetchAllDataFromServer(true); // ส่ง true เพื่อบอกว่าเป็นการโหลดเบื้องหลัง จะได้ไม่ขึ้นหน้าจอโหลด
                       }
                   }
               });
