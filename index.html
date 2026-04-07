@@ -68,9 +68,9 @@
 
     <script type="text/babel">
         // ==========================================
-        // APP VERSION: v5.0.0 (Zero-Quota + Assign Fix + UI Fix)
+        // APP VERSION: v5.1.0 (Ultimate Fix - Zero Quota + Assign Job + UI)
         // ==========================================
-        const APP_VERSION = "5.0.0";
+        const APP_VERSION = "5.1.0";
 
         if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
 
@@ -110,7 +110,10 @@
 
         const historyRef = db.collection('task_history');
         const masterDataRef = db.collection('master_data').doc('zones_teams');
-        const syncRef = db.collection('system').doc('sync'); // กระดิ่ง Firebase
+        const syncRef = db.collection('system').doc('sync'); 
+
+        const collectionRef = db.collection('tasks');
+        const nsCollectionRef = db.collection('ns_tasks'); 
 
         const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
         const defaultMasterData = { zones: [], teams: [] };
@@ -292,7 +295,6 @@
                 if (!searchCidValue || !String(searchCidValue).trim()) return;
                 const safeSearchCid = String(searchCidValue).trim().toLowerCase();
                 
-                // 🟢 ดึงข้อมูลทุกแถวที่มี CID ตรงกัน (เพื่อให้ได้อุปกรณ์ครบทุกชิ้น)
                 const matchedRows = (nsTasks || []).filter(t => { 
                     const cid = getVal(t, ['circuitno', 'cid']); 
                     return cid && String(cid).trim().toLowerCase() === safeSearchCid; 
@@ -319,7 +321,6 @@
 
                 setForm(prev => ({ ...prev, cid: getVal(first, ['circuitno', 'cid']) || prev.cid, siteType: actualSiteType, customerName: getVal(first, ['customername', 'company', 'บริษัท']) || '', address: getVal(first, ['address', 'ที่อยู่']) || '', phone: getVal(first, ['customercontract', 'contract', 'เบอร์']) || '', cancelDate: getVal(first, ['duejob', 'due', 'ยกเลิก']) || '', getbackDate: getVal(first, ['getbackdate', 'วันที่เข้าเก็บ', 'date']) || '', getbackTime: getVal(first, ['getbacktime', 'เวลาเข้าเก็บ', 'time']) || '', districtSearch: displayDistrict || prev.districtSearch, zoneId: matchedZoneId || prev.zoneId, team: matchedTeam || prev.team, nextTeam: matchedNextTeam || prev.nextTeam, details: '' }));
                 
-                // 🟢 ดึงอุปกรณ์ โดยบังคับหาคอลัมน์ ITEM NAME ก่อน
                 const equips = matchedRows.map(t => {
                     let exactItemKey = Object.keys(t).find(k => String(k).toLowerCase().replace(/[\s_]+/g, '') === 'itemname');
                     let itemName = exactItemKey ? t[exactItemKey] : getVal(t, ['itemname', 'อุปกรณ์', 'item']);
@@ -356,11 +357,8 @@
                     const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
                     newTaskData["รายละเอียดงาน"] = `[Site Type: ${form.siteType}] \n[เข้าเก็บ: ${form.getbackDate || '-'} เวลา ${form.getbackTime || '-'}] \n\n${form.details}\n\nรายการอุปกรณ์:\n${equipStr}`;
                     
-                    // 🟢 เขียนลง Firebase ชั่วคราวเพื่อให้หน้าเว็บเห็นทันที
-                    await collectionRef.doc(newTaskId).set(newTaskData);
-                    
                     if(GAS_WEB_APP_URL) {
-                        const payloadData = JSON.stringify({ action: 'sendLineNotify', message: generateMessage(), taskData: newTaskData, tempTaskId: newTaskId });
+                        const payloadData = JSON.stringify({ action: 'sendLineNotify', message: generateMessage(), taskData: newTaskData });
                         fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: payloadData });
                     }
                     
@@ -467,7 +465,6 @@
           const [historyLogs, setHistoryLogs] = useState([]);
           const [showHistoryModal, setShowHistoryModal] = useState(false);
           const [masterData, setMasterData] = useState(defaultMasterData);
-          const [queueState, setQueueState] = useState({});
           
           const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
           const [isPendingTransition, startTransition] = useTransition();
@@ -608,13 +605,7 @@
 
           useEffect(() => { setCurrentPage(1); }, [tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, searchTerm]);
 
-          const handleDiconst handleDirectAssign = (cid, siteType) => { 
-              const safeCid = cid ? String(cid).trim() : '';
-              if(safeCid === '') return customAlert('ไม่พบข้อมูล CIDs ในรายการนี้', 'error'); 
-              setAutoAssignData({ cid: safeCid, siteType: siteType || 'Terminate' }); 
-              startTransition(() => { setActiveTab('assign'); }); 
-              if (window.innerWidth <= 1024) setIsSidebarOpen(false); 
-          };
+          const handleDirectAssign = (cid, siteType) => { if(!cid || cid.trim() === '') return customAlert('ไม่พบข้อมูล CIDs ในรายการนี้', 'error'); setAutoAssignData({ cid, siteType: siteType || 'Terminate' }); startTransition(() => { setActiveTab('assign'); }); if (window.innerWidth <= 1024) setIsSidebarOpen(false); };
           const clearAutoAssignData = () => { setAutoAssignData(null); };
           const handlePinToggle = (e, col) => { if (!(pinnedColumns || []).includes(col)) { if (!colWidths[col]) { const th = e.currentTarget.closest('th'); if (th) { const w = th.getBoundingClientRect().width; setColWidths(prev => ({ ...prev, [col]: w })); } } } setPinnedColumns(prev => (prev || []).includes(col) ? (prev || []).filter(c => c !== col) : [...(prev || []), col]); };
           const getColWidth = (col) => colWidths[col] || 150; 
@@ -628,8 +619,12 @@
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
                   const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
+                  
+                  lastLocalEditRef.current = Date.now(); 
+
                   if (tasksSubTab === 'subcontract') setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
                   else setNsTasks(prev => prev.filter(t => !docIds.includes(t.id)));
+
                   try {
                       if (GAS_WEB_APP_URL) {
                           fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'deleteRows', sheetName: targetSheetName, rows: rowIndices }) }).catch(e => console.error("Failed to delete from sheet:", e));
@@ -1300,10 +1295,13 @@
                                         if (isStatusChangeCell) {
                                             tdStyle.maxWidth = '250px';
                                         }
-                                        // 🟢 บังคับให้ Contact และ Address กว้างเท่ากัน (250px)
-                                        if (isContactJobCell || isAddressCell) {
+                                        if (isAddressCell) {
                                             tdStyle.minWidth = '250px';
                                             tdStyle.maxWidth = '350px';
+                                        }
+                                        if (isContactJobCell) {
+                                            tdStyle.minWidth = '150px';
+                                            tdStyle.maxWidth = '250px';
                                         }
                                     }
 
@@ -1322,7 +1320,6 @@
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'auto';
                                     } else if ((isStatusChangeCell || isContactJobCell || isAddressCell) && !hasFixedWidth) {
-                                        // 🟢 บังคับให้ขึ้นบรรทัดใหม่ได้
                                         tdWhiteSpace = 'pre-wrap';
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'visible';
@@ -1399,7 +1396,7 @@
                                     } else {
                                         return (
                                             <td key={idx} className={tdClass} style={tdStyle}>
-                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={cellClasses} style={{ ...styleObj, cursor: isEditing ? 'text' : 'pointer', whiteSpace: tdWhiteSpace, wordBreak: tdWordBreak, textAlign: textAlignment, lineHeight: (isGroupedMultiLine || isContactJobCell || isAddressCell) ? '1.5' : '20px', overflow: tdOverflow, maxHeight: isGroupedMultiLine ? '120px' : 'none' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
+                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={cellClasses} style={{ ...styleObj, cursor: isEditing ? 'text' : 'pointer', textAlign: textAlignment, lineHeight: (isGroupedMultiLine || isContactJobCell || isAddressCell) ? '1.5' : '20px', overflow: tdOverflow, maxHeight: isGroupedMultiLine ? '120px' : 'none' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
                                             </td>
                                         );
                                     }
