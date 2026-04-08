@@ -2217,9 +2217,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         }
                                         if (isContactJobCell) {
                                             // บังคับเนื้อหาให้กว้างแค่ 150px เท่ากับหัวตาราง
-                                            tdStyle.width = '150px';
-                                            tdStyle.minWidth = '150px';
-                                            tdStyle.maxWidth = '150px';
+                                            tdStyle.width = '600px';
+                                            tdStyle.minWidth = '600px';
+                                            tdStyle.maxWidth = '600px';
                                         }
                                     }
 
@@ -2249,7 +2249,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdOverflow = 'visible'; 
                                         tdTextOverflow = 'clip'; 
                                         tdLineHeight = '1.5'; 
-                                        innerWidth = '250px';
+                                        innerWidth = '600px';
                                         tdDisplay = 'inline-block'; // 🔥 บังคับให้เป็นกล่องอิสระ เพื่อให้ pre-wrap ทำงานได้ 100%
                                     } else if (isStatusChangeCell && !hasFixedWidth) {
                                         tdWhiteSpace = 'normal';
