@@ -2719,7 +2719,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
               </main>
 
-              {/* Tooltip Component (Modern Glassmorphism - Light Header & Status Highlight) */}
+              {/* Tooltip Component (Premium Glassmorphism - Transparent Body) */}
               {tooltipData.visible && tooltipData.task && (() => {
                   // ดึงข้อมูล CID และ Status ออกมาเตรียมไว้
                   const cidVal = tooltipData.task._calCidCol ? tooltipData.task[tooltipData.task._calCidCol] : tooltipData.task[t_getCol(['cid', 'circuitno'])] || '';
@@ -2732,41 +2732,82 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
                   return (
                     <div 
-                        className="fixed z-[9999] bg-white/85 backdrop-blur-xl p-0 rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] border border-white/60 w-[320px] md:w-[360px] pointer-events-none transition-all duration-200 ease-out flex flex-col ring-1 ring-slate-900/5" 
+                        // 🔥 ใช้ bg-white/30 (ใส 70%) คู่กับ backdrop-blur-2xl (เบลอจัดๆ) เพื่อให้อ่านง่าย
+                        className="fixed z-[9999] bg-white/30 backdrop-blur-2xl p-0 rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] border border-white/60 w-[320px] md:w-[360px] pointer-events-none transition-all duration-200 ease-out flex flex-col ring-1 ring-slate-900/5 overflow-hidden" 
                         style={{ left: tooltipData.x, top: tooltipData.y }}
                     >
-                        {/* Header: Light Theme + CID + Company */}
-                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50/80 p-5 rounded-t-2xl shrink-0 relative border-b border-blue-100/50">
+                        {/* Header: สีเข้มขึ้นนิดนึง (ฟ้า-คราม) + CID ไม่มีวงเล็บ */}
+                        <div className="bg-gradient-to-br from-blue-100/90 to-indigo-200/90 p-5 shrink-0 relative border-b border-white/50 shadow-sm">
                             <div className="relative z-10">
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex items-center gap-2">
                                         <span className="relative flex h-2.5 w-2.5">
-                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-75"></span>
+                                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600"></span>
                                         </span>
-                                        <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Job Details</span>
+                                        <span className="text-[10px] font-bold text-blue-800 uppercase tracking-widest">Job Details</span>
                                     </div>
                                     
                                     {/* 🔥 Status Highlight (มุมขวาบน) */}
                                     <div 
-                                        className="px-2.5 py-1 rounded-md text-[10px] font-bold border shadow-sm"
-                                        style={{ backgroundColor: statusBg, color: statusText, borderColor: statusText }}
+                                        className="px-2.5 py-1 rounded-md text-[10px] font-bold border shadow-sm bg-white/80 backdrop-blur-sm"
+                                        style={{ color: statusText, borderColor: statusText }}
                                     >
                                         {statusVal}
                                     </div>
                                 </div>
                                 
-                                <h4 className="font-bold text-slate-800 text-sm md:text-base break-words leading-snug">
-                                    {/* 🔥 แสดง CID หน้าชื่อบริษัท */}
+                                <h4 className="font-bold text-slate-900 text-sm md:text-base break-words leading-snug drop-shadow-sm">
+                                    {/* 🔥 แสดง CID หน้าชื่อบริษัท (เอา [] ออก และทำเป็นป้ายพื้นหลังขาวใสๆ) */}
                                     {cidVal && cidVal !== '-' && (
-                                        <span className="text-blue-600 mr-1.5 bg-blue-100/50 px-1.5 py-0.5 rounded border border-blue-200/50">
-                                            [{cidVal}]
+                                        <span className="text-blue-800 mr-2 bg-white/50 px-1.5 py-0.5 rounded border border-white/60 shadow-sm inline-block mb-1">
+                                            {cidVal}
                                         </span>
                                     )}
                                     {companyVal}
                                 </h4>
                             </div>
                         </div>
+
+                        {/* Body: โปร่งใส (Glassmorphism) */}
+                        <div className="p-5 space-y-3.5 text-[11px] md:text-xs text-slate-800 bg-white/20">
+                            {/* 🔥 บังคับแสดง CID ใน Body ด้วย */}
+                            {cidVal && cidVal !== '-' && (
+                                <div className="flex flex-col relative pl-3 border-l-2 border-blue-500/50">
+                                    <span className="font-bold text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">CID / Circuit No.</span>
+                                    <span className="text-blue-800 font-bold">{cidVal}</span>
+                                </div>
+                            )}
+
+                            {(currentColumnsTable || []).map(col => {
+                                // ข้ามคอลัมน์ที่ไม่ต้องการโชว์ รวมถึง CID และ Status เพราะเราโชว์แยกไปแล้ว
+                                if (skipColsInTooltip.includes(col) || 
+                                    col === tooltipData.task._calCidCol || col === t_getCol(['cid', 'circuitno']) ||
+                                    col === tooltipData.task._calStatusCol || col === t_getCol(['status', 'สถานะ'])) {
+                                    return null;
+                                }
+                                
+                                const val = tooltipData.task[col]; 
+                                if (!val || String(val).trim() === '') return null;
+                                
+                                // เช็คว่าเป็นข้อมูลแบบหลายบรรทัดหรือไม่ (เช่น รายการอุปกรณ์)
+                                const isMultiLine = String(val).includes('\n');
+
+                                return (
+                                    <div key={col} className="flex flex-col relative pl-3 border-l-2 border-slate-400/50 hover:border-blue-500 transition-colors">
+                                        <span className="font-bold text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">
+                                            {col}
+                                        </span>
+                                        <span className={`text-slate-900 font-semibold ${isMultiLine ? 'whitespace-pre-wrap leading-relaxed mt-1 bg-white/50 p-2.5 rounded-lg border border-white/60 shadow-sm' : 'break-words'}`}>
+                                            {val}
+                                        </span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                  );
+              })()}
 
                         {/* Body: ข้อมูลอื่นๆ (Auto Height - No Scroll) */}
                         <div className="p-5 space-y-3.5 text-[11px] md:text-xs text-slate-700 bg-gradient-to-b from-white/60 to-slate-50/80 rounded-b-2xl">
