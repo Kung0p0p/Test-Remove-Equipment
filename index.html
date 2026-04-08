@@ -1060,11 +1060,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           
           const [currentDate, setCurrentDate] = useState(new Date());
           const [calendarView, setCalendarView] = useState('month');
-          const [dashboardView, setDashboardView] = useState('subcontact'); 
+          const [dashboardView, setDashboardView] = useState('subcontract'); 
           const [dashboardYear, setDashboardYear] = useState('overview'); 
-          const [tasksSubTab, setTasksSubTab] = useState('subcontact'); 
+          const [tasksSubTab, setTasksSubTab] = useState('subcontract'); 
 
-          const [visibleRows, setVisibleRows] = useState(100); // ใช้ตัวนี้ตัวเดียวสำหรับ Infinite Scroll ทั้งสองหน้า
+          const [currentPage, setCurrentPage] = useState(1);
+          const [rowsPerPage, setRowsPerPage] = useState(100);
+          const [visibleNsRows, setVisibleNsRows] = useState(100); // จำนวนแถวเริ่มต้นของหน้า Region
 
           const [filterMonth, setFilterMonth] = useState('All');
           const [filterTeams, setFilterTeams] = useState([]);
@@ -1322,9 +1324,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           };
 
           useEffect(() => {
-              setVisibleRows(100); // รีเซ็ตให้กลับมาโชว์ 100 แถวแรกเสมอเวลาค้นหาหรือเปลี่ยนแท็บ
+              setCurrentPage(1);
+              setVisibleNsRows(100); // รีเซ็ตให้กลับมาโชว์ 100 แถวแรกเสมอเวลาค้นหาหรือเปลี่ยนแท็บ
           }, [tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, searchTerm]);
-            
+
           const handleDirectAssign = (cid, siteType) => {
               if(!cid || cid.trim() === '') return customAlert('ไม่พบข้อมูล CIDs ในรายการนี้', 'error');
               setAutoAssignData({ cid, siteType: siteType || 'Terminate' });
@@ -1642,16 +1645,22 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           }, [currentTasksTable, currentColumnsTable, tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, sortConfig, searchTerm, showDuplicatesOnly]);
 
           // บังคับให้หน้า NS แสดงข้อมูลทั้งหมด (All) เสมอ
-          // ใช้ Infinite Scroll สำหรับทั้งสองหน้า
-          const paginatedTasks = (finalTableTasks || []).slice(0, visibleRows);
+          // คำนวณหน้าสำหรับ Subcontract
+          const totalPages = rowsPerPage === 'All' ? 1 : Math.ceil((finalTableTasks?.length || 0) / rowsPerPage);
+          
+          // แยก Logic: ถ้าเป็น NS ให้ใช้ Infinite Scroll (ตัดข้อมูลตาม visibleNsRows) ถ้าเป็น Subcon ให้ใช้ Pagination ปกติ
+          const paginatedTasks = tasksSubTab === 'ns' 
+              ? (finalTableTasks || []).slice(0, visibleNsRows) 
+              : (rowsPerPage === 'All' ? (finalTableTasks || []) : (finalTableTasks || []).slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage));
 
           // ฟังก์ชันตรวจจับการเลื่อนเมาส์ (Scroll)
           const handleTableScroll = (e) => {
+              if (tasksSubTab !== 'ns') return;
               const { scrollTop, clientHeight, scrollHeight } = e.target;
               // ถ้าเลื่อนลงมาเหลืออีก 300px จะถึงก้นตาราง ให้โหลดเพิ่มอีก 100 แถว
               if (scrollHeight - scrollTop <= clientHeight + 300) {
-                  if (visibleRows < (finalTableTasks?.length || 0)) {
-                      setVisibleRows(prev => prev + 100);
+                  if (visibleNsRows < (finalTableTasks?.length || 0)) {
+                      setVisibleNsRows(prev => prev + 100);
                   }
               }
           };
@@ -1881,7 +1890,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
 
           const SidebarItemRender = ({ iconClass, label, id }) => (
-            <button onClick={() => { startTransition(() => { setTasksSubTab('subcontract'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${tasksSubTab === 'subcontract' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>- Jobs for Subcontact</button>
+            <button onClick={() => { startTransition(() => { setActiveTab(id); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === id ? 'bg-blue-50 text-blue-700 font-bold shadow-sm border border-blue-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'}`}>
+              <i className={`${iconClass} text-lg w-6 text-center ${activeTab === id ? 'text-blue-600' : 'opacity-70'}`}></i><span className="whitespace-nowrap">{label}</span>
+            </button>
           );
 
           return (
@@ -1932,8 +1943,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     {activeTab === 'dashboard' && isSidebarOpen && (
                         <div className="pl-12 pr-4 space-y-2 pb-2 pt-1">
                             <div>
-                                <button onClick={() => { startTransition(() => setDashboardView('subcontact')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${dashboardView === 'subcontact' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-medium'}`}>
-                                    <i className="fa-solid fa-chart-simple w-4"></i> Subcontact
+                                <button onClick={() => { startTransition(() => setDashboardView('subcontract')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${dashboardView === 'subcontract' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-medium'}`}>
+                                    <i className="fa-solid fa-chart-simple w-4"></i> Subcontract
                                 </button>
                                 {dashboardView === 'subcontract' && (
                                     <div className="pl-6 mt-1 space-y-1 border-l-2 border-blue-100 ml-2">
@@ -1958,7 +1969,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     </button>
                     {activeTab === 'tasks' && isSidebarOpen && (
                         <div className="pl-14 pr-4 space-y-1 pb-2 pt-1">
-                            <button onClick={() => { startTransition(() => { setTasksSubTab('subcontact'); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${tasksSubTab === 'subcontact' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>- Jobs for Subcontact</button>	
+                            <button onClick={() => { startTransition(() => { setTasksSubTab('subcontract'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${tasksSubTab === 'subcontract' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>- Jobs for Subcontract</button>
                             <button onClick={() => { startTransition(() => { setTasksSubTab('ns'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${tasksSubTab === 'ns' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>- Jobs for Region</button>
                         </div>
                     )}
