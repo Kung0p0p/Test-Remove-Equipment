@@ -1064,9 +1064,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const [dashboardYear, setDashboardYear] = useState('overview'); 
           const [tasksSubTab, setTasksSubTab] = useState('subcontract'); 
 
-          const [currentPage, setCurrentPage] = useState(1);
-          const [rowsPerPage, setRowsPerPage] = useState(100);
-          const [visibleNsRows, setVisibleNsRows] = useState(100); // จำนวนแถวเริ่มต้นของหน้า Region
+          const [visibleRows, setVisibleRows] = useState(100); // ใช้ตัวนี้จัดการ Infinite Scroll ทั้งสองหน้า
 
           const [filterMonth, setFilterMonth] = useState('All');
           const [filterTeams, setFilterTeams] = useState([]);
@@ -1324,8 +1322,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           };
 
           useEffect(() => {
-              setCurrentPage(1);
-              setVisibleNsRows(100); // รีเซ็ตให้กลับมาโชว์ 100 แถวแรกเสมอเวลาค้นหาหรือเปลี่ยนแท็บ
+              setVisibleRows(100); // รีเซ็ตให้กลับมาโชว์ 100 แถวแรกเสมอเวลาค้นหาหรือเปลี่ยนแท็บ
           }, [tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, searchTerm]);
 
           const handleDirectAssign = (cid, siteType) => {
@@ -1645,22 +1642,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           }, [currentTasksTable, currentColumnsTable, tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, sortConfig, searchTerm, showDuplicatesOnly]);
 
           // บังคับให้หน้า NS แสดงข้อมูลทั้งหมด (All) เสมอ
-          // คำนวณหน้าสำหรับ Subcontract
-          const totalPages = rowsPerPage === 'All' ? 1 : Math.ceil((finalTableTasks?.length || 0) / rowsPerPage);
-          
-          // แยก Logic: ถ้าเป็น NS ให้ใช้ Infinite Scroll (ตัดข้อมูลตาม visibleNsRows) ถ้าเป็น Subcon ให้ใช้ Pagination ปกติ
-          const paginatedTasks = tasksSubTab === 'ns' 
-              ? (finalTableTasks || []).slice(0, visibleNsRows) 
-              : (rowsPerPage === 'All' ? (finalTableTasks || []) : (finalTableTasks || []).slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage));
+          // ใช้ Infinite Scroll สำหรับทั้งสองหน้า
+          const paginatedTasks = (finalTableTasks || []).slice(0, visibleRows);
 
           // ฟังก์ชันตรวจจับการเลื่อนเมาส์ (Scroll)
           const handleTableScroll = (e) => {
-              if (tasksSubTab !== 'ns') return;
               const { scrollTop, clientHeight, scrollHeight } = e.target;
               // ถ้าเลื่อนลงมาเหลืออีก 300px จะถึงก้นตาราง ให้โหลดเพิ่มอีก 100 แถว
               if (scrollHeight - scrollTop <= clientHeight + 300) {
-                  if (visibleNsRows < (finalTableTasks?.length || 0)) {
-                      setVisibleNsRows(prev => prev + 100);
+                  if (visibleRows < (finalTableTasks?.length || 0)) {
+                      setVisibleRows(prev => prev + 100);
                   }
               }
           };
@@ -2362,44 +2353,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         </table>
                       </div>
                       
-                      {/* Pagination UI */}
+                      {/* Footer UI (Infinite Scroll) */}
                       <div className="shrink-0 bg-slate-50 border-t border-slate-200 p-2 md:p-3 px-3 md:px-5 flex flex-col sm:flex-row items-center justify-between z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] gap-3">
-                          <div className="text-xs md:text-sm font-semibold text-blue-700 flex items-center gap-2 bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm w-full sm:w-auto justify-center"><i className="fa-solid fa-list-check"></i>แสดงผลทั้งหมด {finalTableTasks?.length || 0} รายการ</div>
-                          
-                          <div className="flex items-center justify-between w-full sm:w-auto gap-4">
-                              {tasksSubTab !== 'ns' && (
-                                  <div className="flex items-center gap-2">
-                                      <span className="text-xs text-slate-500">แสดงหน้าละ:</span>
-                                      <select 
-                                          value={rowsPerPage} 
-                                          onChange={(e) => { setRowsPerPage(e.target.value === 'All' ? 'All' : Number(e.target.value)); setCurrentPage(1); }}
-                                          className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 bg-white outline-none focus:border-blue-500 cursor-pointer shadow-sm"
-                                      >
-                                          <option value={20}>20</option>
-                                          <option value={50}>50</option>
-                                          <option value={100}>100</option>
-                                          <option value="All">ทั้งหมด</option>
-                                      </select>
-                                  </div>
-                              )}
-                              
-                              {tasksSubTab !== 'ns' && totalPages > 1 && (
-                                  <div className="flex items-center gap-2">
-                                      <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md text-xs font-semibold disabled:opacity-50 transition-colors"><i className="fa-solid fa-chevron-left sm:mr-1"></i><span className="hidden sm:inline"> ก่อนหน้า</span></button>
-                                      
-                                      <div className="flex items-center gap-1">
-                                          <span className="text-xs text-slate-500 hidden sm:block">หน้า</span>
-                                          <select value={currentPage} onChange={(e) => setCurrentPage(Number(e.target.value))} className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 bg-white outline-none focus:border-blue-500 cursor-pointer shadow-sm">
-                                              {[...Array(totalPages)].map((_, i) => (
-                                                  <option key={i + 1} value={i + 1}>{i + 1}</option>
-                                              ))}
-                                          </select>
-                                          <span className="text-xs text-slate-500 hidden sm:block">จาก {totalPages}</span>
-                                      </div>
-
-                                      <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md text-xs font-semibold disabled:opacity-50 transition-colors"><span className="hidden sm:inline">ถัดไป </span><i className="fa-solid fa-chevron-right sm:ml-1"></i></button>
-                                  </div>
-                              )}
+                          <div className="text-xs md:text-sm font-semibold text-blue-700 flex items-center gap-2 bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm w-full sm:w-auto justify-center">
+                              <i className="fa-solid fa-list-check"></i>แสดงผลทั้งหมด {finalTableTasks?.length || 0} รายการ
+                          </div>
+                          <div className="text-xs text-slate-500 font-medium bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                              กำลังแสดง {paginatedTasks.length} จาก {finalTableTasks?.length || 0} รายการ <span className="text-blue-500 ml-1">(เลื่อนลงเพื่อโหลดเพิ่ม)</span>
                           </div>
                       </div>
                     </div>
