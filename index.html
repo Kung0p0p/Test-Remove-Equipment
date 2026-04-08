@@ -1444,11 +1444,17 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           };
 
           const handleMouseMove = (e, task) => {
-              const tooltipWidth = 320, tooltipHeight = Math.min(350, window.innerHeight - 40); 
-              let x = e.clientX + 15, y = e.clientY + 15;
-              if (x + tooltipWidth > window.innerWidth) x = e.clientX - tooltipWidth - 15;
-              if (y + tooltipHeight > window.innerHeight) y = e.clientY - tooltipHeight - 15;
-              setTooltipData({ visible: true, task, x: Math.max(10, x), y: Math.max(10, y) });
+              const tooltipWidth = 340, tooltipHeight = Math.min(400, window.innerHeight - 40); 
+              let x = e.clientX + 20, y = e.clientY + 20;
+              
+              // ปรับตำแหน่งไม่ให้ล้นจอ
+              if (x + tooltipWidth > window.innerWidth) x = e.clientX - tooltipWidth - 20;
+              if (y + tooltipHeight > window.innerHeight) y = e.clientY - tooltipHeight - 20;
+              
+              // ดึงข้อมูลจาก task ต้นฉบับใน tasks state เพื่อให้ได้ข้อมูลครบทุกคอลัมน์
+              const fullTaskData = tasks.find(t => t.id === task.id) || task;
+              
+              setTooltipData({ visible: true, task: fullTaskData, x: Math.max(10, x), y: Math.max(10, y) });
           };
           
           const handleMouseLeave = () => setTooltipData({ visible: false, task: null, x: 0, y: 0 });
@@ -2713,19 +2719,43 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
               </main>
 
-              {/* Tooltip Component */}
+              {/* Tooltip Component (Premium UI) */}
               {tooltipData.visible && tooltipData.task && (
-                <div className="fixed z-[9999] bg-white p-4 md:p-5 rounded-xl shadow-2xl border border-slate-200 w-[280px] md:w-80 pointer-events-none transition-opacity duration-150" style={{ left: tooltipData.x, top: tooltipData.y }}>
-                    <div className="flex justify-between items-start mb-3 border-b pb-2">
-                        <h4 className="font-bold text-slate-800 text-sm break-words pr-2">
+                <div 
+                    className="fixed z-[9999] bg-white/95 backdrop-blur-md p-0 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] border border-slate-200/60 w-[300px] md:w-[340px] pointer-events-none transition-all duration-200 ease-out overflow-hidden flex flex-col" 
+                    style={{ left: tooltipData.x, top: tooltipData.y }}
+                >
+                    {/* Header: ชื่อบริษัท */}
+                    <div className="bg-slate-800 p-4 shrink-0">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">รายละเอียดงาน</span>
+                        </div>
+                        <h4 className="font-bold text-white text-sm md:text-base break-words leading-tight">
                             {tooltipData.task._calCompCol ? tooltipData.task[tooltipData.task._calCompCol] : tooltipData.task[t_getCol(['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'])] || 'ไม่ระบุองค์กร'}
                         </h4>
                     </div>
-                    <div className="space-y-2 text-[11px] md:text-xs text-slate-600 max-h-[250px] overflow-y-auto pr-1 table-container">
+
+                    {/* Body: ข้อมูลอื่นๆ */}
+                    <div className="p-4 space-y-3 text-[11px] md:text-xs text-slate-600 max-h-[280px] overflow-y-auto custom-scrollbar bg-slate-50/50">
                         {(currentColumnsTable || []).map(col => {
                             if (skipColsInTooltip.includes(col)) return null;
-                            const val = tooltipData.task[col]; if (!val || String(val).trim() === '') return null;
-                            return (<div key={col} className="flex flex-col"><span className="font-semibold text-[9px] text-slate-400 uppercase">{col}</span><span className="text-slate-800 font-medium">{val}</span></div>)
+                            const val = tooltipData.task[col]; 
+                            if (!val || String(val).trim() === '') return null;
+                            
+                            // เช็คว่าเป็นข้อมูลแบบหลายบรรทัดหรือไม่ (เช่น รายการอุปกรณ์)
+                            const isMultiLine = String(val).includes('\n');
+
+                            return (
+                                <div key={col} className="flex flex-col bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
+                                    <span className="font-bold text-[9px] text-blue-600 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                                        <i className="fa-solid fa-caret-right text-slate-300"></i> {col}
+                                    </span>
+                                    <span className={`text-slate-800 font-medium ${isMultiLine ? 'whitespace-pre-wrap leading-relaxed' : 'break-words'}`}>
+                                        {val}
+                                    </span>
+                                </div>
+                            )
                         })}
                     </div>
                 </div>
