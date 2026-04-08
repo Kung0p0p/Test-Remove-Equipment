@@ -2242,17 +2242,23 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     let tdWordBreak = 'normal';
                                     let tdOverflow = 'hidden';
                                     let innerWidth = colWidth;
-                                    
+                                    let tdTextOverflow = 'ellipsis';
+                                    let tdLineHeight = '20px';
+
                                     if (isGroupedMultiLine) {
                                         tdWhiteSpace = 'pre-wrap';
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'auto';
-                                    } else if (isContactJobCell || isAddressCell) { 
-                                        // 🔥 บังคับใช้ pre-wrap เพื่อให้ห่อคำและขึ้นบรรทัดใหม่เสมอ
+                                        tdTextOverflow = 'clip';
+                                        tdLineHeight = '1.8';
+                                    } else if (isContactJobCell && !hasFixedWidth) {
+                                        // 🔥 ปลดล็อคให้แสดงหลายบรรทัดได้สมบูรณ์
                                         tdWhiteSpace = 'pre-wrap'; 
                                         tdWordBreak = 'break-word';
-                                        tdOverflow = 'visible';
-                                        if (!hasFixedWidth) innerWidth = '180px'; // ตั้งค่าเริ่มต้น 180px
+                                        tdOverflow = 'visible'; // เลิกซ่อนข้อความ
+                                        tdTextOverflow = 'clip'; // เอาจุดไข่ปลาออก
+                                        tdLineHeight = '1.5'; // ปรับระยะห่างบรรทัดให้อ่านง่าย
+                                        innerWidth = '150px';
                                     } else if (isStatusChangeCell && !hasFixedWidth) {
                                         tdWhiteSpace = 'normal';
                                         tdWordBreak = 'break-word';
@@ -2330,7 +2336,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     } else {
                                         return (
                                             <td key={idx} className={tdClass} style={tdStyle}>
-                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={cellClasses} style={{ ...styleObj, width: innerWidth, minWidth: innerWidth, maxWidth: innerWidth, minHeight: '28px', cursor: isEditing ? 'text' : 'pointer', whiteSpace: tdWhiteSpace, wordBreak: tdWordBreak, textAlign: textAlignment, lineHeight: (isGroupedMultiLine || isContactJobCell || isAddressCell) ? '1.5' : '20px', overflow: tdOverflow, textOverflow: (isGroupedMultiLine || isContactJobCell || isAddressCell) ? 'clip' : 'ellipsis', maxHeight: 'none' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
+                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={cellClasses} style={{ ...styleObj, width: innerWidth, minWidth: innerWidth, maxWidth: innerWidth, minHeight: '28px', cursor: isEditing ? 'text' : 'pointer', whiteSpace: tdWhiteSpace, wordBreak: tdWordBreak, textAlign: textAlignment, lineHeight: tdLineHeight, overflow: tdOverflow, textOverflow: tdTextOverflow, maxHeight: isGroupedMultiLine ? '120px' : 'none' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
                                             </td>
                                         );
                                     }
