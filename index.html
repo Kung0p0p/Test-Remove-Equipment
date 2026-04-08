@@ -2809,46 +2809,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   );
               })()}
 
-                        {/* Body: ข้อมูลอื่นๆ (Auto Height - No Scroll) */}
-                        <div className="p-5 space-y-3.5 text-[11px] md:text-xs text-slate-700 bg-gradient-to-b from-white/60 to-slate-50/80 rounded-b-2xl">
-                            {/* 🔥 บังคับแสดง CID ใน Body ด้วย (ถ้ามี) */}
-                            {cidVal && cidVal !== '-' && (
-                                <div className="flex flex-col relative pl-3 border-l-2 border-blue-400/50">
-                                    <span className="font-bold text-[9px] text-slate-400 uppercase tracking-wider mb-0.5">CID / Circuit No.</span>
-                                    <span className="text-blue-700 font-bold">{cidVal}</span>
-                                </div>
-                            )}
-
-                            {(currentColumnsTable || []).map(col => {
-                                // ข้ามคอลัมน์ที่ไม่ต้องการโชว์ รวมถึง CID และ Status เพราะเราโชว์แยกไปแล้ว
-                                if (skipColsInTooltip.includes(col) || 
-                                    col === tooltipData.task._calCidCol || col === t_getCol(['cid', 'circuitno']) ||
-                                    col === tooltipData.task._calStatusCol || col === t_getCol(['status', 'สถานะ'])) {
-                                    return null;
-                                }
-                                
-                                const val = tooltipData.task[col]; 
-                                if (!val || String(val).trim() === '') return null;
-                                
-                                // เช็คว่าเป็นข้อมูลแบบหลายบรรทัดหรือไม่ (เช่น รายการอุปกรณ์)
-                                const isMultiLine = String(val).includes('\n');
-
-                                return (
-                                    <div key={col} className="flex flex-col relative pl-3 border-l-2 border-slate-300 hover:border-blue-400 transition-colors">
-                                        <span className="font-bold text-[9px] text-slate-400 uppercase tracking-wider mb-0.5">
-                                            {col}
-                                        </span>
-                                        <span className={`text-slate-800 font-semibold ${isMultiLine ? 'whitespace-pre-wrap leading-relaxed mt-1 bg-white/60 p-2.5 rounded-lg border border-slate-200/60 shadow-sm' : 'break-words'}`}>
-                                            {val}
-                                        </span>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </div>
-                  );
-              })()}
-
               {/* History Modal */}
               {showHistoryModal && (
                   <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 p-4 animate-fade-in">
