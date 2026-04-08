@@ -2719,25 +2719,34 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
               </main>
 
-              {/* Tooltip Component (Premium UI) */}
+              {/* Tooltip Component (Modern Glassmorphism - No Inner Scroll) */}
               {tooltipData.visible && tooltipData.task && (
                 <div 
-                    className="fixed z-[9999] bg-white/95 backdrop-blur-md p-0 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] border border-slate-200/60 w-[300px] md:w-[340px] pointer-events-none transition-all duration-200 ease-out overflow-hidden flex flex-col" 
+                    className="fixed z-[9999] bg-white/80 backdrop-blur-xl p-0 rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.4)] border border-white/50 w-[320px] md:w-[360px] pointer-events-none transition-all duration-200 ease-out flex flex-col ring-1 ring-slate-900/5" 
                     style={{ left: tooltipData.x, top: tooltipData.y }}
                 >
-                    {/* Header: ชื่อบริษัท */}
-                    <div className="bg-slate-800 p-4 shrink-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">รายละเอียดงาน</span>
+                    {/* Header: ชื่อบริษัท (Gradient Background) */}
+                    <div className="bg-gradient-to-r from-slate-800 to-slate-700 p-5 rounded-t-2xl shrink-0 relative overflow-hidden">
+                        {/* ลูกเล่นวงกลมตกแต่งพื้นหลัง */}
+                        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+                        <div className="absolute bottom-0 left-0 -mb-4 -ml-4 w-16 h-16 bg-blue-500/20 rounded-full blur-lg"></div>
+                        
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="relative flex h-2.5 w-2.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                </span>
+                                <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-widest">Job Details</span>
+                            </div>
+                            <h4 className="font-bold text-white text-sm md:text-base break-words leading-snug drop-shadow-sm">
+                                {tooltipData.task._calCompCol ? tooltipData.task[tooltipData.task._calCompCol] : tooltipData.task[t_getCol(['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'])] || 'ไม่ระบุองค์กร'}
+                            </h4>
                         </div>
-                        <h4 className="font-bold text-white text-sm md:text-base break-words leading-tight">
-                            {tooltipData.task._calCompCol ? tooltipData.task[tooltipData.task._calCompCol] : tooltipData.task[t_getCol(['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'])] || 'ไม่ระบุองค์กร'}
-                        </h4>
                     </div>
 
-                    {/* Body: ข้อมูลอื่นๆ */}
-                    <div className="p-4 space-y-3 text-[11px] md:text-xs text-slate-600 max-h-[280px] overflow-y-auto custom-scrollbar bg-slate-50/50">
+                    {/* Body: ข้อมูลอื่นๆ (Auto Height - No Scroll) */}
+                    <div className="p-5 space-y-3.5 text-[11px] md:text-xs text-slate-700 bg-gradient-to-b from-white/60 to-slate-50/80 rounded-b-2xl">
                         {(currentColumnsTable || []).map(col => {
                             if (skipColsInTooltip.includes(col)) return null;
                             const val = tooltipData.task[col]; 
@@ -2747,11 +2756,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             const isMultiLine = String(val).includes('\n');
 
                             return (
-                                <div key={col} className="flex flex-col bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
-                                    <span className="font-bold text-[9px] text-blue-600 uppercase tracking-wide mb-1 flex items-center gap-1.5">
-                                        <i className="fa-solid fa-caret-right text-slate-300"></i> {col}
+                                <div key={col} className="flex flex-col relative pl-3 border-l-2 border-blue-400/50 hover:border-blue-500 transition-colors">
+                                    <span className="font-bold text-[9px] text-slate-400 uppercase tracking-wider mb-0.5">
+                                        {col}
                                     </span>
-                                    <span className={`text-slate-800 font-medium ${isMultiLine ? 'whitespace-pre-wrap leading-relaxed' : 'break-words'}`}>
+                                    <span className={`text-slate-800 font-semibold ${isMultiLine ? 'whitespace-pre-wrap leading-relaxed mt-1 bg-white/50 p-2 rounded-lg border border-slate-200/50' : 'break-words'}`}>
                                         {val}
                                     </span>
                                 </div>
