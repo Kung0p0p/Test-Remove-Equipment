@@ -497,7 +497,7 @@
                                 <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-blue-200 ring-1 ring-blue-100' : 'bg-slate-100/50 border-slate-200'}`}>
                                     <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-users-gear text-indigo-500 mr-2"></i> ฐานข้อมูลทีมงาน (Subcon)</h3>
                                     <div>
-                                        <label className="text-xs font-bold text-slate-500">รายชื่อทีม subcontact (คั่นด้วยลูกน้ำ ,)</label>
+                                        <label className="text-xs font-bold text-slate-500">รายชื่อทีม Subcontract (คั่นด้วยลูกน้ำ ,)</label>
                                         <textarea disabled={!isEditing} value={Array.isArray(tempData.teams) ? tempData.teams.join(', ') : tempData.teams} onChange={e => setTempData({...tempData, teams: e.target.value})} rows="4" className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:bg-slate-100 disabled:text-slate-500"></textarea>
                                     </div>
                                 </div>
@@ -826,7 +826,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     const dynamicFormula = `=LET(day_diff, (INT(INDIRECT("O"&ROW())) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
                     
                     const newTaskData = {
-                        "วันที่แจ้ง subcontact": form.date,
+                        "วันที่แจ้ง Subcontract": form.date,
                         "CID Customer": form.cid,
                         "ทีมงาน": form.team,
                         "บริษัทลูกค้า": form.customerName,
@@ -1060,9 +1060,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           
           const [currentDate, setCurrentDate] = useState(new Date());
           const [calendarView, setCalendarView] = useState('month');
-          const [dashboardView, setDashboardView] = useState('subcontact'); 
+          const [dashboardView, setDashboardView] = useState('subcontract'); 
           const [dashboardYear, setDashboardYear] = useState('overview'); 
-          const [tasksSubTab, setTasksSubTab] = useState('subcontact'); 
+          const [tasksSubTab, setTasksSubTab] = useState('subcontract'); 
 
           const [currentPage, setCurrentPage] = useState(1);
           const [rowsPerPage, setRowsPerPage] = useState(100);
@@ -1131,7 +1131,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (!cols) return '';
               let exact = cols.find(c => {
                   const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : '';
-                  return lc === 'ทีมงาน' || lc === 'team' || lc === 'nsresponsible' || lc === 'subcontact' || lc === 'ผู้รับผิดชอบ';
+                  return lc === 'ทีมงาน' || lc === 'team' || lc === 'nsresponsible' || lc === 'subcontract' || lc === 'ผู้รับผิดชอบ';
               });
               if (exact) return exact;
               let partial = cols.find(c => {
@@ -1142,11 +1142,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               return cols.length > 1 ? cols[1] : '';
           };
 
-          let currentColumnsTable = tasksSubTab === 'subcontact' ? [...columns] : [...nsColumns];
-          const currentTasksTable = tasksSubTab === 'subcontact' ? tasks : nsTasks;
+          let currentColumnsTable = tasksSubTab === 'subcontract' ? [...columns] : [...nsColumns];
+          const currentTasksTable = tasksSubTab === 'subcontract' ? tasks : nsTasks;
           
-          // 🟢 เพิ่มคอลัมน์จำลอง Region_Respon ในหน้า subcontact
-          if (tasksSubTab === 'subcontact' && currentColumnsTable.length > 0 && !currentColumnsTable.includes('Region_Respon')) {
+          // 🟢 เพิ่มคอลัมน์จำลอง Region_Respon ในหน้า Subcontract
+          if (tasksSubTab === 'subcontract' && currentColumnsTable.length > 0 && !currentColumnsTable.includes('Region_Respon')) {
               currentColumnsTable.push('Region_Respon');
           }
 
@@ -1197,7 +1197,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const tableUniqueColMonths = [...new Set((currentTasksTable || []).map(t => { const d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null); return d ? d.getMonth() + 1 : null; }).filter(Boolean))].sort((a,b)=>a-b);
           const tableUniqueYears = t_equipYearCol ? [...new Set((currentTasksTable || []).map(t => t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : '').filter(Boolean))].sort() : [];
           const subconStatusCol = getStatusColumnName(columns);
-          const subcontactStatuses = [...new Set((tasks || []).map(t => getCleanStatus(t[subconStatusCol])))].sort();
+          const subcontractStatuses = [...new Set((tasks || []).map(t => getCleanStatus(t[subconStatusCol])))].sort();
 
           // ================== FIREBASE FETCHING (โหมดประหยัดโควต้า ฟรี 100%) ==================
           const fetchAllDataFromServer = async (isBackground = false) => {
@@ -1222,10 +1222,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   const response = await fetch(GAS_WEB_APP_URL + "?action=getAllData");
                   const data = await response.json();
 
-                  if (data.subcontact) {
-                      setColumns(data.subcontact.columns);
-                      localStorage.setItem('equip_tracker_columns', JSON.stringify(data.subcontact.columns));
-                      const validTasks = data.subcontact.tasks.filter(isValidTaskHelper);
+                  if (data.subcontract) {
+                      setColumns(data.subcontract.columns);
+                      localStorage.setItem('equip_tracker_columns', JSON.stringify(data.subcontract.columns));
+                      const validTasks = data.subcontract.tasks.filter(isValidTaskHelper);
                       setTasks(validTasks);
                       localStorage.setItem('equip_tracker_tasks', JSON.stringify(validTasks));
                   }
@@ -1375,9 +1375,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
 
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
-                  const targetSheetName = tasksSubTab === 'subcontact' ? 'subcontact_2026' : 'Jobs for NS 2018-2025';
+                  const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
-                  if (tasksSubTab === 'subcontact') {
+                  if (tasksSubTab === 'subcontract') {
                       setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
                   } else {
                       setNsTasks(prev => prev.filter(t => !docIds.includes(t.id)));
@@ -1449,9 +1449,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   return false; 
               }
 
-              const targetSheetName = tasksSubTab === 'subcontact' ? 'subcontact_2026' : 'Jobs for NS 2018-2025';
+              const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
-              if (tasksSubTab === 'subcontact') {
+              if (tasksSubTab === 'subcontract') {
                   setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
               } else {
                   setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
@@ -1581,8 +1581,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               
               let processedTasks = tableTasks;
 
-              // 🟢 ดึงข้อมูล Region_Respon มาใส่ในหน้า subcontact โดยเทียบ CID
-              if (tasksSubTab === 'subcontact') {
+              // 🟢 ดึงข้อมูล Region_Respon มาใส่ในหน้า Subcontract โดยเทียบ CID
+              if (tasksSubTab === 'subcontract') {
                   const nsTeamCol = getTeamColumnName(nsColumns);
                   const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
                   
@@ -1645,7 +1645,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           }, [currentTasksTable, currentColumnsTable, tasksSubTab, tableFilterTeams, tableFilterCID, tableFilterYear, tableFilterStatus, tableFilterDate, tableFilterOverdue, sortConfig, searchTerm, showDuplicatesOnly]);
 
           // บังคับให้หน้า NS แสดงข้อมูลทั้งหมด (All) เสมอ
-          // คำนวณหน้าสำหรับ subcontact
+          // คำนวณหน้าสำหรับ Subcontract
           const totalPages = rowsPerPage === 'All' ? 1 : Math.ceil((finalTableTasks?.length || 0) / rowsPerPage);
           
           // แยก Logic: ถ้าเป็น NS ให้ใช้ Infinite Scroll (ตัดข้อมูลตาม visibleNsRows) ถ้าเป็น Subcon ให้ใช้ Pagination ปกติ
@@ -1666,8 +1666,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           };
 
           // --- Dashboard Variables ---
-          const dashboardTasks = dashboardView === 'subcontact' ? tasks : nsTasks;
-          const dashboardColumns = dashboardView === 'subcontact' ? columns : nsColumns;
+          const dashboardTasks = dashboardView === 'subcontract' ? tasks : nsTasks;
+          const dashboardColumns = dashboardView === 'subcontract' ? columns : nsColumns;
           const d_getCol = (keywords) => (dashboardColumns || []).find(c => keywords.some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,'')) : false)) || '';
           
           const d_statusCol = getStatusColumnName(dashboardColumns);
@@ -1705,7 +1705,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (!y && dateObjYear) { y = dateObjYear; if (y > 2500) y -= 543; }
               if (!y) { y = new Date().getFullYear(); }
 
-              if (dashboardView === 'subcontact') {
+              if (dashboardView === 'subcontract') {
                   if (dashboardYear === '2026') { if (y !== 2026) matchYearView = false; } 
                   else if (dashboardYear === 'history') { if (y >= 2026) matchYearView = false; }
               }
@@ -1786,7 +1786,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const overallPercentComplete = totalTasksCount > 0 ? Math.round((totalCompletedCount / totalTasksCount) * 100) : 0;
 
           let barChartData, barChartOptions, barChartTitle;
-          if (dashboardView === 'subcontact') {
+          if (dashboardView === 'subcontract') {
               barChartTitle = "สรุปจัดเก็บรายเดือน";
               const monthlyData = {}; for (let i = 1; i <= 12; i++) monthlyData[i] = { collected: 0, ongoing: 0, percent: 0 };
               chartFilteredTasks.forEach(t => {
@@ -1943,10 +1943,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     {activeTab === 'dashboard' && isSidebarOpen && (
                         <div className="pl-12 pr-4 space-y-2 pb-2 pt-1">
                             <div>
-                                <button onClick={() => { startTransition(() => setDashboardView('subcontact')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${dashboardView === 'subcontact' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-medium'}`}>
-                                    <i className="fa-solid fa-chart-simple w-4"></i> subcontact
+                                <button onClick={() => { startTransition(() => setDashboardView('subcontract')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${dashboardView === 'subcontract' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-medium'}`}>
+                                    <i className="fa-solid fa-chart-simple w-4"></i> Subcontract
                                 </button>
-                                {dashboardView === 'subcontact' && (
+                                {dashboardView === 'subcontract' && (
                                     <div className="pl-6 mt-1 space-y-1 border-l-2 border-blue-100 ml-2">
                                         <button onClick={() => { startTransition(() => setDashboardYear('overview')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'overview' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ภาพรวมทั้งหมด</button>
                                         <button onClick={() => { startTransition(() => setDashboardYear('2026')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === '2026' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี 2026 (ปัจจุบัน)</button>
@@ -1969,7 +1969,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     </button>
                     {activeTab === 'tasks' && isSidebarOpen && (
                         <div className="pl-14 pr-4 space-y-1 pb-2 pt-1">
-                            <button onClick={() => { startTransition(() => { setTasksSubTab('subcontact'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${tasksSubTab === 'subcontact' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>- Jobs for subcontact</button>
+                            <button onClick={() => { startTransition(() => { setTasksSubTab('subcontract'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${tasksSubTab === 'subcontract' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>- Jobs for Subcontract</button>
                             <button onClick={() => { startTransition(() => { setTasksSubTab('ns'); setCurrentPage(1); }); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${tasksSubTab === 'ns' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>- Jobs for Region</button>
                         </div>
                     )}
@@ -2006,7 +2006,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             <div className="flex items-center gap-3">
                               <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 bg-white border border-slate-200 shadow-sm rounded-lg hover:bg-slate-50 text-slate-600 transition-colors hidden lg:block"><i className="fa-solid fa-bars"></i></button>
                               <div>
-                                  <h2 className="text-xl md:text-3xl font-bold text-slate-900">ภาพรวมโครงการ {dashboardView === 'ns' ? '(Region)' : '(subcontact)'}</h2>
+                                  <h2 className="text-xl md:text-3xl font-bold text-slate-900">ภาพรวมโครงการ {dashboardView === 'ns' ? '(Region)' : '(Subcontract)'}</h2>
                                   <p className="text-xs md:text-sm text-slate-500 mt-1">มุมมอง: <span className="font-semibold text-blue-600">{dashboardView === 'ns' ? 'งานทั้งหมด (All Region Tasks)' : (dashboardYear === 'overview' ? 'ภาพรวมทั้งหมด' : dashboardYear === '2026' ? 'ปี 2026 (ปัจจุบัน)' : 'ปี 2018 - 2025')}</span></p>
                               </div>
                             </div>
@@ -2054,8 +2054,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2"><div className="min-w-[500px] md:min-w-[600px] h-full">{chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}</div></div>
                           </div>
                           
-                          {/* กราฟเกินกำหนดนัดหมาย (แสดงเฉพาะหน้า subcontact) */}
-                          {dashboardView === 'subcontact' && (
+                          {/* กราฟเกินกำหนดนัดหมาย (แสดงเฉพาะหน้า Subcontract) */}
+                          {dashboardView === 'subcontract' && (
                               <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                                   <div className="flex justify-between items-center mb-4"><h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> เกินกำหนดนัดหมาย</h3></div>
                                   <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2"><div className="min-w-[300px] h-full">{chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={overdueChartData} options={overdueChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}</div></div>
@@ -2072,7 +2072,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     <header className="shrink-0 flex flex-col md:flex-row justify-between items-start gap-4 mb-2">
                       <div className="flex items-center gap-3">
                         <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 bg-white border border-slate-200 shadow-sm rounded-lg hover:bg-slate-50 text-slate-600 transition-colors hidden lg:block"><i className="fa-solid fa-bars"></i></button>
-                        <div><h2 className="text-xl md:text-3xl font-bold text-slate-900">ตารางงาน {tasksSubTab === 'ns' ? '(Region Tasks)' : '(subcontact)'}</h2></div>
+                        <div><h2 className="text-xl md:text-3xl font-bold text-slate-900">ตารางงาน {tasksSubTab === 'ns' ? '(Region Tasks)' : '(Subcontract)'}</h2></div>
                       </div>
                       <button onClick={() => setShowHistoryModal(true)} className="flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 px-4 py-2 rounded-lg font-bold border border-indigo-200 transition-colors text-sm shadow-sm">
                           <i className="fa-solid fa-clock-rotate-left"></i> ดูประวัติการแก้ไข
@@ -2093,7 +2093,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             {t_statusCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueStatuses} selected={tableFilterStatus} onChange={setTableFilterStatus} placeholder="Status" /></div>}
                             {t_overDueCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={['ครบกำหนด', 'ยังไม่ครบกำหนด', 'เกินกำหนด']} selected={tableFilterOverdue} onChange={setTableFilterOverdue} placeholder="นัดหมายลูกค้า" /></div>}
                             <div className="ml-auto flex flex-wrap items-center gap-2 mt-2 md:mt-0 w-full sm:w-auto">
-                                {tasksSubTab === 'subcontact' && t_cidCol && (
+                                {tasksSubTab === 'subcontract' && t_cidCol && (
                                     <button 
                                         onClick={() => setShowDuplicatesOnly(!showDuplicatesOnly)} 
                                         className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs md:text-sm font-bold px-3 py-1.5 rounded-lg border h-[38px] transition-colors ${showDuplicatesOnly ? 'bg-amber-500 text-white border-amber-600 shadow-inner' : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'}`}
@@ -2349,7 +2349,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                 <i className="fa-solid fa-bolt"></i> จ่ายงาน
                                             </button>
                                         )}
-                                        {tasksSubTab === 'subcontact' && (
+                                        {tasksSubTab === 'subcontract' && (
                                             <button onClick={() => handleDeleteTask(task)} className="w-full py-1.5 bg-red-50 border border-red-200 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 rounded text-[10px] font-bold transition-all shadow-sm flex items-center justify-center gap-1" title="ลบข้อมูลแถวนี้">
                                                 <i className="fa-solid fa-trash"></i> ลบ
                                             </button>
@@ -2653,7 +2653,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                             <i className="fa-solid fa-chevron-down text-[10px] ml-2"></i>
                                                             <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(t, t._calStatusCol, e.target.value, currentColumnsTable); }}>
                                                                 <option value="" disabled></option>
-                                                                {(subcontactStatuses || []).map(s => <option key={s} value={s}>{s}</option>)}
+                                                                {(subcontractStatuses || []).map(s => <option key={s} value={s}>{s}</option>)}
                                                             </select>
                                                         </div>
                                                     </div>
