@@ -845,14 +845,19 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
             };
 
             const submitJob = async () => {
-                if (!form.zoneId && !form.team) { customAlert('กรุณาเลือกโซนพื้นที่รับผิดชอบ หรือระบุทีมงาน', 'error'); return; }
+                if (!form.team) { customAlert('กรุณาระบุทีมงานก่อนจ่ายงานครับ', 'error'); return; }
                 setIsSending(true);
                 
                 try {
                     const newTaskId = `task_assign_${Date.now()}`;
                     
+                    // 1. สูตรคำนวณวันนัดหมาย (เหมือนเดิม)
                     const dynamicFormula = `=LET(day_diff, (INT(INDIRECT("O"&ROW())) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
                     
+                    // 2. เตรียมรายการอุปกรณ์
+                    const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
+
+                    // 3. สร้างก้อนข้อมูลที่ชื่อคีย์ (Key) ตรงกับหัวคอลัมน์ใน Google Sheet เป๊ะๆ
                     const newTaskData = {
                         "วันที่แจ้ง Subcontract": form.date,
                         "CID Customer": form.cid,
@@ -864,13 +869,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         "วันที่เข้าเก็บ": form.getbackDate || '',
                         "เวลาเข้าเก็บ": form.getbackTime || '',
                         "นัดหมายลูกค้า": dynamicFormula,
+                        "รายการอุปกรณ์": equipStr, // 🔥 ใส่ข้อมูลลงคอลัมน์รายการอุปกรณ์
+                        "รายละเอียดงาน": `[Site Type: ${form.siteType}] \n${form.details}`,
                         "_rowIndex": 999999 
                     };
-                    const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
-                    newTaskData["รายละเอียดงาน"] = `[Site Type: ${form.siteType}] \n[เข้าเก็บ: ${form.getbackDate || '-'} เวลา ${form.getbackTime || '-'}] \n\n${form.details}\n\nรายการอุปกรณ์:\n${equipStr}`;
 
+                    // 4. บันทึกลง Firebase (เพื่อความรวดเร็วในการโชว์บนเว็บ)
                     await collectionRef.doc(newTaskId).set(newTaskData);
 
+                    // 5. จัดการคิวงานของโซนพื้นที่ (ถ้ามีการเลือกโซน)
                     if (form.zoneId) {
                         const zone = (masterData.zones || []).find(z => z.id === form.zoneId);
                         if (zone) {
@@ -886,29 +893,35 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         }
                     }
 
+                    // 6. ส่ง Line และ บันทึกลง Google Sheets ผ่าน GAS
                     const msg = generateMessage();
-                    customAlert('✅ สั่งงานเรียบร้อย (ระบบกำลังจัดการส่ง LINE และลง Sheet ให้อัตโนมัติ)', 'success');
                     
-                    setForm(getInitialFormState());
-                    setEquipments([{ name: '', serial: '' }]);
-                    setSearchCid('');
-
                     if (GAS_WEB_APP_URL) {
                         const payloadData = JSON.stringify({ 
                             action: 'sendLineNotify', 
                             message: msg,
-                            taskData: newTaskData,
+                            taskData: newTaskData, // ส่งข้อมูลทั้งก้อนไปให้ GAS จัดการลงคอลัมน์ให้ตรง
                             tempTaskId: newTaskId 
                         });
-                        fetch(GAS_WEB_APP_URL, {
-                            method: 'POST', mode: 'no-cors',
+
+                        await fetch(GAS_WEB_APP_URL, {
+                            method: 'POST', 
+                            mode: 'no-cors', // สำคัญ: เพื่อไม่ให้ติดปัญหาความปลอดภัยของเบราว์เซอร์
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                             body: payloadData
-                        }).catch(e => console.error("Background sync to Sheet failed:", e));
+                        });
                     }
+
+                    customAlert('✅ จ่ายงานสำเร็จ! ข้อมูลกำลังซิงค์ลงแผ่นงาน...', 'success');
+                    
+                    // 7. ล้างฟอร์ม
+                    setForm(getInitialFormState());
+                    setEquipments([{ name: '', serial: '' }]);
+                    setSearchCid('');
+
                 } catch (e) {
                     console.error("Failed to send/save:", e);
-                    customAlert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์', 'error');
+                    customAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่', 'error');
                 }
                 setIsSending(false);
             };
