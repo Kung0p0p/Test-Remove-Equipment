@@ -653,8 +653,7 @@
         // -------------------------------------------------------------
         // --- COMPONENT: ASSIGN JOB & LINE NOTIFY ---
         // -------------------------------------------------------------
-        const AssignJobTab = ({ masterData, queueState, setQueueState, masterDataRef, collectionRef, GAS_WEB_APP_URL, nsTasks, autoAssignData, clearAutoAssignData, customAlert }) => {
-            const getInitialFormState = () => {
+        const AssignJobTab = ({ masterData, queueState, setQueueState, masterDataRef, collectionRef, GAS_WEB_APP_URL, nsTasks, autoAssignData, clearAutoAssignData, customAlert, setTasks }) => {
                 const now = new Date();
                 return {
                     date: `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
@@ -864,15 +863,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 try {
                     const newTaskId = `task_assign_${Date.now()}`;
                     
-                    // 1. เตรียมรายการอุปกรณ์
-                    const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
+                    // 1. เตรียมรายการอุปกรณ์ (ใช้ \n สำหรับขึ้นบรรทัดใหม่ใน Sheet)
+                    const equipStr = equipments
+                        .map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`)
+                        .join('\n');
 
-                    // 2. สูตรคำนวณวันนัดหมาย (ปรับให้ดัก Error และรองรับวันที่ว่าง)
-                    // หมายเหตุ: "H" คือคอลัมน์ 'วันที่เข้าเก็บ', "A" คือคอลัมน์ 'วันที่แจ้ง Subcontract'
-                    // หากใน Sheet ของคุณตำแหน่งคอลัมน์ไม่ใช่ A หรือ H ให้เปลี่ยนตัวอักษรในเครื่องหมายคำพูดได้เลยครับ
-                    const dynamicFormula = `=LET(day_diff, (IFERROR(INT(INDIRECT("H"&ROW())),0) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
+                    // 2. สูตรคำนวณวันนัดหมาย (เปลี่ยนจาก O เป็น P ตามที่ใช้งานจริง)
+                    // P = วันที่เข้าเก็บ, A = วันที่แจ้ง Sub
+                    const dynamicFormula = `=LET(day_diff, (IFERROR(INT(INDIRECT("P"&ROW())),0) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
 
-                    // 3. สร้างก้อนข้อมูล (Key ต้องตรงกับหัว Sheet เป๊ะๆ)
+                    // 3. สร้างก้อนข้อมูล
                     const newTaskData = {
                         "id": newTaskId,
                         "วันที่แจ้ง Subcontract": form.date,
@@ -887,11 +887,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         "นัดหมายลูกค้า": dynamicFormula,
                         "รายการอุปกรณ์": equipStr,
                         "รายละเอียดงาน": `[Site Type: ${form.siteType}] \n${form.details}`,
-                        "_rowIndex": 0 // เพื่อให้งานใหม่ขึ้นบนสุดทันที
+                        "_rowIndex": 0 
                     };
 
-                    // 4. อัปเดตหน้าจอทันที (Instant UI Update)
-                    setTasks(prev => [newTaskData, ...prev]);
+                    // 4. อัปเดตหน้าจอทันที (ต้องมี setTasks ที่รับมาจาก props)
+                    if (typeof setTasks === 'function') {
+                        setTasks(prev => [newTaskData, ...prev]);
+                    }
 
                     // 5. บันทึกลง Firebase
                     await collectionRef.doc(newTaskId).set(newTaskData);
@@ -910,7 +912,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         }
                     }
 
-                    // 7. ส่ง Line และลง Sheet ผ่าน GAS
+                    // 7. ส่ง Line และลง Sheet
                     const msg = generateMessage();
                     if (GAS_WEB_APP_URL) {
                         const payloadData = JSON.stringify({ 
@@ -919,17 +921,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             taskData: newTaskData,
                             tempTaskId: newTaskId 
                         });
-                        
-                        // ใช้ fetch แบบไม่รอ (Background) เพื่อความรวดเร็ว
                         fetch(GAS_WEB_APP_URL, {
-                            method: 'POST', 
-                            mode: 'no-cors',
+                            method: 'POST', mode: 'no-cors',
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                             body: payloadData
                         });
                     }
 
-                    customAlert('✅ จ่ายงานสำเร็จ! งานใหม่จะปรากฏที่แถวบนสุด', 'success');
+                    customAlert('✅ จ่ายงานสำเร็จ! งานใหม่จะอยู่ด้านบนสุดของตาราง', 'success');
                     
                     // 8. ล้างฟอร์ม
                     setForm(getInitialFormState());
@@ -937,8 +936,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     setSearchCid('');
 
                 } catch (e) {
-                    console.error("Assign Error:", e);
-                    customAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง', 'error');
+                    console.error("Error:", e);
+                    customAlert('เกิดข้อผิดพลาด: ' + e.message, 'error');
                 }
                 setIsSending(false);
             };
@@ -2763,7 +2762,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 {activeTab === 'master_data' && <MasterDataTab masterData={masterData} masterDataRef={masterDataRef} customAlert={customAlert} customConfirm={customConfirm} />}
 
                 {/* --- 5. หน้า ASSIGN JOB --- */}
-                {activeTab === 'assign' && <AssignJobTab masterData={masterData} queueState={queueState} setQueueState={setQueueState} masterDataRef={masterDataRef} collectionRef={collectionRef} GAS_WEB_APP_URL={GAS_WEB_APP_URL} nsTasks={nsTasks} autoAssignData={autoAssignData} clearAutoAssignData={clearAutoAssignData} customAlert={customAlert} />}
+                {activeTab === 'assign' && <AssignJobTab masterData={masterData} queueState={queueState} setQueueState={setQueueState} masterDataRef={masterDataRef} collectionRef={collectionRef} GAS_WEB_APP_URL={GAS_WEB_APP_URL} nsTasks={nsTasks} autoAssignData={autoAssignData} clearAutoAssignData={clearAutoAssignData} customAlert={customAlert} setTasks={setTasks} />}
 
               </main>
 
