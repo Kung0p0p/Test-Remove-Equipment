@@ -2310,6 +2310,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     } else {
                                         if (isStatusChangeCell) {
                                             tdStyle.maxWidth = '600px';
+                                            tdStyle.minWidth = '600px';
+                                            tdStyle.maxWidth = '600px';
                                         }
                                         if (isContactJobCell) {
                                             // บังคับเนื้อหาให้กว้างแค่ 6000px เท่ากับหัวตาราง
@@ -2357,7 +2359,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdOverflow = 'visible'; 
                                         tdTextOverflow = 'clip'; 
                                         tdLineHeight = '1.5'; 
-                                        innerWidth = '600px'; // ขยายให้กว้างหน่อยจะได้อ่านง่าย
+                                        innerWidth = '1000px'; // ขยายให้กว้างหน่อยจะได้อ่านง่าย
                                         tdDisplay = 'inline-block'; 
                                     } else if (isStatusChangeCell && !hasFixedWidth) {
                                         tdWhiteSpace = 'normal';
