@@ -856,27 +856,22 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
             };
 
             const submitJob = async () => {
-                if (!form.zoneId && !form.team) { customAlert('กรุณาเลือกโซนพื้นที่รับผิดชอบ หรือระบุทีมงาน', 'error'); return; }
+                if (!form.team) { customAlert('กรุณาระบุทีมงานก่อนจ่ายงานครับ', 'error'); return; }
                 setIsSending(true);
                 
                 try {
                     const newTaskId = `task_assign_${Date.now()}`;
                     
-                    // 1. สูตรคำนวณวันนัดหมาย (เปลี่ยนจาก O เป็น P)
-                    // P = วันที่เข้าเก็บ, A = วันที่แจ้ง Subcontract
-                    const dynamicFormula = `=LET(
-  day_diff, (INT(P205) + 3) - IF(ISBLANK(A205), TODAY(), INT(A205)),
-  IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", 
-    IF(day_diff = 0, "ครบกำหนด", 
-      "เหลือเวลา " & day_diff & " วัน"
-    )
-  )
-)`;
-                    
-                    // 2. จัดรูปแบบรายการอุปกรณ์ (ใช้ \n เพื่อให้ Google Sheet รู้ว่าต้อง Alt+Enter)
-                    const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
+                    // 1. เตรียมรายการอุปกรณ์ (ใช้ \n สำหรับขึ้นบรรทัดใหม่)
+                    const equipStr = equipments
+                        .map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`)
+                        .join('\n');
 
-                    // 3. เตรียมข้อมูล (เพิ่มคอลัมน์ "รายการอุปกรณ์" เข้าไป)
+                    // 2. สูตรคำนวณวันนัดหมาย (ใช้คอลัมน์ P และ A)
+                    // 🔥 สำคัญ: ต้องไม่มีช่องว่างหน้าเครื่องหมาย = เพื่อให้ Google Sheet รู้ว่าเป็นสูตร
+                    const dynamicFormula = `=LET(day_diff, (IFERROR(INT(INDIRECT("P"&ROW())),0) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
+
+                    // 3. สร้างก้อนข้อมูลสำหรับ Firebase และหน้าเว็บ
                     const newTaskData = {
                         "id": newTaskId,
                         "วันที่แจ้ง Subcontract": form.date,
@@ -889,12 +884,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         "วันที่เข้าเก็บ": form.getbackDate || '',
                         "เวลาเข้าเก็บ": form.getbackTime || '',
                         "นัดหมายลูกค้า": dynamicFormula,
-                        "รายการอุปกรณ์": equipStr, // 🔥 ข้อมูลจะลงคอลัมน์นี้
-                        "รายละเอียดงาน": `[Site Type: ${form.siteType}] \n[เข้าเก็บ: ${form.getbackDate || '-'} เวลา ${form.getbackTime || '-'}] \n\n${form.details}`,
-                        "_rowIndex": 0 // 0 เพื่อให้งานโชว์บนสุดของหน้าเว็บ
+                        "รายการอุปกรณ์": equipStr,
+                        "รายละเอียดงาน": `[Site Type: ${form.siteType}] \n${form.details}`,
+                        "_rowIndex": 0 
                     };
 
-                    // 4. แสดงงานใหม่บนเว็บทันที (Instant Update)
+                    // 4. อัปเดตหน้าจอทันที
                     if (typeof setTasks === 'function') {
                         setTasks(prev => [newTaskData, ...prev]);
                     }
@@ -902,47 +897,50 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     // 5. บันทึกลง Firebase
                     await collectionRef.doc(newTaskId).set(newTaskData);
 
-                    // 6. เลื่อนคิวงาน (Round-robin)
+                    // 6. จัดการคิวงาน
                     if (form.zoneId) {
                         const zone = (masterData.zones || []).find(z => z.id === form.zoneId);
                         if (zone) {
                             const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
                             let currentQ = queueState[form.zoneId] || 0;
                             let newQ = tArr.length > 0 ? (currentQ + 1) % tArr.length : 0;
-                            
                             const manualNextIndex = tArr.findIndex(t => t === form.nextTeam);
                             if (manualNextIndex !== -1) newQ = manualNextIndex;
-                            
                             masterDataRef.set({ queue: { ...queueState, [form.zoneId]: newQ } }, { merge: true });
                             setQueueState({ ...queueState, [form.zoneId]: newQ });
                         }
                     }
 
-                    // 7. ส่ง Line Notify และส่งข้อมูลให้ Google Sheet
+                    // 7. ส่ง Line และลง Sheet
                     const msg = generateMessage();
-                    customAlert('✅ สั่งงานเรียบร้อย งานใหม่จะปรากฏที่แถวบนสุดทันที', 'success');
-                    
-                    setForm(getInitialFormState());
-                    setEquipments([{ name: '', serial: '' }]);
-                    setSearchCid('');
-
-                    // ส่ง Background Fetch ไปลง Sheet (ใส่ข้อมูล newTaskData ไปให้ครบ)
                     if (GAS_WEB_APP_URL) {
+                        // 🔥 ส่งข้อมูลแบบเดิมที่เคยเวิร์ค (ส่งเป็น Object ให้ GAS ไป Map เอง)
                         const payloadData = JSON.stringify({ 
                             action: 'sendLineNotify', 
                             message: msg,
                             taskData: newTaskData,
                             tempTaskId: newTaskId 
                         });
+                        
+                        // ใช้ fetch แบบไม่รอ (Background)
                         fetch(GAS_WEB_APP_URL, {
-                            method: 'POST', mode: 'no-cors',
+                            method: 'POST', 
+                            mode: 'no-cors',
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                             body: payloadData
-                        }).catch(e => console.error("Sync failed:", e));
+                        });
                     }
+
+                    customAlert('✅ จ่ายงานสำเร็จ! งานใหม่จะอยู่ด้านบนสุดของตาราง', 'success');
+                    
+                    // 8. ล้างฟอร์ม
+                    setForm(getInitialFormState());
+                    setEquipments([{ name: '', serial: '' }]);
+                    setSearchCid('');
+
                 } catch (e) {
-                    console.error("Failed to send/save:", e);
-                    customAlert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์', 'error');
+                    console.error("Error:", e);
+                    customAlert('เกิดข้อผิดพลาด: ' + e.message, 'error');
                 }
                 setIsSending(false);
             };
@@ -2329,18 +2327,21 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdStyle.zIndex = 20;
                                     }
 
+                                    // 🔥 เช็คว่าเป็นคอลัมน์ที่ควรขึ้นบรรทัดใหม่หรือไม่
+                                    const isMultiLineCell = col === 'รายการอุปกรณ์' || col === 'รายละเอียดงาน' || col === 'รายละเอียด';
+
                                     let tdWhiteSpace = 'nowrap';
                                     let tdWordBreak = 'normal';
                                     let tdOverflow = 'hidden';
                                     let innerWidth = colWidth;
                                     let tdTextOverflow = 'ellipsis';
                                     let tdLineHeight = '20px';
-                                    let tdDisplay = 'block'; // 🔥 เพิ่มตัวแปร display
+                                    let tdDisplay = 'block';
 
                                     if (isGroupedMultiLine) {
                                         tdWhiteSpace = 'pre-wrap';
                                         tdWordBreak = 'break-word';
-                                        tdOverflow = 'visible'; // 🔥 เปลี่ยนเป็น visible เพื่อให้กล่องขยายตามเนื้อหา
+                                        tdOverflow = 'auto';
                                         tdTextOverflow = 'clip';
                                         tdLineHeight = '1.8';
                                     } else if (isContactJobCell && !hasFixedWidth) {
@@ -2349,8 +2350,17 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdOverflow = 'visible'; 
                                         tdTextOverflow = 'clip'; 
                                         tdLineHeight = '1.5'; 
-                                        innerWidth = '600px';
-                                        tdDisplay = 'inline-block'; // 🔥 บังคับให้เป็นกล่องอิสระ เพื่อให้ pre-wrap ทำงานได้ 100%
+                                        innerWidth = '150px';
+                                        tdDisplay = 'inline-block'; 
+                                    } else if (isMultiLineCell && !hasFixedWidth) {
+                                        // 🔥 บังคับให้คอลัมน์รายการอุปกรณ์และรายละเอียดงาน ขึ้นบรรทัดใหม่
+                                        tdWhiteSpace = 'pre-wrap'; 
+                                        tdWordBreak = 'break-word';
+                                        tdOverflow = 'visible'; 
+                                        tdTextOverflow = 'clip'; 
+                                        tdLineHeight = '1.5'; 
+                                        innerWidth = '250px'; // ให้กว้างหน่อยจะได้อ่านง่าย
+                                        tdDisplay = 'inline-block'; 
                                     } else if (isStatusChangeCell && !hasFixedWidth) {
                                         tdWhiteSpace = 'normal';
                                         tdWordBreak = 'break-word';
