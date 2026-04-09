@@ -2309,10 +2309,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdStyle.maxWidth = colWidth;
                                     } else {
                                         if (isStatusChangeCell) {
-                                            tdStyle.maxWidth = '250px';
+                                            tdStyle.maxWidth = '600px';
                                         }
                                         if (isContactJobCell) {
-                                            // บังคับเนื้อหาให้กว้างแค่ 150px เท่ากับหัวตาราง
+                                            // บังคับเนื้อหาให้กว้างแค่ 6000px เท่ากับหัวตาราง
                                             tdStyle.width = '600px';
                                             tdStyle.minWidth = '600px';
                                             tdStyle.maxWidth = '600px';
@@ -2348,7 +2348,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdOverflow = 'visible'; 
                                         tdTextOverflow = 'clip'; 
                                         tdLineHeight = '1.5'; 
-                                        innerWidth = '400px';
+                                        innerWidth = '600px';
                                         tdDisplay = 'inline-block'; 
                                     } else if (isEquipListCell && !hasFixedWidth) {
                                         // 🔥 บังคับให้คอลัมน์ "รายการอุปกรณ์" เคารพการขึ้นบรรทัดใหม่ (\n)
@@ -2357,7 +2357,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdOverflow = 'visible'; 
                                         tdTextOverflow = 'clip'; 
                                         tdLineHeight = '1.5'; 
-                                        innerWidth = '400px'; // ขยายให้กว้างหน่อยจะได้อ่านง่าย
+                                        innerWidth = '600px'; // ขยายให้กว้างหน่อยจะได้อ่านง่าย
                                         tdDisplay = 'inline-block'; 
                                     } else if (isStatusChangeCell && !hasFixedWidth) {
                                         tdWhiteSpace = 'normal';
