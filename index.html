@@ -2359,6 +2359,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdOverflow = 'visible'; 
                                         tdTextOverflow = 'clip'; 
                                         tdLineHeight = '1.5'; 
+                                        innerWidth = '800px';
+                                        tdDisplay = 'inline-block'; 
                                     } else if (isStatusChangeCell && !hasFixedWidth) {
                                         tdWhiteSpace = 'normal';
                                         tdWordBreak = 'break-word';
