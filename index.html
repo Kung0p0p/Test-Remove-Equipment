@@ -227,22 +227,15 @@
         const getCleanStatus = (raw) => (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : 'ไม่ระบุสถานะ';
         const getCleanTeam = (raw) => (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : 'ไม่ระบุทีม';
 
-        function function isValidTaskHelper(taskObj) {
+        function isValidTaskHelper(taskObj) {
             if (!taskObj) return false;
-            if (taskObj._rowIndex === 0) return true;
-
             let hasRealData = false;
             Object.keys(taskObj).forEach(k => {
                 if (k === 'id' || k === '_rowIndex') return;
-                
                 const lk = String(k).toLowerCase().replace(/[\s_]+/g, '');
-                if (lk.includes('นัดหมาย') || lk.includes('over') || lk.includes('เกินกำหนด') || 
-                    lk.includes('สถานะ') || lk.includes('status') || lk.includes('วันที่') || 
-                    lk.includes('เวลา') || lk.includes('date') || lk.includes('time') || 
-                    lk.includes('timestamp')) {
+                if (lk.includes('นัดหมาย') || lk.includes('over') || lk.includes('เกินกำหนด') || lk.includes('สถานะ') || lk.includes('status') || lk.includes('วันที่') || lk.includes('เวลา') || lk.includes('date') || lk.includes('time') || lk.includes('timestamp')) {
                     return;
                 }
-                
                 const val = String(taskObj[k]).trim();
                 if (val !== '' && val !== '-' && val !== 'ไม่ระบุสถานะ' && val !== 'ไม่ระบุทีม') {
                     hasRealData = true;
@@ -647,7 +640,7 @@
         // -------------------------------------------------------------
         // --- COMPONENT: ASSIGN JOB & LINE NOTIFY ---
         // -------------------------------------------------------------
-        const AssignJobTab = ({ masterData, queueState, setQueueState, masterDataRef, collectionRef, GAS_WEB_APP_URL, nsTasks, autoAssignData, clearAutoAssignData, customAlert, setTasks }) => {
+        const AssignJobTab = ({ masterData, queueState, setQueueState, masterDataRef, collectionRef, GAS_WEB_APP_URL, nsTasks, autoAssignData, clearAutoAssignData, customAlert }) => {
             const getInitialFormState = () => {
                 const now = new Date();
                 return {
@@ -661,26 +654,206 @@
             const [isSending, setIsSending] = useState(false);
             const [searchCid, setSearchCid] = useState('');
 
-            // ... (โค้ดส่วนกลางอื่นๆ ข้ามไปจนถึง submitJob) ...
+            const allDistrictsMap = useMemo(() => {
+                let map = [];
+                (masterData.zones || []).forEach(z => {
+                    const dists = (z.districts || '').split(',').map(d => d.trim()).filter(Boolean);
+                    dists.forEach(d => map.push({ name: d, zoneId: z.id, zoneName: z.name }));
+                });
+                return map.sort((a,b) => a.name.localeCompare(b.name, 'th'));
+            }, [masterData.zones]);
+
+            const getVal = (t, keys) => {
+                const matchedKey = Object.keys(t || {}).find(k => keys.some(kw => String(k).toLowerCase().replace(/[\s_]+/g,'').includes(kw.toLowerCase().replace(/[\s_]+/g,''))));
+                return matchedKey ? t[matchedKey] : '';
+            };
+
+            const nsCidOptions = useMemo(() => {
+                const cids = (nsTasks || []).map(t => getVal(t, ['circuitno'])).filter(c => c && String(c).trim() !== '');
+                return [...new Set(cids)];
+            }, [nsTasks]);
+
+            useEffect(() => {
+                if (autoAssignData && autoAssignData.cid) {
+                    setSearchCid(autoAssignData.cid);
+                    executeAutoFill(autoAssignData.cid, autoAssignData.siteType || 'Terminate');
+                    clearAutoAssignData();
+                }
+            }, [autoAssignData]);
+
+            const executeAutoFill = (searchCidValue, currentSiteType) => {
+                if (!searchCidValue.trim()) return;
+                
+                // ล็อคเป้าตรวจสอบจากคอลัมน์ CIRCUIT NO.
+                const matchedCids = (nsTasks || []).filter(t => {
+                    const cid = getVal(t, ['circuitno']);
+                    return String(cid).trim().toLowerCase() === searchCidValue.trim().toLowerCase();
+                });
+
+                if (matchedCids.length === 0) {
+                    customAlert(`❌ ไม่พบข้อมูล CID: "${searchCidValue}" ในฐานข้อมูล NS ครับ`, 'error');
+                    return;
+                }
+
+                let actualSiteType = currentSiteType || 'Terminate';
+                // ล็อคเป้าตรวจสอบจากคอลัมน์ SITE_TYPE เท่านั้น
+                const siteTypeKeys = ['sitetype']; 
+                
+                let matchedRows = matchedCids.filter(t => {
+                    const st = getVal(t, siteTypeKeys);
+                    return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase();
+                });
+
+                let isAutoSwitched = false;
+
+                if (matchedRows.length === 0) {
+                    const firstSt = String(getVal(matchedCids[0], siteTypeKeys)).trim();
+                    if (firstSt) {
+                        actualSiteType = firstSt;
+                        matchedRows = matchedCids.filter(t => {
+                            const st = getVal(t, siteTypeKeys);
+                            return st && String(st).trim().toLowerCase() === actualSiteType.toLowerCase();
+                        });
+                        isAutoSwitched = true;
+                    } else {
+                        // 🔥 กรณีหาคอลัมน์ Site ไม่เจอ หรือเป็นค่าว่าง ให้ดึงข้อมูลทั้งหมดของ CID นี้เลย
+                        matchedRows = matchedCids;
+                    }
+                }
+
+                if (matchedRows.length > 0) {
+                    const first = matchedRows[0];
+                    
+                    const rawAmphur = getVal(first, ['amphur', 'อำเภอ', 'เขต', 'district']) || '';
+                    let matchedZoneId = '';
+                    let matchedTeam = '';
+                    let matchedNextTeam = '';
+                    let displayDistrict = '';
+
+                    if (rawAmphur) {
+                        const cleanAmphur = String(rawAmphur).replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                        const foundDistrict = allDistrictsMap.find(d => {
+                            const cleanD = d.name.replace(/เขต|อำเภอ|อ\./g, '').trim().toLowerCase();
+                            return cleanAmphur === cleanD || cleanAmphur.includes(cleanD) || cleanD.includes(cleanAmphur);
+                        });
+
+                        if (foundDistrict) {
+                            displayDistrict = foundDistrict.name;
+                            matchedZoneId = foundDistrict.zoneId;
+                            const zone = (masterData.zones || []).find(z => z.id === matchedZoneId);
+                            if (zone) {
+                                const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
+                                let currentQ = queueState[zone.id] || 0;
+                                matchedTeam = tArr.length > 0 ? tArr[currentQ % tArr.length] : '';
+                                matchedNextTeam = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : '';
+                            }
+                        } else {
+                            displayDistrict = rawAmphur;
+                        }
+                    }
+
+                    // 🔥 ล็อคชื่อคอลัมน์ทั้งหมดตามที่ระบุไว้
+                    setForm(prev => ({
+                        ...prev,
+                        cid: getVal(first, ['circuitno']) || prev.cid, 
+                        siteType: actualSiteType,
+                        customerName: getVal(first, ['customername']) || '',
+                        address: getVal(first, ['address']) || '',
+                        phone: getVal(first, ['customercontract']) || '',
+                        cancelDate: getVal(first, ['duejob']) || '',
+                        getbackDate: getVal(first, ['getbackdate']) || '',
+                        getbackTime: getVal(first, ['getbacktime']) || '',
+                        districtSearch: displayDistrict || prev.districtSearch,
+                        zoneId: matchedZoneId || prev.zoneId,
+                        team: matchedTeam || prev.team,
+                        nextTeam: matchedNextTeam || prev.nextTeam,
+                        details: '' 
+                    }));
+
+                    // 🔥 ล็อคเป้าคอลัมน์ ITEM NAME และ SERIALNO
+                    const equips = matchedRows.map(t => ({
+                        name: getVal(t, ['itemname']) || '',
+                        serial: getVal(t, ['serialno']) || ''
+                    })).filter(e => e.name || e.serial);
+
+                    equips.sort((a, b) => {
+                        const aHasSn = (a.serial || '').trim() !== '' ? 1 : 0;
+                        const bHasSn = (b.serial || '').trim() !== '' ? 1 : 0;
+                        return bHasSn - aHasSn;
+                    });
+
+                    if (equips.length > 0) {
+                        setEquipments(equips);
+                    } else {
+                        setEquipments([{ name: '', serial: '' }]);
+                    }
+                    
+                    if (isAutoSwitched && !autoAssignData) {
+                        customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! (สลับเป็น "${actualSiteType}" อัตโนมัติ) พบอุปกรณ์ ${equips.length} รายการ`, 'success');
+                    } else if (!autoAssignData) {
+                        customAlert(`✅ ดึงข้อมูล CID: ${searchCidValue} สำเร็จ! พบอุปกรณ์ทั้งหมด ${equips.length} รายการ`, 'success');
+                    }
+                }
+            };
+
+            const handleAutoFillClick = () => {
+                executeAutoFill(searchCid, form.siteType);
+            };
+
+            const handleDistrictInput = (e) => {
+                const val = e.target.value;
+                setForm(prev => ({...prev, districtSearch: val}));
+                const found = allDistrictsMap.find(d => d.name === val);
+                if (found) handleZoneSelect(found.zoneId);
+            };
+
+            const handleZoneSelect = (zoneId) => {
+                const zone = (masterData.zones || []).find(z => z.id === zoneId);
+                if (zone) {
+                    const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
+                    let currentQ = queueState[zone.id] || 0;
+                    let t1 = tArr.length > 0 ? tArr[currentQ % tArr.length] : '';
+                    let t2 = tArr.length > 0 ? tArr[(currentQ + 1) % tArr.length] : '';
+                    setForm(prev => ({ ...prev, zoneId: zoneId, team: t1, nextTeam: t2 }));
+                } else {
+                    setForm(prev => ({ ...prev, zoneId: '', team: '', nextTeam: '' }));
+                }
+            };
+
+            const addEquip = () => setEquipments([...equipments, { name: '', serial: '' }]);
+            const rmEquip = (idx) => setEquipments(equipments.filter((_, i) => i !== idx));
+
+            const generateMessage = () => {
+                return `📌📋 [แจ้งสถานะการจ่ายงาน: Remove-Equipment]
+---------------------------
+ 📅 วันที่/เวลาแจ้ง: ${form.date}
+ CIDs: ${form.cid || '-'}
+
+ ผู้รับเหมา: ${form.team || '-'}
+ บริษัทลูกค้า: ${form.customerName || '-'}
+ ที่อยู่: ${form.address || '-'}
+ เบอร์ติดต่อ: ${form.phone || '-'}
+ วันที่ยกเลิกใช้งาน: ${form.cancelDate || '-'}
+ วันที่เข้าเก็บ: ${form.getbackDate || '-'}  เวลา  : ${form.getbackTime || '-'}
+
+ รายละเอียดงาน: ${form.details || '-'}
+
+รายการอุปกรณ์:
+${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n')}
+
+ ⏭️ ผู้รับเหมาลำดับถัดไป: ${form.nextTeam || '-'}`;
+            };
 
             const submitJob = async () => {
-                if (!form.team) { customAlert('กรุณาระบุทีมงานก่อนจ่ายงานครับ', 'error'); return; }
+                if (!form.zoneId && !form.team) { customAlert('กรุณาเลือกโซนพื้นที่รับผิดชอบ หรือระบุทีมงาน', 'error'); return; }
                 setIsSending(true);
                 
                 try {
                     const newTaskId = `task_assign_${Date.now()}`;
                     
-                    // 1. เตรียมรายการอุปกรณ์ (ขึ้นบรรทัดใหม่ด้วย \n)
-                    const equipStr = equipments
-                        .map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`)
-                        .join('\n');
-
-                    // 2. สูตรคำนวณวันนัดหมาย (ใช้คอลัมน์ P และ A)
-                    const dynamicFormula = `=LET(day_diff, (IFERROR(INT(INDIRECT("P"&ROW())),0) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
-
-                    // 3. สร้างก้อนข้อมูล
+                    const dynamicFormula = `=LET(day_diff, (INT(INDIRECT("O"&ROW())) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
+                    
                     const newTaskData = {
-                        "id": newTaskId,
                         "วันที่แจ้ง Subcontract": form.date,
                         "CID Customer": form.cid,
                         "ทีมงาน": form.team,
@@ -691,35 +864,35 @@
                         "วันที่เข้าเก็บ": form.getbackDate || '',
                         "เวลาเข้าเก็บ": form.getbackTime || '',
                         "นัดหมายลูกค้า": dynamicFormula,
-                        "รายการอุปกรณ์": equipStr,
-                        "รายละเอียดงาน": `[Site Type: ${form.siteType}] \n${form.details}`,
-                        "_rowIndex": 0 
+                        "_rowIndex": 999999 
                     };
+                    const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
+                    newTaskData["รายละเอียดงาน"] = `[Site Type: ${form.siteType}] \n[เข้าเก็บ: ${form.getbackDate || '-'} เวลา ${form.getbackTime || '-'}] \n\n${form.details}\n\nรายการอุปกรณ์:\n${equipStr}`;
 
-                    // 4. อัปเดตหน้าจอทันที
-                    if (setTasks) {
-                        setTasks(prev => [newTaskData, ...prev]);
-                    }
-
-                    // 5. บันทึกลง Firebase
                     await collectionRef.doc(newTaskId).set(newTaskData);
 
-                    // 6. จัดการคิวงาน
                     if (form.zoneId) {
                         const zone = (masterData.zones || []).find(z => z.id === form.zoneId);
                         if (zone) {
                             const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
                             let currentQ = queueState[form.zoneId] || 0;
                             let newQ = tArr.length > 0 ? (currentQ + 1) % tArr.length : 0;
+                            
                             const manualNextIndex = tArr.findIndex(t => t === form.nextTeam);
                             if (manualNextIndex !== -1) newQ = manualNextIndex;
+                            
                             masterDataRef.set({ queue: { ...queueState, [form.zoneId]: newQ } }, { merge: true });
                             setQueueState({ ...queueState, [form.zoneId]: newQ });
                         }
                     }
 
-                    // 7. ส่ง Line และลง Sheet
                     const msg = generateMessage();
+                    customAlert('✅ สั่งงานเรียบร้อย (ระบบกำลังจัดการส่ง LINE และลง Sheet ให้อัตโนมัติ)', 'success');
+                    
+                    setForm(getInitialFormState());
+                    setEquipments([{ name: '', serial: '' }]);
+                    setSearchCid('');
+
                     if (GAS_WEB_APP_URL) {
                         const payloadData = JSON.stringify({ 
                             action: 'sendLineNotify', 
@@ -731,18 +904,11 @@
                             method: 'POST', mode: 'no-cors',
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                             body: payloadData
-                        });
+                        }).catch(e => console.error("Background sync to Sheet failed:", e));
                     }
-
-                    customAlert('✅ จ่ายงานสำเร็จ! งานใหม่จะอยู่ด้านบนสุดของตาราง', 'success');
-                    
-                    setForm(getInitialFormState());
-                    setEquipments([{ name: '', serial: '' }]);
-                    setSearchCid('');
-
                 } catch (e) {
-                    console.error("Error:", e);
-                    customAlert('เกิดข้อผิดพลาด: ' + e.message, 'error');
+                    console.error("Failed to send/save:", e);
+                    customAlert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์', 'error');
                 }
                 setIsSending(false);
             };
@@ -2567,7 +2733,7 @@
                 {activeTab === 'master_data' && <MasterDataTab masterData={masterData} masterDataRef={masterDataRef} customAlert={customAlert} customConfirm={customConfirm} />}
 
                 {/* --- 5. หน้า ASSIGN JOB --- */}
-                {activeTab === 'assign' && <AssignJobTab masterData={masterData} queueState={queueState} setQueueState={setQueueState} masterDataRef={masterDataRef} collectionRef={collectionRef} GAS_WEB_APP_URL={GAS_WEB_APP_URL} nsTasks={nsTasks} autoAssignData={autoAssignData} clearAutoAssignData={clearAutoAssignData} customAlert={customAlert} setTasks={setTasks} />}
+                {activeTab === 'assign' && <AssignJobTab masterData={masterData} queueState={queueState} setQueueState={setQueueState} masterDataRef={masterDataRef} collectionRef={collectionRef} GAS_WEB_APP_URL={GAS_WEB_APP_URL} nsTasks={nsTasks} autoAssignData={autoAssignData} clearAutoAssignData={clearAutoAssignData} customAlert={customAlert} />}
 
               </main>
 
