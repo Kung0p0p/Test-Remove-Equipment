@@ -1325,16 +1325,17 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               // 2. ดึงข้อมูลจริงจาก Server
               fetchAllDataFromServer();
 
-              // 3. ติดตั้ง "กระดิ่ง" แจ้งเตือนจาก Firebase (ใช้แค่ 1 โควต้า)
+              // 3. 🔥 นี่คือส่วน Real-time: ติดตั้ง "กระดิ่ง" ฟังเสียงจาก Google Sheet
+              // เมื่อมีการแก้ใน Sheet -> GAS จะมาสะกิด Firebase -> เว็บจะรู้ตัวและโหลดใหม่ทันที
               const unsubSync = collectionRef.doc('_sync_status').onSnapshot(doc => {
                   if (doc.exists) {
                       const data = doc.data();
-                      const ts = parseInt(data.timestamp?.integerValue || data.timestamp || 0);
+                      const ts = data.timestamp;
                       
-                      // ถ้าเพิ่งมีคนอัปเดตข้อมูลไปหมาดๆ (ใน 20 วิที่ผ่านมา) ให้แอบไปดึงข้อมูล Sheet ใหม่มาอัปเดต
-                      if (Date.now() - ts < 20000) {
+                      // ถ้ามีการสะกิด (Timestamp เปลี่ยน) ให้แอบโหลดข้อมูลใหม่เบื้องหลัง
+                      if (ts) {
                           setIsBackgroundSyncing(true);
-                          fetchAllDataFromServer(true); // ส่ง true เพื่อบอกว่าเป็นการโหลดเบื้องหลัง จะได้ไม่ขึ้นหน้าจอโหลด
+                          fetchAllDataFromServer(true); 
                       }
                   }
               });
