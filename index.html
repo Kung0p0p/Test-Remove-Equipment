@@ -2339,30 +2339,33 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     if (isGroupedMultiLine) {
                                         tdWhiteSpace = 'pre-wrap';
                                         tdWordBreak = 'break-word';
-                                        tdOverflow = 'auto';
+                                        tdOverflow = 'visible'; 
                                         tdTextOverflow = 'clip';
                                         tdLineHeight = '1.8';
-                                    } else if (isContactJobCell && !hasFixedWidth) {
+                                    } else if (isContactJobCell) {
+                                        // 🔥 เอา !hasFixedWidth ออก เพื่อให้ขึ้นบรรทัดใหม่เสมอ
                                         tdWhiteSpace = 'pre-wrap'; 
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'visible'; 
                                         tdTextOverflow = 'clip'; 
                                         tdLineHeight = '1.5'; 
-                                        innerWidth = '600px';
+                                        // ถ้ามีการลากขยาย ให้ใช้ความกว้างใหม่ ถ้าไม่มีให้ใช้ 600px
+                                        innerWidth = hasFixedWidth ? colWidth : '600px'; 
                                         tdDisplay = 'inline-block'; 
-                                    } else if (isEquipListCell && !hasFixedWidth) {
-                                        // 🔥 บังคับให้คอลัมน์ "รายการอุปกรณ์" เคารพการขึ้นบรรทัดใหม่ (\n)
+                                    } else if (isEquipListCell) {
+                                        // 🔥 เอา !hasFixedWidth ออกเช่นกัน
                                         tdWhiteSpace = 'pre-wrap'; 
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'visible'; 
                                         tdTextOverflow = 'clip'; 
                                         tdLineHeight = '1.5'; 
-                                        innerWidth = '800px';
+                                        innerWidth = hasFixedWidth ? colWidth : '800px'; 
                                         tdDisplay = 'inline-block'; 
-                                    } else if (isStatusChangeCell && !hasFixedWidth) {
+                                    } else if (isStatusChangeCell) {
                                         tdWhiteSpace = 'normal';
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'hidden';
+                                        if (!hasFixedWidth) innerWidth = '250px'; // กำหนดค่าเริ่มต้นถ้ายังไม่โดนลาก
                                     }
 
                                     const textAlignment = isGroupedMultiLine ? 'left' : (isTeamCell || isStatusCell || isEquipYearCell || isOverDueCell || isCidCell || isRegionResponCell ? 'center' : 'left');
