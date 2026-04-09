@@ -229,14 +229,27 @@
 
         function isValidTaskHelper(taskObj) {
             if (!taskObj) return false;
+            
+            // 🔥 ข้อยกเว้น: ถ้าเป็นงานที่เพิ่งกด Assign จากหน้าเว็บ (จะยังไม่มีเลขแถวใน Sheet)
+            // ให้แสดงผลทันทีเพื่อให้เกิดความ Smooth
+            if (taskObj._rowIndex === 0) return true;
+
             let hasRealData = false;
             Object.keys(taskObj).forEach(k => {
                 if (k === 'id' || k === '_rowIndex') return;
+                
+                // 🛑 ส่วนที่ตรวจจับ: ไม่นับคอลัมน์เหล่านี้เป็น "ข้อมูลจริง" 
+                // เพราะอาจจะเป็นสูตรคำนวณที่ว่างเปล่า หรือค่าเริ่มต้นของระบบ
                 const lk = String(k).toLowerCase().replace(/[\s_]+/g, '');
-                if (lk.includes('นัดหมาย') || lk.includes('over') || lk.includes('เกินกำหนด') || lk.includes('สถานะ') || lk.includes('status') || lk.includes('วันที่') || lk.includes('เวลา') || lk.includes('date') || lk.includes('time') || lk.includes('timestamp')) {
+                if (lk.includes('นัดหมาย') || lk.includes('over') || lk.includes('เกินกำหนด') || 
+                    lk.includes('สถานะ') || lk.includes('status') || lk.includes('วันที่') || 
+                    lk.includes('เวลา') || lk.includes('date') || lk.includes('time') || 
+                    lk.includes('timestamp')) {
                     return;
                 }
+                
                 const val = String(taskObj[k]).trim();
+                // ถ้ามีข้อมูลอื่นที่นอกเหนือจากด้านบน และไม่ใช่ค่าว่าง/- ให้ถือว่าเป็นแถวที่มีงานจริงๆ
                 if (val !== '' && val !== '-' && val !== 'ไม่ระบุสถานะ' && val !== 'ไม่ระบุทีม') {
                     hasRealData = true;
                 }
@@ -851,14 +864,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 try {
                     const newTaskId = `task_assign_${Date.now()}`;
                     
-                    // 1. สูตรคำนวณวันนัดหมาย (เหมือนเดิม)
+                    // 1. สูตรคำนวณวันนัดหมาย
                     const dynamicFormula = `=LET(day_diff, (INT(INDIRECT("O"&ROW())) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
                     
                     // 2. เตรียมรายการอุปกรณ์
                     const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
 
-                    // 3. สร้างก้อนข้อมูลที่ชื่อคีย์ (Key) ตรงกับหัวคอลัมน์ใน Google Sheet เป๊ะๆ
+                    // 3. สร้างก้อนข้อมูล (Key ต้องตรงกับหัว Sheet)
                     const newTaskData = {
+                        "id": newTaskId,
                         "วันที่แจ้ง Subcontract": form.date,
                         "CID Customer": form.cid,
                         "ทีมงาน": form.team,
@@ -868,60 +882,58 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         "สถานะ": "รอเข้าเก็บ",
                         "วันที่เข้าเก็บ": form.getbackDate || '',
                         "เวลาเข้าเก็บ": form.getbackTime || '',
-                        "นัดหมายลูกค้า": dynamicFormula,
-                        "รายการอุปกรณ์": equipStr, // 🔥 ใส่ข้อมูลลงคอลัมน์รายการอุปกรณ์
+                        "นัดหมายลูกค้า": "รอคำนวณ", // หน้าเว็บจะเห็นคำนี้ก่อน
+                        "รายการอุปกรณ์": equipStr,
                         "รายละเอียดงาน": `[Site Type: ${form.siteType}] \n${form.details}`,
-                        "_rowIndex": 999999 
+                        "_rowIndex": 0 // 🔥 ตั้งเป็น 0 เพื่อให้งานใหม่ขึ้นบนสุดเสมอ
                     };
 
-                    // 4. บันทึกลง Firebase (เพื่อความรวดเร็วในการโชว์บนเว็บ)
+                    // 4. 🔥 เพิ่มข้อมูลลงในตารางหน้าจอทันที (ไม่ต้องรอซิงค์)
+                    setTasks(prev => [newTaskData, ...prev]);
+
+                    // 5. บันทึกลง Firebase
                     await collectionRef.doc(newTaskId).set(newTaskData);
 
-                    // 5. จัดการคิวงานของโซนพื้นที่ (ถ้ามีการเลือกโซน)
+                    // 6. จัดการคิวงาน
                     if (form.zoneId) {
                         const zone = (masterData.zones || []).find(z => z.id === form.zoneId);
                         if (zone) {
                             const tArr = (zone.teams || '').split(',').map(t => t.trim()).filter(Boolean);
                             let currentQ = queueState[form.zoneId] || 0;
                             let newQ = tArr.length > 0 ? (currentQ + 1) % tArr.length : 0;
-                            
                             const manualNextIndex = tArr.findIndex(t => t === form.nextTeam);
                             if (manualNextIndex !== -1) newQ = manualNextIndex;
-                            
                             masterDataRef.set({ queue: { ...queueState, [form.zoneId]: newQ } }, { merge: true });
                             setQueueState({ ...queueState, [form.zoneId]: newQ });
                         }
                     }
 
-                    // 6. ส่ง Line และ บันทึกลง Google Sheets ผ่าน GAS
+                    // 7. ส่ง Line และลง Sheet
                     const msg = generateMessage();
-                    
                     if (GAS_WEB_APP_URL) {
                         const payloadData = JSON.stringify({ 
                             action: 'sendLineNotify', 
                             message: msg,
-                            taskData: newTaskData, // ส่งข้อมูลทั้งก้อนไปให้ GAS จัดการลงคอลัมน์ให้ตรง
+                            taskData: newTaskData,
                             tempTaskId: newTaskId 
                         });
-
-                        await fetch(GAS_WEB_APP_URL, {
-                            method: 'POST', 
-                            mode: 'no-cors', // สำคัญ: เพื่อไม่ให้ติดปัญหาความปลอดภัยของเบราว์เซอร์
+                        fetch(GAS_WEB_APP_URL, {
+                            method: 'POST', mode: 'no-cors',
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                             body: payloadData
                         });
                     }
 
-                    customAlert('✅ จ่ายงานสำเร็จ! ข้อมูลกำลังซิงค์ลงแผ่นงาน...', 'success');
+                    customAlert('✅ จ่ายงานสำเร็จ! งานใหม่จะอยู่ด้านบนสุดของตาราง', 'success');
                     
-                    // 7. ล้างฟอร์ม
+                    // 8. ล้างฟอร์ม
                     setForm(getInitialFormState());
                     setEquipments([{ name: '', serial: '' }]);
                     setSearchCid('');
 
                 } catch (e) {
-                    console.error("Failed to send/save:", e);
-                    customAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่', 'error');
+                    console.error("Error:", e);
+                    customAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
                 }
                 setIsSending(false);
             };
