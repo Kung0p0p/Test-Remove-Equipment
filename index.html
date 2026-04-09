@@ -861,27 +861,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 
                 try {
                     const newTaskId = `task_assign_${Date.now()}`;
-                    
-                    // 1. เตรียมรายการอุปกรณ์ (ใช้ \n สำหรับขึ้นบรรทัดใหม่)
-                    const equipStr = equipments
-                        .map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`)
-                        .join('\n');
+                    const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
 
-                    // 2. คำนวณผลลัพธ์จำลองเพื่อโชว์บนเว็บทันที (ป้องกันการเห็น String สูตร)
+                    // --- 1. คำนวณผลลัพธ์จำลองเพื่อโชว์บนเว็บทันที (เพื่อให้ไม่เห็นเป็น String สูตร) ---
                     const calcInstantStatus = () => {
-                        // ดึงเฉพาะวันที่ (ตัดเวลาออกถ้ามี)
-                        const cleanGetbackStr = String(form.getbackDate || '').split(' ')[0];
-                        const cleanAssignedStr = String(form.date || '').split(' ')[0];
+                        const getback = parseDateHelper(form.getbackDate);
+                        const assigned = parseDateHelper(form.date) || new Date();
+                        if (!getback) return "รอคำนวณ...";
                         
-                        const getback = parseDateHelper(cleanGetbackStr);
-                        const assigned = parseDateHelper(cleanAssignedStr) || new Date();
-                        
-                        if (!getback || isNaN(getback.getTime())) return "รอคำนวณ...";
-
-                        // สูตร: (วันเข้าเก็บ + 3) - วันที่แจ้ง
                         const targetDate = new Date(getback);
-                        targetDate.setDate(targetDate.getDate() + 3);
-                        
+                        targetDate.setDate(targetDate.getDate() + 3); // สูตรคือ วันเข้าเก็บ + 3 วัน
                         const diffTime = targetDate.setHours(0,0,0,0) - assigned.setHours(0,0,0,0);
                         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
@@ -890,10 +879,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         return `เหลือเวลา ${diffDays} วัน`;
                     };
 
-                    // 3. เตรียมสูตรจริงสำหรับส่งลง Google Sheet (ใช้คอลัมน์ P)
+                    // --- 2. เตรียมสูตรจริงสำหรับส่งลง Google Sheet (ใช้คอลัมน์ P) ---
                     const dynamicFormula = `=LET(day_diff, (IFERROR(INT(INDIRECT("P"&ROW())),0) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
 
-                    // ข้อมูลสำหรับโชว์บนเว็บทันที
+                    // ข้อมูลสำหรับโชว์บนเว็บทันที (ใช้ผลคำนวณจาก JS)
                     const webDisplayData = {
                         "id": newTaskId,
                         "วันที่แจ้ง Subcontract": form.date,
@@ -905,24 +894,24 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         "สถานะ": "รอเข้าเก็บ",
                         "วันที่เข้าเก็บ": form.getbackDate || '',
                         "เวลาเข้าเก็บ": form.getbackTime || '',
-                        "นัดหมายลูกค้า": calcInstantStatus(), // 🔥 โชว์ผลคำนวณจำลอง
+                        "นัดหมายลูกค้า": calcInstantStatus(), // 🔥 โชว์ผลลัพธ์ทันที ไม่โชว์ String สูตร
                         "รายการอุปกรณ์": equipStr,
                         "รายละเอียดงาน": `[Site Type: ${form.siteType}] \n${form.details}`,
-                        "_rowIndex": 0 
+                        "_rowIndex": 0 // ให้ขึ้นบนสุดทันที
                     };
 
                     // ข้อมูลสำหรับส่งลงฐานข้อมูล (ส่งสูตรไปจริงๆ)
                     const databaseData = { ...webDisplayData, "นัดหมายลูกค้า": dynamicFormula };
 
-                    // 4. อัปเดตหน้าจอเว็บทันที
+                    // 3. 🔥 สั่งอัปเดตหน้าจอทันที (นี่คือสิ่งที่ทำให้ไม่ต้องรอ 10-20 วิ)
                     if (typeof setTasks === 'function') {
                         setTasks(prev => [webDisplayData, ...prev]);
                     }
 
-                    // 5. บันทึกลง Firebase
+                    // 4. บันทึกลง Firebase
                     await collectionRef.doc(newTaskId).set(databaseData);
 
-                    // 6. จัดการคิวงาน
+                    // 5. จัดการคิวงาน
                     if (form.zoneId) {
                         const zone = (masterData.zones || []).find(z => z.id === form.zoneId);
                         if (zone) {
@@ -936,7 +925,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         }
                     }
 
-                    // 7. ส่ง Line และลง Sheet
+                    // 6. ส่ง Line และลง Sheet
                     const msg = generateMessage();
                     if (GAS_WEB_APP_URL) {
                         fetch(GAS_WEB_APP_URL, {
