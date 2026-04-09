@@ -2327,8 +2327,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdStyle.zIndex = 20;
                                     }
 
-                                    // 🔥 เช็คว่าเป็นคอลัมน์ที่ควรขึ้นบรรทัดใหม่หรือไม่
-                                    const isMultiLineCell = col === 'รายการอุปกรณ์' || col === 'รายละเอียดงาน' || col === 'รายละเอียด';
+                                    // 🔥 เช็คว่าเป็นคอลัมน์ "รายการอุปกรณ์" หรือไม่
+                                    const isEquipListCell = col === 'รายการอุปกรณ์';
 
                                     let tdWhiteSpace = 'nowrap';
                                     let tdWordBreak = 'normal';
@@ -2352,14 +2352,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdLineHeight = '1.5'; 
                                         innerWidth = '150px';
                                         tdDisplay = 'inline-block'; 
-                                    } else if (isMultiLineCell && !hasFixedWidth) {
-                                        // 🔥 บังคับให้คอลัมน์รายการอุปกรณ์และรายละเอียดงาน ขึ้นบรรทัดใหม่
+                                    } else if (isEquipListCell && !hasFixedWidth) {
+                                        // 🔥 บังคับให้คอลัมน์ "รายการอุปกรณ์" เคารพการขึ้นบรรทัดใหม่ (\n)
                                         tdWhiteSpace = 'pre-wrap'; 
                                         tdWordBreak = 'break-word';
                                         tdOverflow = 'visible'; 
                                         tdTextOverflow = 'clip'; 
                                         tdLineHeight = '1.5'; 
-                                        innerWidth = '250px'; // ให้กว้างหน่อยจะได้อ่านง่าย
+                                        innerWidth = '250px'; // ขยายให้กว้างหน่อยจะได้อ่านง่าย
                                         tdDisplay = 'inline-block'; 
                                     } else if (isStatusChangeCell && !hasFixedWidth) {
                                         tdWhiteSpace = 'normal';
