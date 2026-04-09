@@ -853,9 +853,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     
                     const dynamicFormula = `=LET(day_diff, (INT(INDIRECT("O"&ROW())) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
                     
-                    // เตรียมข้อความรายการอุปกรณ์
-                    const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
-
                     const newTaskData = {
                         "วันที่แจ้ง Subcontract": form.date,
                         "CID Customer": form.cid,
@@ -867,12 +864,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         "วันที่เข้าเก็บ": form.getbackDate || '',
                         "เวลาเข้าเก็บ": form.getbackTime || '',
                         "นัดหมายลูกค้า": dynamicFormula,
-                        "รายการอุปกรณ์": equipStr, // 🔥 เพิ่มบรรทัดนี้เพื่อลงข้อมูลในคอลัมน์รายการอุปกรณ์โดยตรง
                         "_rowIndex": 999999 
                     };
-                    
-                    // ส่วนของรายละเอียดงาน (เก็บ Site Type และรายละเอียดเสริมไว้)
-                    newTaskData["รายละเอียดงาน"] = `[Site Type: ${form.siteType}] \n[เข้าเก็บ: ${form.getbackDate || '-'} เวลา ${form.getbackTime || '-'}] \n\n${form.details}`;
+                    const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
+                    newTaskData["รายละเอียดงาน"] = `[Site Type: ${form.siteType}] \n[เข้าเก็บ: ${form.getbackDate || '-'} เวลา ${form.getbackTime || '-'}] \n\n${form.details}\n\nรายการอุปกรณ์:\n${equipStr}`;
 
                     await collectionRef.doc(newTaskId).set(newTaskData);
 
