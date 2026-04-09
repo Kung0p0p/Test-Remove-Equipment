@@ -229,14 +229,25 @@
 
         function isValidTaskHelper(taskObj) {
             if (!taskObj) return false;
+            
+            // 🔥 ปลดล็อคให้งานใหม่ (ที่เพิ่ง Assign จากเว็บ) โชว์ได้ทันที
+            if (taskObj._rowIndex === 0) return true;
+
             let hasRealData = false;
             Object.keys(taskObj).forEach(k => {
                 if (k === 'id' || k === '_rowIndex') return;
+                
                 const lk = String(k).toLowerCase().replace(/[\s_]+/g, '');
-                if (lk.includes('นัดหมาย') || lk.includes('over') || lk.includes('เกินกำหนด') || lk.includes('สถานะ') || lk.includes('status') || lk.includes('วันที่') || lk.includes('เวลา') || lk.includes('date') || lk.includes('time') || lk.includes('timestamp')) {
+                // ยกเว้นคอลัมน์สูตรหรือวันที่ ไม่นำมาคิดเป็นข้อมูลหลัก
+                if (lk.includes('นัดหมาย') || lk.includes('over') || lk.includes('เกินกำหนด') || 
+                    lk.includes('สถานะ') || lk.includes('status') || lk.includes('วันที่') || 
+                    lk.includes('เวลา') || lk.includes('date') || lk.includes('time') || 
+                    lk.includes('timestamp')) {
                     return;
                 }
+                
                 const val = String(taskObj[k]).trim();
+                // ถ้ามีข้อมูลอื่นๆ ถือว่าเป็นแถวข้อมูลจริง
                 if (val !== '' && val !== '-' && val !== 'ไม่ระบุสถานะ' && val !== 'ไม่ระบุทีม') {
                     hasRealData = true;
                 }
@@ -640,7 +651,7 @@
         // -------------------------------------------------------------
         // --- COMPONENT: ASSIGN JOB & LINE NOTIFY ---
         // -------------------------------------------------------------
-        const AssignJobTab = ({ masterData, queueState, setQueueState, masterDataRef, collectionRef, GAS_WEB_APP_URL, nsTasks, autoAssignData, clearAutoAssignData, customAlert }) => {
+        const AssignJobTab = ({ masterData, queueState, setQueueState, masterDataRef, collectionRef, GAS_WEB_APP_URL, nsTasks, autoAssignData, clearAutoAssignData, customAlert, setTasks }) => {
             const getInitialFormState = () => {
                 const now = new Date();
                 return {
@@ -851,9 +862,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 try {
                     const newTaskId = `task_assign_${Date.now()}`;
                     
-                    const dynamicFormula = `=LET(day_diff, (INT(INDIRECT("O"&ROW())) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
+                    // 1. สูตรคำนวณวันนัดหมาย (เปลี่ยนจาก O เป็น P)
+                    // P = วันที่เข้าเก็บ, A = วันที่แจ้ง Subcontract
+                    const dynamicFormula = `=LET(day_diff, (IFERROR(INT(INDIRECT("P"&ROW())),0) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
                     
+                    // 2. จัดรูปแบบรายการอุปกรณ์ (ใช้ \n เพื่อให้ Google Sheet รู้ว่าต้อง Alt+Enter)
+                    const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
+
+                    // 3. เตรียมข้อมูล (เพิ่มคอลัมน์ "รายการอุปกรณ์" เข้าไป)
                     const newTaskData = {
+                        "id": newTaskId,
                         "วันที่แจ้ง Subcontract": form.date,
                         "CID Customer": form.cid,
                         "ทีมงาน": form.team,
@@ -864,13 +882,20 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         "วันที่เข้าเก็บ": form.getbackDate || '',
                         "เวลาเข้าเก็บ": form.getbackTime || '',
                         "นัดหมายลูกค้า": dynamicFormula,
-                        "_rowIndex": 999999 
+                        "รายการอุปกรณ์": equipStr, // 🔥 ข้อมูลจะลงคอลัมน์นี้
+                        "รายละเอียดงาน": `[Site Type: ${form.siteType}] \n[เข้าเก็บ: ${form.getbackDate || '-'} เวลา ${form.getbackTime || '-'}] \n\n${form.details}`,
+                        "_rowIndex": 0 // 0 เพื่อให้งานโชว์บนสุดของหน้าเว็บ
                     };
-                    const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
-                    newTaskData["รายละเอียดงาน"] = `[Site Type: ${form.siteType}] \n[เข้าเก็บ: ${form.getbackDate || '-'} เวลา ${form.getbackTime || '-'}] \n\n${form.details}\n\nรายการอุปกรณ์:\n${equipStr}`;
 
+                    // 4. แสดงงานใหม่บนเว็บทันที (Instant Update)
+                    if (typeof setTasks === 'function') {
+                        setTasks(prev => [newTaskData, ...prev]);
+                    }
+
+                    // 5. บันทึกลง Firebase
                     await collectionRef.doc(newTaskId).set(newTaskData);
 
+                    // 6. เลื่อนคิวงาน (Round-robin)
                     if (form.zoneId) {
                         const zone = (masterData.zones || []).find(z => z.id === form.zoneId);
                         if (zone) {
@@ -886,13 +911,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         }
                     }
 
+                    // 7. ส่ง Line Notify และส่งข้อมูลให้ Google Sheet
                     const msg = generateMessage();
-                    customAlert('✅ สั่งงานเรียบร้อย (ระบบกำลังจัดการส่ง LINE และลง Sheet ให้อัตโนมัติ)', 'success');
+                    customAlert('✅ สั่งงานเรียบร้อย งานใหม่จะปรากฏที่แถวบนสุดทันที', 'success');
                     
                     setForm(getInitialFormState());
                     setEquipments([{ name: '', serial: '' }]);
                     setSearchCid('');
 
+                    // ส่ง Background Fetch ไปลง Sheet (ใส่ข้อมูล newTaskData ไปให้ครบ)
                     if (GAS_WEB_APP_URL) {
                         const payloadData = JSON.stringify({ 
                             action: 'sendLineNotify', 
@@ -904,7 +931,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             method: 'POST', mode: 'no-cors',
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                             body: payloadData
-                        }).catch(e => console.error("Background sync to Sheet failed:", e));
+                        }).catch(e => console.error("Sync failed:", e));
                     }
                 } catch (e) {
                     console.error("Failed to send/save:", e);
@@ -2733,7 +2760,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 {activeTab === 'master_data' && <MasterDataTab masterData={masterData} masterDataRef={masterDataRef} customAlert={customAlert} customConfirm={customConfirm} />}
 
                 {/* --- 5. หน้า ASSIGN JOB --- */}
-                {activeTab === 'assign' && <AssignJobTab masterData={masterData} queueState={queueState} setQueueState={setQueueState} masterDataRef={masterDataRef} collectionRef={collectionRef} GAS_WEB_APP_URL={GAS_WEB_APP_URL} nsTasks={nsTasks} autoAssignData={autoAssignData} clearAutoAssignData={clearAutoAssignData} customAlert={customAlert} />}
+                {activeTab === 'assign' && <AssignJobTab masterData={masterData} queueState={queueState} setQueueState={setQueueState} masterDataRef={masterDataRef} collectionRef={collectionRef} GAS_WEB_APP_URL={GAS_WEB_APP_URL} nsTasks={nsTasks} autoAssignData={autoAssignData} clearAutoAssignData={clearAutoAssignData} customAlert={customAlert} setTasks={setTasks} />}
 
               </main>
 
