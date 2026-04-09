@@ -861,17 +861,27 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 
                 try {
                     const newTaskId = `task_assign_${Date.now()}`;
-                    
-                    // 1. เตรียมรายการอุปกรณ์ (ใช้ \n สำหรับขึ้นบรรทัดใหม่)
-                    const equipStr = equipments
-                        .map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`)
-                        .join('\n');
+                    const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
 
-                    // 2. สูตรคำนวณวันนัดหมาย (ปรับจาก O เป็น P เพราะมีการเพิ่มคอลัมน์รายการอุปกรณ์)
+                    // --- 1. คำนวณผลลัพธ์จำลองเพื่อโชว์บนเว็บ (ป้องกันการเห็น String สูตร) ---
+                    const calcInstantStatus = () => {
+                        const getback = parseDateHelper(form.getbackDate);
+                        const assigned = parseDateHelper(form.date) || new Date();
+                        if (!getback) return "รอระบุวันเข้าเก็บ";
+                        const targetDate = new Date(getback);
+                        targetDate.setDate(targetDate.getDate() + 3);
+                        const diffTime = targetDate.setHours(0,0,0,0) - assigned.setHours(0,0,0,0);
+                        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                        if (diffDays < 0) return `เกินกำหนด ${Math.abs(diffDays)} วัน`;
+                        if (diffDays === 0) return "ครบกำหนด";
+                        return `เหลือเวลา ${diffDays} วัน`;
+                    };
+
+                    // --- 2. เตรียมสูตรจริงสำหรับส่งลง Google Sheet ---
                     const dynamicFormula = `=LET(day_diff, (IFERROR(INT(INDIRECT("P"&ROW())),0) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
 
-                    // 3. สร้างก้อนข้อมูลสำหรับบันทึก
-                    const newTaskData = {
+                    // ข้อมูลสำหรับโชว์บนเว็บทันที
+                    const webDisplayData = {
                         "id": newTaskId,
                         "วันที่แจ้ง Subcontract": form.date,
                         "CID Customer": form.cid,
@@ -882,18 +892,22 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         "สถานะ": "รอเข้าเก็บ",
                         "วันที่เข้าเก็บ": form.getbackDate || '',
                         "เวลาเข้าเก็บ": form.getbackTime || '',
-                        "นัดหมายลูกค้า": dynamicFormula, // ส่งสูตรลง Sheet
+                        "นัดหมายลูกค้า": calcInstantStatus(), // 🔥 โชว์ผลคำนวณจาก JS (ไม่โชว์ String สูตร)
                         "รายการอุปกรณ์": equipStr,
                         "รายละเอียดงาน": `[Site Type: ${form.siteType}] \n${form.details}`,
-                        "_rowIndex": 999999 // ใส่ค่าหลอกไว้ก่อน เดี๋ยว Sheet จะรันเลขจริงให้เอง
+                        "_rowIndex": 0 // ให้ขึ้นบนสุด
                     };
 
-                    // --- [เอา Instant Update ออก] ---
-                    // เราจะไม่สั่ง setTasks(prev => [...]) ตรงนี้ 
-                    // เพื่อให้หน้าเว็บรอรับข้อมูลที่คำนวณเสร็จแล้วจาก Sheet แทน
+                    // ข้อมูลสำหรับส่งลงฐานข้อมูล (ส่งสูตรไปจริงๆ)
+                    const databaseData = { ...webDisplayData, "นัดหมายลูกค้า": dynamicFormula };
+
+                    // 3. 🔥 สั่งให้งานเด้งขึ้นบนหน้าเว็บทันที
+                    if (typeof setTasks === 'function') {
+                        setTasks(prev => [webDisplayData, ...prev]);
+                    }
 
                     // 4. บันทึกลง Firebase
-                    await collectionRef.doc(newTaskId).set(newTaskData);
+                    await collectionRef.doc(newTaskId).set(databaseData);
 
                     // 5. จัดการคิวงาน
                     if (form.zoneId) {
@@ -909,26 +923,24 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         }
                     }
 
-                    // 6. ส่ง Line และลง Sheet ผ่าน GAS
+                    // 6. ส่ง Line และลง Sheet
                     const msg = generateMessage();
                     if (GAS_WEB_APP_URL) {
                         fetch(GAS_WEB_APP_URL, {
                             method: 'POST', mode: 'no-cors',
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                            body: JSON.stringify({ action: 'sendLineNotify', message: msg, taskData: newTaskData, tempTaskId: newTaskId })
+                            body: JSON.stringify({ action: 'sendLineNotify', message: msg, taskData: databaseData, tempTaskId: newTaskId })
                         });
                     }
 
-                    customAlert('✅ จ่ายงานสำเร็จ! ข้อมูลกำลังบันทึกลงแผ่นงาน...', 'success');
-                    
-                    // 7. ล้างฟอร์ม
+                    customAlert('✅ จ่ายงานสำเร็จ! งานใหม่ปรากฏที่แถวบนสุดแล้ว', 'success');
                     setForm(getInitialFormState());
                     setEquipments([{ name: '', serial: '' }]);
                     setSearchCid('');
 
                 } catch (e) {
                     console.error("Error:", e);
-                    customAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+                    customAlert('เกิดข้อผิดพลาดในการบันทึก', 'error');
                 }
                 setIsSending(false);
             };
