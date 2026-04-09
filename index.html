@@ -1325,18 +1325,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               // 2. ดึงข้อมูลจริงจาก Server
               fetchAllDataFromServer();
 
-              // 3. 🔥 นี่คือส่วน Real-time: ติดตั้ง "กระดิ่ง" ฟังเสียงจาก Google Sheet
-              // เมื่อมีการแก้ใน Sheet -> GAS จะมาสะกิด Firebase -> เว็บจะรู้ตัวและโหลดใหม่ทันที
-              const unsubSync = collectionRef.doc('_sync_status').onSnapshot(doc => {
+              // แก้ไขจาก _sync_status เป็น system/sync ให้ตรงกับ GAS
+              const unsubSync = db.collection('system').doc('sync').onSnapshot(doc => {
                   if (doc.exists) {
-                      const data = doc.data();
-                      const ts = data.timestamp;
-                      
-                      // ถ้ามีการสะกิด (Timestamp เปลี่ยน) ให้แอบโหลดข้อมูลใหม่เบื้องหลัง
-                      if (ts) {
-                          setIsBackgroundSyncing(true);
-                          fetchAllDataFromServer(true); 
-                      }
+                      setIsBackgroundSyncing(true);
+                      fetchAllDataFromServer(true); 
                   }
               });
 
