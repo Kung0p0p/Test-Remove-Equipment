@@ -1104,6 +1104,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const [tableFilterStatus, setTableFilterStatus] = useState([]);
           const [tableFilterOverdue, setTableFilterOverdue] = useState([]);
           const [searchTerm, setSearchTerm] = useState('');
+          const [calendarFilterTeams, setCalendarFilterTeams] = useState([]); // 🔥 ฟิลเตอร์ทีมในปฏิทิน
 
           const [tooltipData, setTooltipData] = useState({ visible: false, task: null, x: 0, y: 0 });
           const [colWidths, setColWidths] = useState({}); 
@@ -1911,7 +1912,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const calPhoneCol = (columns || []).find(c => c !== calContactCol && (c ? String(c).includes('เบอร์') || String(c).toLowerCase().includes('tel') || String(c).toLowerCase().includes('phone') || String(c).includes('โทร') : false)) || '';
               const calNoteCol = (columns || []).find(c => { const lc = c ? String(c).toLowerCase() : ''; return lc.includes('หมายเหตุ') || lc.includes('note'); }) || '';
 
-              return (tasks || []).filter(t => isSameDate(calDateCol ? t[calDateCol] : null, dateObj)).sort((a, b) => {
+              return (tasks || []).filter(t => {
+                  const sameDate = isSameDate(calDateCol ? t[calDateCol] : null, dateObj);
+                  // 🔥 กรองตามทีมที่เลือกในปฏิทิน
+                  const teamMatch = calendarFilterTeams.length === 0 || calendarFilterTeams.includes(getCleanTeam(t[calTeamCol]));
+                  return sameDate && teamMatch;
+              }).sort((a, b) => {
                   const sA = getCleanStatus(a[calStatusCol]).toLowerCase(), sB = getCleanStatus(b[calStatusCol]).toLowerCase();
                   const isDA = sA.match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/) ? 1 : 0; const isDB = sB.match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/) ? 1 : 0;
                   if (isDA !== isDB) return isDA - isDB; 
@@ -2451,10 +2457,22 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-3 w-full md:w-auto">
-                        <div className="flex bg-slate-200 p-1 rounded-lg w-full sm:w-auto">
-                          <button onClick={() => setCalendarView('day')} className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md ${calendarView === 'day' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>รายวัน</button>
-                          <button onClick={() => setCalendarView('week')} className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md ${calendarView === 'week' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>สัปดาห์</button>
-                          <button onClick={() => setCalendarView('month')} className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md ${calendarView === 'month' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>เดือน</button>
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                          {/* 🔥 ตัวกรองเลือกทีมในปฏิทิน */}
+                          <div className="w-full sm:w-48">
+                              <MultiSelect 
+                                  options={[...new Set((tasks || []).map(t => getCleanTeam(t[getTeamColumnName(columns)])))].sort()} 
+                                  selected={calendarFilterTeams} 
+                                  onChange={setCalendarFilterTeams} 
+                                  placeholder="กรองตามทีมงาน" 
+                              />
+                          </div>
+                          
+                          <div className="flex bg-slate-200 p-1 rounded-lg w-full sm:w-auto">
+                            <button onClick={() => setCalendarView('day')} className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md ${calendarView === 'day' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>รายวัน</button>
+                            <button onClick={() => setCalendarView('week')} className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md ${calendarView === 'week' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>สัปดาห์</button>
+                            <button onClick={() => setCalendarView('month')} className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md ${calendarView === 'month' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>เดือน</button>
+                          </div>
                         </div>
                         <div className="flex items-center justify-between w-full md:w-auto gap-4">
                           <h3 className="text-base md:text-xl font-bold text-blue-700 min-w-[140px] md:min-w-[180px] text-left md:text-right">
@@ -2719,40 +2737,45 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
               </main>
 
-              {/* Tooltip Component (Ultra-Slim Glassmorphism - Mobile Friendly) */}
+              {/* Tooltip Component (Balanced Glassmorphism + Large Status) */}
               {tooltipData.visible && tooltipData.task && (() => {
                   const cidVal = tooltipData.task._calCidCol ? tooltipData.task[tooltipData.task._calCidCol] : tooltipData.task[t_getCol(['cid', 'circuitno'])] || '';
                   const statusVal = tooltipData.task._calStatusCol ? tooltipData.task[tooltipData.task._calStatusCol] : tooltipData.task[t_getCol(['status', 'สถานะ'])] || 'ไม่ระบุสถานะ';
                   const companyVal = tooltipData.task._calCompCol ? tooltipData.task[tooltipData.task._calCompCol] : tooltipData.task[t_getCol(['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'])] || 'ไม่ระบุองค์กร';
                   
                   const statusText = getStatusColor(statusVal, 1);
+                  const statusBg = getStatusColor(statusVal, 0.15);
 
                   return (
                     <div 
-                        // 🔥 ปรับให้ใสสุดๆ (bg-white/10) และลดความกว้างลงให้เหมาะกับมือถือ
-                        className="fixed z-[9999] bg-white/10 backdrop-blur-md p-0 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.2)] border border-white/20 w-[260px] sm:w-[320px] pointer-events-none transition-all duration-200 flex flex-col ring-1 ring-black/5 overflow-hidden" 
+                        // 🔥 ปรับความใสให้อ่านง่าย (bg-white/90) และเบลอพอประมาณ
+                        className="fixed z-[9999] bg-white/90 backdrop-blur-lg p-0 rounded-2xl shadow-[0_15px_45px_-10px_rgba(0,0,0,0.3)] border border-slate-200 w-[300px] md:w-[340px] pointer-events-none transition-all duration-200 flex flex-col ring-1 ring-black/5 overflow-hidden" 
                         style={{ left: tooltipData.x, top: tooltipData.y }}
                     >
-                        {/* Header: บางลง สีใสขึ้น และดึง Status มาโชว์แบบกะทัดรัด */}
-                        <div className="bg-white/20 p-3 shrink-0 border-b border-white/20">
-                            <div className="flex justify-between items-center mb-1">
-                                <span className="text-[9px] font-bold text-blue-900/60 uppercase tracking-widest">Details</span>
-                                {/* 🔥 Status ขนาดพอดีคำ แต่สีสดชัดเจน */}
-                                <div className="px-2 py-0.5 rounded-md text-[9px] font-black border bg-white/40 shadow-sm" style={{ color: statusText, borderColor: statusText }}>
+                        {/* Header: สีคราม-ฟ้า (ไม่ใสเกินไป) + CID เด่น */}
+                        <div className="bg-gradient-to-r from-slate-100 to-blue-50 p-4 shrink-0 border-b border-slate-200/60 shadow-sm">
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Detail Summary</span>
+                                </div>
+                                
+                                {/* 🔥 Status: ขยายขนาดฟอนต์ให้ใหญ่ขึ้น (text-xs) */}
+                                <div className="px-3 py-1 rounded-md text-xs font-black border shadow-sm bg-white/80" style={{ color: statusText, borderColor: statusText }}>
                                     {statusVal}
                                 </div>
                             </div>
                             
-                            <h4 className="font-bold text-slate-900 text-[11px] sm:text-xs break-words leading-tight">
+                            <h4 className="font-bold text-slate-900 text-sm md:text-base break-words leading-tight">
                                 {cidVal && cidVal !== '-' && (
-                                    <span className="text-blue-800 font-black mr-1.5">{cidVal}</span>
+                                    <span className="text-blue-700 font-black mr-2 bg-blue-100/50 px-1.5 py-0.5 rounded border border-blue-200/50">{cidVal}</span>
                                 )}
                                 {companyVal}
                             </h4>
                         </div>
 
-                        {/* Body: ใสเคลียร์ (bg-transparent) และลดฟอนต์เท่าเดิม */}
-                        <div className="p-3 space-y-2.5 text-[10px] sm:text-[11px] text-slate-800 bg-transparent">
+                        {/* Body: ขยายตามเนื้อหา ไม่มี Scroll ซ้อน */}
+                        <div className="p-4 space-y-3 text-[11px] md:text-xs text-slate-700 bg-white/40">
                             {(currentColumnsTable || []).map(col => {
                                 if (skipColsInTooltip.includes(col) || 
                                     col === tooltipData.task._calCidCol || col === t_getCol(['cid', 'circuitno']) ||
@@ -2766,11 +2789,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                 const isMultiLine = String(val).includes('\n');
 
                                 return (
-                                    <div key={col} className="flex flex-col relative pl-2 border-l border-slate-400/30">
-                                        <span className="font-bold text-[8px] text-slate-500/80 uppercase tracking-tight">
+                                    <div key={col} className="flex flex-col relative pl-3 border-l-2 border-slate-300">
+                                        <span className="font-bold text-[9px] text-slate-400 uppercase tracking-tight mb-0.5">
                                             {col}
                                         </span>
-                                        <div className={`text-slate-900 font-semibold leading-snug ${isMultiLine ? 'whitespace-pre-wrap mt-1 bg-white/20 p-1.5 rounded-lg border border-white/20' : 'break-words'}`}>
+                                        <div className={`text-slate-800 font-semibold leading-relaxed ${isMultiLine ? 'whitespace-pre-wrap mt-1 bg-white/60 p-2 rounded-lg border border-slate-100 shadow-sm' : 'break-words'}`}>
                                             {val}
                                         </div>
                                     </div>
