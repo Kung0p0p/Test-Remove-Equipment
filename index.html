@@ -864,7 +864,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     
                     // 1. สูตรคำนวณวันนัดหมาย (เปลี่ยนจาก O เป็น P)
                     // P = วันที่เข้าเก็บ, A = วันที่แจ้ง Subcontract
-                    const dynamicFormula = `=LET(day_diff, (IFERROR(INT(INDIRECT("P"&ROW())),0) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
+                    const dynamicFormula = `=LET(
+  day_diff, (INT(P205) + 3) - IF(ISBLANK(A205), TODAY(), INT(A205)),
+  IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", 
+    IF(day_diff = 0, "ครบกำหนด", 
+      "เหลือเวลา " & day_diff & " วัน"
+    )
+  )
+)`;
                     
                     // 2. จัดรูปแบบรายการอุปกรณ์ (ใช้ \n เพื่อให้ Google Sheet รู้ว่าต้อง Alt+Enter)
                     const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
