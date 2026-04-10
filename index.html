@@ -434,10 +434,7 @@
         // -------------------------------------------------------------
         // --- COMPONENT: MASTER DATA MANAGEMENT ---
         // -------------------------------------------------------------
-        // -------------------------------------------------------------
-        // --- COMPONENT: MASTER DATA MANAGEMENT (WITH COLUMN SETTINGS) ---
-        // -------------------------------------------------------------
-        const MasterDataTab = ({ masterData, masterDataRef, customAlert, customConfirm, columns, nsColumns }) => {
+        const MasterDataTab = ({ masterData, masterDataRef, customAlert, customConfirm }) => {
             const [isEditing, setIsEditing] = useState(false);
             const [tempData, setTempData] = useState(masterData);
 
@@ -445,16 +442,24 @@
                 setTempData({
                     ...masterData,
                     nsTeams: Array.isArray(masterData.nsTeams) ? masterData.nsTeams : [],
-                    nsStatuses: Array.isArray(masterData.nsStatuses) ? masterData.nsStatuses : [],
-                    subconStatuses: Array.isArray(masterData.subconStatuses) ? masterData.subconStatuses : [],
-                    columnSettings: masterData.columnSettings || {}
+                    nsStatuses: Array.isArray(masterData.nsStatuses) ? masterData.nsStatuses : []
                 }); 
             }, [masterData]);
 
             const handleSaveZone = (index, field, val) => {
-                const newZones = [...(tempData.zones || [])];
+                const newZones = [...tempData.zones];
                 newZones[index][field] = val;
                 setTempData({ ...tempData, zones: newZones });
+            };
+            const addZone = () => {
+                const newZones = [...tempData.zones, { id: `zone_${Date.now()}`, name: `โซนใหม่ ${(tempData?.zones?.length || 0) + 1}`, districts: "", teams: "" }];
+                setTempData({ ...tempData, zones: newZones });
+            };
+            const delZone = (index) => {
+                customConfirm('ยืนยันลบโซนพื้นที่นี้หรือไม่?', () => {
+                    const newZones = tempData.zones.filter((_, i) => i !== index);
+                    setTempData({ ...tempData, zones: newZones });
+                });
             };
 
             const handleSave = () => {
@@ -464,14 +469,12 @@
                     zones: tempData.zones || [],
                     teams: newTeamsArr || [],
                     nsTeams: tempData.nsTeams || [],
-                    nsStatuses: tempData.nsStatuses || [],
-                    subconStatuses: tempData.subconStatuses || [],
-                    columnSettings: tempData.columnSettings || {}
+                    nsStatuses: tempData.nsStatuses || []
                 };
 
                 masterDataRef.set(dataToSave, { merge: true });
                 setIsEditing(false);
-                customAlert('บันทึกการตั้งค่าเรียบร้อยแล้ว', 'success');
+                customAlert('บันทึกข้อมูลส่วนกลางเรียบร้อยแล้ว', 'success');
             };
 
             return (
@@ -479,8 +482,8 @@
                     <div className="max-w-6xl mx-auto">
                         <header className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                             <div>
-                                <h2 className="text-xl md:text-2xl font-bold text-slate-900"><i className="fa-solid fa-gear text-blue-600 mr-2"></i> System Settings & Master Data</h2>
-                                <p className="text-slate-500 mt-1 text-xs md:text-sm">จัดการฐานข้อมูลและตั้งค่าการแสดงผลตาราง</p>
+                                <h2 className="text-xl md:text-2xl font-bold text-slate-900"><i className="fa-solid fa-database text-blue-600 mr-2"></i> จัดการฐานข้อมูลส่วนกลาง (Master Data)</h2>
+                                <p className="text-slate-500 mt-1 text-xs md:text-sm">จัดการโซน, ทีมงาน และสีของสถานะ</p>
                             </div>
                             <div className="flex gap-2">
                                 {!isEditing ? (
@@ -489,9 +492,11 @@
                                     </button>
                                 ) : (
                                     <>
-                                        <button onClick={() => { setIsEditing(false); setTempData(masterData); }} className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-semibold transition-colors text-sm">ยกเลิก</button>
+                                        <button onClick={() => { setIsEditing(false); setTempData({ ...masterData, nsTeams: masterData.nsTeams || [], nsStatuses: masterData.nsStatuses || [] }); }} className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-semibold transition-colors text-sm">
+                                            ยกเลิก
+                                        </button>
                                         <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold shadow-sm transition-colors text-sm flex items-center">
-                                            <i className="fa-solid fa-check mr-2"></i> บันทึกการตั้งค่า
+                                            <i className="fa-solid fa-check mr-2"></i> ยืนยันการบันทึก
                                         </button>
                                     </>
                                 )}
@@ -499,68 +504,142 @@
                         </header>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* ฝั่งซ้าย: จัดการรายชื่อและสถานะ */}
                             <div className="lg:col-span-1 space-y-6">
-                                {/* 1. จัดการคอลัมน์ (Settings) */}
-                                <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-blue-200 ring-1 ring-blue-50' : 'bg-slate-100/50 border-slate-200'}`}>
-                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-table-columns text-blue-500 mr-2"></i> ตั้งค่าคอลัมน์ (Global View)</h3>
-                                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-3 pr-1">
-                                        {[...new Set([...columns, ...nsColumns])].filter(c => c && c !== 'Region_Respon').map(colName => {
-                                            const config = (tempData.columnSettings || {})[colName] || { mode: 'fixed', width: '150' };
-                                            return (
-                                                <div key={colName} className="p-2 bg-white border rounded-lg">
-                                                    <p className="text-xs font-bold text-slate-700 mb-2 truncate">{colName}</p>
-                                                    <div className="flex gap-2">
-                                                        <select 
-                                                            disabled={!isEditing}
-                                                            value={config.mode}
-                                                            onChange={(e) => {
-                                                                const newSet = { ...(tempData.columnSettings || {}) };
-                                                                newSet[colName] = { ...config, mode: e.target.value };
-                                                                setTempData({ ...tempData, columnSettings: newSet });
-                                                            }}
-                                                            className="flex-1 text-[10px] border rounded p-1 outline-none"
-                                                        >
-                                                            <option value="fixed">คงที่ (Wrap)</option>
-                                                            <option value="auto">Auto (ดันออก)</option>
-                                                        </select>
-                                                        <input 
-                                                            type="number" 
-                                                            disabled={!isEditing || config.mode === 'auto'}
-                                                            value={config.width}
-                                                            onChange={(e) => {
-                                                                const newSet = { ...(tempData.columnSettings || {}) };
-                                                                newSet[colName] = { ...config, width: e.target.value };
-                                                                setTempData({ ...tempData, columnSettings: newSet });
-                                                            }}
-                                                            className="w-16 text-[10px] border rounded p-1 text-center"
-                                                            placeholder="px"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                {/* 1. ฐานข้อมูลทีมงาน */}
+                                <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-blue-200 ring-1 ring-blue-100' : 'bg-slate-100/50 border-slate-200'}`}>
+                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-users-gear text-indigo-500 mr-2"></i> ฐานข้อมูลทีมงาน (Subcon)</h3>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500">รายชื่อทีม Subcontract (คั่นด้วยลูกน้ำ ,)</label>
+                                        <textarea disabled={!isEditing} value={Array.isArray(tempData.teams) ? tempData.teams.join(', ') : tempData.teams} onChange={e => setTempData({...tempData, teams: e.target.value})} rows="4" className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:bg-slate-100 disabled:text-slate-500"></textarea>
                                     </div>
                                 </div>
-                                {/* กล่อง Status ต่างๆ (เหมือนเดิมแต่ย้ายมาข้างล่าง) */}
-                                <div className="p-5 bg-slate-100/50 rounded-xl border border-slate-200 opacity-60">
-                                    <p className="text-xs text-center font-bold text-slate-500">ส่วนจัดการทีมและสถานะอยู่ด้านล่างหน้าจอ</p>
+
+                                {/* 2. ฐานข้อมูล NS Responsible */}
+                                <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-amber-200 ring-1 ring-amber-100' : 'bg-slate-100/50 border-slate-200'}`}>
+                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-user-tie text-amber-500 mr-2"></i> ฐานข้อมูล NS Responsible</h3>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-500">รายชื่อผู้รับผิดชอบ NS และสี (ปรับแต่งได้)</label>
+                                        <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                                            {Array.isArray(tempData.nsTeams) && tempData.nsTeams.map((team, idx) => (
+                                                <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
+                                                    <input type="text" disabled={!isEditing} value={team.name} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], name: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อทีม NS" />
+                                                    <div className="flex flex-col items-center shrink-0">
+                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">พื้นหลัง</span>
+                                                        <input type="color" disabled={!isEditing} value={team.bg || '#e0f2fe'} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], bg: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" />
+                                                    </div>
+                                                    <div className="flex flex-col items-center shrink-0">
+                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">ตัวอักษร</span>
+                                                        <input type="color" disabled={!isEditing} value={team.text || '#0369a1'} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], text: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" />
+                                                    </div>
+                                                    {isEditing && <button onClick={() => { let newT = tempData.nsTeams.filter((_, i) => i !== idx); setTempData({...tempData, nsTeams: newT}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {isEditing && <button onClick={() => setTempData({...tempData, nsTeams: [...(tempData.nsTeams||[]), {name: '', bg: '#e0f2fe', text: '#0369a1'}]})} className="text-[10px] font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มทีม NS</button>}
+                                    </div>
+                                </div>
+
+                                {/* 3. Status สำหรับ Region */}
+                                <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-emerald-200 ring-1 ring-emerald-100' : 'bg-slate-100/50 border-slate-200'}`}>
+                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-tags text-emerald-500 mr-2"></i> Status สำหรับ Region</h3>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-500">รายชื่อสถานะงานฝั่ง Region และสี</label>
+                                        <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                                            {Array.isArray(tempData.nsStatuses) && tempData.nsStatuses.map((st, idx) => (
+                                                <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
+                                                    <input type="text" disabled={!isEditing} value={st.name} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], name: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อสถานะ" />
+                                                    <div className="flex flex-col items-center shrink-0">
+                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">พื้นหลัง</span>
+                                                        <input type="color" disabled={!isEditing} value={st.bg || '#fef3c7'} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], bg: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" />
+                                                    </div>
+                                                    <div className="flex flex-col items-center shrink-0">
+                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">ตัวอักษร</span>
+                                                        <input type="color" disabled={!isEditing} value={st.text || '#b45309'} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], text: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" />
+                                                    </div>
+                                                    {isEditing && <button onClick={() => { let newS = tempData.nsStatuses.filter((_, i) => i !== idx); setTempData({...tempData, nsStatuses: newS}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {isEditing && <button onClick={() => setTempData({...tempData, nsStatuses: [...(tempData.nsStatuses||[]), {name: '', bg: '#fef3c7', text: '#b45309'}]})} className="text-[10px] font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มสถานะ Region</button>}
+                                    </div>
+                                </div>
+
+                                {/* 4. Status สำหรับ Subcontract */}
+                                <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-indigo-200 ring-1 ring-indigo-100' : 'bg-slate-100/50 border-slate-200'}`}>
+                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-tags text-indigo-500 mr-2"></i> Status สำหรับ Subcontract</h3>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-500">รายชื่อสถานะงานฝั่ง Subcontract และสี</label>
+                                        <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                                            {Array.isArray(tempData.subconStatuses) && tempData.subconStatuses.map((st, idx) => (
+                                                <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
+                                                    <input type="text" disabled={!isEditing} value={st.name} onChange={e => { let newS = [...(tempData.subconStatuses||[])]; newS[idx] = { ...newS[idx], name: e.target.value }; setTempData({...tempData, subconStatuses: newS}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อสถานะ" />
+                                                    <div className="flex flex-col items-center shrink-0">
+                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">พื้นหลัง</span>
+                                                        <input type="color" disabled={!isEditing} value={st.bg || '#e0e7ff'} onChange={e => { let newS = [...(tempData.subconStatuses||[])]; newS[idx] = { ...newS[idx], bg: e.target.value }; setTempData({...tempData, subconStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" />
+                                                    </div>
+                                                    <div className="flex flex-col items-center shrink-0">
+                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">ตัวอักษร</span>
+                                                        <input type="color" disabled={!isEditing} value={st.text || '#4338ca'} onChange={e => { let newS = [...(tempData.subconStatuses||[])]; newS[idx] = { ...newS[idx], text: e.target.value }; setTempData({...tempData, subconStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" />
+                                                    </div>
+                                                    {isEditing && <button onClick={() => { let newS = (tempData.subconStatuses||[]).filter((_, i) => i !== idx); setTempData({...tempData, subconStatuses: newS}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {isEditing && <button onClick={() => setTempData({...tempData, subconStatuses: [...(tempData.subconStatuses||[]), {name: '', bg: '#e0e7ff', text: '#4338ca'}]})} className="text-[10px] font-bold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มสถานะ Subcontract</button>}
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* ฝั่งขวา: โซนพื้นที่ */}
-                            <div className="lg:col-span-2 space-y-6">
-                                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                                    <h3 className="font-bold text-slate-800 mb-4 flex items-center"><i className="fa-solid fa-map-location-dot text-amber-500 mr-2"></i> ฐานข้อมูลโซนพื้นที่</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {(tempData.zones || []).map((zone, idx) => (
-                                            <div key={zone.id} className="p-3 border rounded-xl bg-slate-50">
-                                                <input disabled={!isEditing} value={zone.name} onChange={e=>handleSaveZone(idx,'name',e.target.value)} className="w-full font-bold text-sm bg-transparent outline-none border-b border-transparent focus:border-blue-500 mb-2"/>
-                                                <textarea disabled={!isEditing} value={zone.districts} onChange={e=>handleSaveZone(idx,'districts',e.target.value)} rows="2" className="w-full text-xs bg-white border rounded p-1 outline-none mb-1" placeholder="เขต/อำเภอ"/>
-                                                <input disabled={!isEditing} value={zone.teams} onChange={e=>handleSaveZone(idx,'teams',e.target.value)} className="w-full text-xs text-blue-600 font-bold bg-white border rounded p-1" placeholder="ทีมงาน"/>
+                            <div className="lg:col-span-2">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-bold text-slate-800"><i className="fa-solid fa-map-location-dot text-amber-500 mr-2"></i> ฐานข้อมูลโซนพื้นที่ (Zones)</h3>
+                                    {isEditing && (
+                                        <button onClick={addZone} className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg font-bold transition-colors">
+                                            <i className="fa-solid fa-plus"></i> เพิ่มโซน
+                                        </button>
+                                    )}
+                                </div>
+                                
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                    {(tempData.zones || []).map((zone, idx) => (
+                                        <div key={zone.id} className={`p-4 rounded-xl shadow-sm relative transition-colors ${isEditing ? 'bg-white border border-amber-200 hover:shadow-md' : 'bg-slate-100/50 border border-slate-200'}`}>
+                                            {isEditing && (
+                                                <button onClick={() => delZone(idx)} className="absolute top-3 right-3 text-slate-300 hover:text-red-500 transition-colors"><i className="fa-solid fa-trash"></i></button>
+                                            )}
+                                            <div className="space-y-3">
+                                                <div className="pr-6">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ชื่อโซน</label>
+                                                    <input 
+                                                        type="text" 
+                                                        disabled={!isEditing}
+                                                        value={zone.name} 
+                                                        onChange={e => handleSaveZone(idx, 'name', e.target.value)} 
+                                                        className="w-full mt-0.5 px-2 py-1 border-b border-slate-200 bg-transparent outline-none focus:border-amber-500 text-sm font-bold text-slate-800 disabled:text-slate-600" 
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">เขต/อำเภอ (คั่นด้วยลูกน้ำ ,)</label>
+                                                    <textarea 
+                                                        disabled={!isEditing}
+                                                        value={zone.districts} 
+                                                        onChange={e => handleSaveZone(idx, 'districts', e.target.value)} 
+                                                        rows="2" 
+                                                        className="w-full mt-0.5 px-2 py-1 border border-slate-200 rounded bg-slate-50 outline-none focus:ring-1 focus:ring-amber-500 text-xs disabled:bg-transparent disabled:border-transparent disabled:px-0" 
+                                                        ></textarea>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ทีมที่รับผิดชอบ (เรียงตามคิว)</label>
+                                                    <textarea 
+                                                        disabled={!isEditing}
+                                                        value={zone.teams} 
+                                                        onChange={e => handleSaveZone(idx, 'teams', e.target.value)} 
+                                                        rows="1" 
+                                                        className="w-full mt-0.5 px-2 py-1 border border-slate-200 rounded bg-slate-50 outline-none focus:ring-1 focus:ring-amber-500 text-xs disabled:bg-transparent disabled:border-transparent disabled:px-0 font-semibold text-indigo-700" 
+                                                        ></textarea>
+                                                </div>
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
@@ -2176,26 +2255,69 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             : (paginatedTasks || []).map((task) => (
                               <tr key={task.id} className={`transition-colors tr-hover hover:bg-slate-50`}>
                                 {(orderedVisibleColumnsTable || []).map((col, idx) => {
-                                    // 🔥 ดึงการตั้งค่าคอลัมน์จากหน้า Setting
-                                    const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
-                                    const isAuto = colConfig.mode === 'auto';
-                                    const isPinned = (pinnedColumns || []).includes(col);
-                                    const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
+                                    const hasFixedWidth = colWidths[col] !== undefined;
                                     
-                                    // ลำดับความกว้าง: 1.ลากเอง > 2.Auto > 3.ค่าใน Setting
-                                    let finalWidth;
-                                    if (colWidths[col]) {
-                                        finalWidth = typeof colWidths[col] === 'number' ? `${colWidths[col]}px` : colWidths[col];
-                                    } else {
-                                        finalWidth = isAuto ? 'max-content' : `${colConfig.width}px`;
+                                    const isStatusCell = col === t_statusCol;
+                                    const isTeamCell = col === t_teamCol;
+                                    const isOverDueCell = col === t_overDueCol; 
+                                    const isCidCell = col === t_cidCol && t_cidCol !== '';
+                                    const isEquipYearCell = col === t_equipYearCol && t_equipYearCol !== '';
+                                    const isRegionResponCell = col === 'Region_Respon';
+                                    
+                                    const isStatusChangeCell = col === statusChangeColMatch;
+                                    const isContactJobCell = col === contactJobColMatch;
+
+                                    const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
+                                    
+                                    const val = task[col] || '';
+                                    const cleanVal = getCleanStatus(val);
+                                    const cellId = `${task.id}-${col}`;
+                                    const isEditing = editingCell === cellId;
+                                    
+                                    let styleObj = {};
+                                    
+                                    if (isStatusCell) {
+                                        styleObj = { backgroundColor: getStatusColor(cleanVal, 0.1), color: getStatusColor(cleanVal, 1), fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
+                                    } else if (isTeamCell) {
+                                        const tColor = getTeamColorStyle(val, masterData); styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
+                                    } else if (isEquipYearCell && cleanVal) {
+                                        const yColor = getYearColorStyle(val); styleObj = { backgroundColor: yColor.bg, color: yColor.text, border: `1px solid ${yColor.border}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
+                                    } else if (isCidCell && cleanVal) {
+                                        const currentTaskStatus = getCleanStatus(task[t_statusCol]);
+                                        const cBg = getStatusColor(currentTaskStatus, 0.15);
+                                        const cText = getStatusColor(currentTaskStatus, 1);
+                                        styleObj = { backgroundColor: cBg, color: cText, border: `1px solid ${getStatusColor(currentTaskStatus, 0.3)}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
+                                    } else if (isOverDueCell && cleanVal) {
+                                        let num = NaN; const match = cleanVal.match(/-?\d+/); if(match) num = parseInt(match[0], 10);
+                                        if (cleanVal.includes('เกิน') || cleanVal.includes('over') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
+                                        else if (num === 0 || cleanVal.includes('ครบกำหนด') || cleanVal === '0') styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' }; 
+                                        else if (num > 0 || cleanVal.includes('เหลือ')) styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
+                                    } else if (isStatusChangeCell && cleanVal !== 'ไม่ระบุสถานะ' && cleanVal !== '') {
+                                        styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', borderRadius: '4px', border: '1px solid #fef08a', display: 'inline-block', padding: '2px 6px' };
                                     }
 
-                                    let tdStyle = { 
-                                        verticalAlign: 'top',
-                                        width: finalWidth,
-                                        minWidth: finalWidth,
-                                        maxWidth: isAuto ? 'none' : finalWidth
-                                    };
+                                    const isPinned = (pinnedColumns || []).includes(col);
+                                    const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
+                                    const colWidth = colWidths[col] || (isPinned ? 150 : undefined);
+
+                                    let tdStyle = { verticalAlign: 'top' };
+                                    if (colWidth) {
+                                        tdStyle.width = colWidth;
+                                        tdStyle.minWidth = colWidth;
+                                        tdStyle.maxWidth = colWidth;
+                                    } else {
+                                        if (isStatusChangeCell) {
+                                            tdStyle.maxWidth = '600px';
+                                            tdStyle.minWidth = '600px';
+                                            tdStyle.maxWidth = '600px';
+                                        }
+                                        if (isContactJobCell) {
+                                            // บังคับเนื้อหาให้กว้างแค่ 6000px เท่ากับหัวตาราง
+                                            tdStyle.width = '600px';
+                                            tdStyle.minWidth = '600px';
+                                            tdStyle.maxWidth = '600px';
+                                        }
+                                    }
 
                                     if (isPinned) {
                                         tdStyle.position = 'sticky';
@@ -2203,23 +2325,61 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdStyle.zIndex = 20;
                                     }
 
-                                    // ตั้งค่าการแสดงผลข้อความ
-                                    let tdWhiteSpace = isAuto ? 'nowrap' : 'normal'; 
-                                    let tdWordBreak = isAuto ? 'normal' : 'break-word';
-                                    let tdOverflow = 'visible'; 
-                                    let tdTextOverflow = 'clip'; 
-                                    let tdLineHeight = '1.5'; 
-                                    let tdDisplay = 'inline-block'; 
-                                    
-                                    // ใช้ความกว้างเดียวกับ tdStyle เพื่อใส่ในกล่องข้อความด้านใน
-                                    let innerWidth = finalWidth;
+                                    // 🔥 เช็คว่าเป็นคอลัมน์ "รายการอุปกรณ์" หรือไม่
+                                    const isEquipListCell = col === 'รายการอุปกรณ์';
 
-                                    // ข้อยกเว้นสำหรับคอลัมน์ที่ต้องขึ้นบรรทัดใหม่เสมอ (Multi-line)
-                                    const isSpecialMulti = isGroupedMultiLine || col === 'รายการอุปกรณ์' || col === contactJobColMatch;
-                                    if (isSpecialMulti) {
+                                    let tdWhiteSpace = 'nowrap';
+                                    let tdWordBreak = 'normal';
+                                    let tdOverflow = 'hidden';
+                                    let innerWidth = colWidth;
+                                    let tdTextOverflow = 'ellipsis';
+                                    let tdLineHeight = '20px';
+                                    let tdDisplay = 'block';
+
+                                    if (isGroupedMultiLine) {
                                         tdWhiteSpace = 'pre-wrap';
                                         tdWordBreak = 'break-word';
+                                        tdOverflow = 'visible'; 
+                                        tdTextOverflow = 'clip';
+                                        tdLineHeight = '1.8';
+                                    } else if (isContactJobCell) {
+                                        // 🔥 เอา !hasFixedWidth ออก เพื่อให้ขึ้นบรรทัดใหม่เสมอ
+                                        tdWhiteSpace = 'pre-wrap'; 
+                                        tdWordBreak = 'break-word';
+                                        tdOverflow = 'visible'; 
+                                        tdTextOverflow = 'clip'; 
+                                        tdLineHeight = '1.5'; 
+                                        // ถ้ามีการลากขยาย ให้ใช้ความกว้างใหม่ ถ้าไม่มีให้ใช้ 600px
+                                        innerWidth = hasFixedWidth ? colWidth : '600px'; 
+                                        tdDisplay = 'inline-block'; 
+                                    } else if (isEquipListCell) {
+                                        // 🔥 เอา !hasFixedWidth ออกเช่นกัน
+                                        tdWhiteSpace = 'pre-wrap'; 
+                                        tdWordBreak = 'break-word';
+                                        tdOverflow = 'visible'; 
+                                        tdTextOverflow = 'clip'; 
+                                        tdLineHeight = '1.5'; 
+                                        innerWidth = hasFixedWidth ? colWidth : '800px'; 
+                                        tdDisplay = 'inline-block'; 
+                                    } else if (isStatusChangeCell) {
+                                        tdWhiteSpace = 'normal';
+                                        tdWordBreak = 'break-word';
+                                        tdOverflow = 'hidden';
+                                        if (!hasFixedWidth) innerWidth = '250px'; // กำหนดค่าเริ่มต้นถ้ายังไม่โดนลาก
                                     }
+
+                                    const textAlignment = isGroupedMultiLine ? 'left' : (isTeamCell || isStatusCell || isEquipYearCell || isOverDueCell || isCidCell || isRegionResponCell ? 'center' : 'left');
+
+                                    let tdClass = `p-1 md:p-1.5 align-middle border-r border-slate-100`;
+                                    if (isPinned) {
+                                        tdClass += ` sticky-col-cell`;
+                                        if (isLastPinned) tdClass += ` shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300`;
+                                    } else {
+                                        tdClass += ` bg-white`;
+                                    }
+
+                                    let cellClasses = `px-2 md:px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`;
+                                    if (isGroupedMultiLine) cellClasses += ' cell-scrollbar';
 
                                     if (isRegionResponCell) {
                                         return (
