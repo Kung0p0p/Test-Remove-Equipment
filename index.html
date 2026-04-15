@@ -434,7 +434,7 @@
         // -------------------------------------------------------------
         // --- COMPONENT: MASTER DATA MANAGEMENT ---
         // -------------------------------------------------------------
-        const MasterDataTab = ({ masterData, masterDataRef, customAlert, customConfirm }) => {
+        const MasterDataTab = ({ masterData, masterDataRef, customAlert, customConfirm, columns, nsColumns }) => {
             const [isEditing, setIsEditing] = useState(false);
             const [tempData, setTempData] = useState(masterData);
 
@@ -442,22 +442,24 @@
                 setTempData({
                     ...masterData,
                     nsTeams: Array.isArray(masterData.nsTeams) ? masterData.nsTeams : [],
-                    nsStatuses: Array.isArray(masterData.nsStatuses) ? masterData.nsStatuses : []
+                    nsStatuses: Array.isArray(masterData.nsStatuses) ? masterData.nsStatuses : [],
+                    subconStatuses: Array.isArray(masterData.subconStatuses) ? masterData.subconStatuses : [],
+                    columnSettings: masterData.columnSettings || {}
                 }); 
             }, [masterData]);
 
             const handleSaveZone = (index, field, val) => {
-                const newZones = [...tempData.zones];
+                const newZones = [...(tempData.zones || [])];
                 newZones[index][field] = val;
                 setTempData({ ...tempData, zones: newZones });
             };
             const addZone = () => {
-                const newZones = [...tempData.zones, { id: `zone_${Date.now()}`, name: `โซนใหม่ ${(tempData?.zones?.length || 0) + 1}`, districts: "", teams: "" }];
+                const newZones = [...(tempData.zones || []), { id: `zone_${Date.now()}`, name: `โซนใหม่ ${(tempData?.zones?.length || 0) + 1}`, districts: "", teams: "" }];
                 setTempData({ ...tempData, zones: newZones });
             };
             const delZone = (index) => {
                 customConfirm('ยืนยันลบโซนพื้นที่นี้หรือไม่?', () => {
-                    const newZones = tempData.zones.filter((_, i) => i !== index);
+                    const newZones = (tempData.zones || []).filter((_, i) => i !== index);
                     setTempData({ ...tempData, zones: newZones });
                 });
             };
@@ -469,7 +471,9 @@
                     zones: tempData.zones || [],
                     teams: newTeamsArr || [],
                     nsTeams: tempData.nsTeams || [],
-                    nsStatuses: tempData.nsStatuses || []
+                    nsStatuses: tempData.nsStatuses || [],
+                    subconStatuses: tempData.subconStatuses || [],
+                    columnSettings: tempData.columnSettings || {}
                 };
 
                 masterDataRef.set(dataToSave, { merge: true });
@@ -483,7 +487,7 @@
                         <header className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                             <div>
                                 <h2 className="text-xl md:text-2xl font-bold text-slate-900"><i className="fa-solid fa-database text-blue-600 mr-2"></i> จัดการฐานข้อมูลส่วนกลาง (Master Data)</h2>
-                                <p className="text-slate-500 mt-1 text-xs md:text-sm">จัดการโซน, ทีมงาน และสีของสถานะ</p>
+                                <p className="text-slate-500 mt-1 text-xs md:text-sm">จัดการโซน, ทีมงาน, สีของสถานะ และตั้งค่าคอลัมน์</p>
                             </div>
                             <div className="flex gap-2">
                                 {!isEditing ? (
@@ -492,7 +496,7 @@
                                     </button>
                                 ) : (
                                     <>
-                                        <button onClick={() => { setIsEditing(false); setTempData({ ...masterData, nsTeams: masterData.nsTeams || [], nsStatuses: masterData.nsStatuses || [] }); }} className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-semibold transition-colors text-sm">
+                                        <button onClick={() => { setIsEditing(false); setTempData(masterData); }} className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-semibold transition-colors text-sm">
                                             ยกเลิก
                                         </button>
                                         <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold shadow-sm transition-colors text-sm flex items-center">
@@ -503,94 +507,119 @@
                             </div>
                         </header>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-1 space-y-6">
-                                {/* 1. ฐานข้อมูลทีมงาน */}
-                                <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-blue-200 ring-1 ring-blue-100' : 'bg-slate-100/50 border-slate-200'}`}>
-                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-users-gear text-indigo-500 mr-2"></i> ฐานข้อมูลทีมงาน (Subcon)</h3>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500">รายชื่อทีม Subcontract (คั่นด้วยลูกน้ำ ,)</label>
-                                        <textarea disabled={!isEditing} value={Array.isArray(tempData.teams) ? tempData.teams.join(', ') : tempData.teams} onChange={e => setTempData({...tempData, teams: e.target.value})} rows="4" className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:bg-slate-100 disabled:text-slate-500"></textarea>
-                                    </div>
-                                </div>
-
-                                {/* 2. ฐานข้อมูล NS Responsible */}
-                                <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-amber-200 ring-1 ring-amber-100' : 'bg-slate-100/50 border-slate-200'}`}>
-                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-user-tie text-amber-500 mr-2"></i> ฐานข้อมูล NS Responsible</h3>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-500">รายชื่อผู้รับผิดชอบ NS และสี (ปรับแต่งได้)</label>
-                                        <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">
-                                            {Array.isArray(tempData.nsTeams) && tempData.nsTeams.map((team, idx) => (
-                                                <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
-                                                    <input type="text" disabled={!isEditing} value={team.name} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], name: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อทีม NS" />
-                                                    <div className="flex flex-col items-center shrink-0">
-                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">พื้นหลัง</span>
-                                                        <input type="color" disabled={!isEditing} value={team.bg || '#e0f2fe'} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], bg: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" />
-                                                    </div>
-                                                    <div className="flex flex-col items-center shrink-0">
-                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">ตัวอักษร</span>
-                                                        <input type="color" disabled={!isEditing} value={team.text || '#0369a1'} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], text: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" />
-                                                    </div>
-                                                    {isEditing && <button onClick={() => { let newT = tempData.nsTeams.filter((_, i) => i !== idx); setTempData({...tempData, nsTeams: newT}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}
+                        {/* 🔥 ระบบ Flex Wrap และ Resize กล่อง */}
+                        <div className="flex flex-wrap gap-6 items-start">
+                            
+                            {/* กล่อง 1: ตั้งค่าคอลัมน์ */}
+                            <div className={`flex-1 min-w-[300px] p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-blue-200 ring-1 ring-blue-50' : 'bg-slate-100/50 border-slate-200'}`} style={{ resize: isEditing ? 'both' : 'none', overflow: 'auto' }}>
+                                <h3 className="font-bold text-slate-800 mb-3 flex items-center cursor-move"><i className="fa-solid fa-table-columns text-blue-500 mr-2"></i> ตั้งค่าคอลัมน์ (Global View)</h3>
+                                <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-3 pr-1">
+                                    {[...new Set([...(columns || []), ...(nsColumns || [])])].filter(c => c && c !== 'Region_Respon').map(colName => {
+                                        const config = (tempData.columnSettings || {})[colName] || { mode: 'fixed', width: '150' };
+                                        return (
+                                            <div key={colName} className="p-2 bg-white border rounded-lg">
+                                                <p className="text-xs font-bold text-slate-700 mb-2 truncate">{colName}</p>
+                                                <div className="flex gap-2">
+                                                    <select 
+                                                        disabled={!isEditing}
+                                                        value={config.mode}
+                                                        onChange={(e) => {
+                                                            const newSet = { ...(tempData.columnSettings || {}) };
+                                                            newSet[colName] = { ...config, mode: e.target.value };
+                                                            setTempData({ ...tempData, columnSettings: newSet });
+                                                        }}
+                                                        className="flex-1 text-[10px] border rounded p-1 outline-none"
+                                                    >
+                                                        <option value="fixed">คงที่ (Wrap)</option>
+                                                        <option value="auto">Auto (ดันออก)</option>
+                                                    </select>
+                                                    <input 
+                                                        type="number" 
+                                                        disabled={!isEditing || config.mode === 'auto'}
+                                                        value={config.width}
+                                                        onChange={(e) => {
+                                                            const newSet = { ...(tempData.columnSettings || {}) };
+                                                            newSet[colName] = { ...config, width: e.target.value };
+                                                            setTempData({ ...tempData, columnSettings: newSet });
+                                                        }}
+                                                        className="w-16 text-[10px] border rounded p-1 text-center"
+                                                        placeholder="px"
+                                                    />
                                                 </div>
-                                            ))}
-                                        </div>
-                                        {isEditing && <button onClick={() => setTempData({...tempData, nsTeams: [...(tempData.nsTeams||[]), {name: '', bg: '#e0f2fe', text: '#0369a1'}]})} className="text-[10px] font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มทีม NS</button>}
-                                    </div>
-                                </div>
-
-                                {/* 3. Status สำหรับ Region */}
-                                <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-emerald-200 ring-1 ring-emerald-100' : 'bg-slate-100/50 border-slate-200'}`}>
-                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-tags text-emerald-500 mr-2"></i> Status สำหรับ Region</h3>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-500">รายชื่อสถานะงานฝั่ง Region และสี</label>
-                                        <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">
-                                            {Array.isArray(tempData.nsStatuses) && tempData.nsStatuses.map((st, idx) => (
-                                                <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
-                                                    <input type="text" disabled={!isEditing} value={st.name} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], name: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อสถานะ" />
-                                                    <div className="flex flex-col items-center shrink-0">
-                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">พื้นหลัง</span>
-                                                        <input type="color" disabled={!isEditing} value={st.bg || '#fef3c7'} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], bg: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" />
-                                                    </div>
-                                                    <div className="flex flex-col items-center shrink-0">
-                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">ตัวอักษร</span>
-                                                        <input type="color" disabled={!isEditing} value={st.text || '#b45309'} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], text: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" />
-                                                    </div>
-                                                    {isEditing && <button onClick={() => { let newS = tempData.nsStatuses.filter((_, i) => i !== idx); setTempData({...tempData, nsStatuses: newS}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}
-                                                </div>
-                                            ))}
-                                        </div>
-                                        {isEditing && <button onClick={() => setTempData({...tempData, nsStatuses: [...(tempData.nsStatuses||[]), {name: '', bg: '#fef3c7', text: '#b45309'}]})} className="text-[10px] font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มสถานะ Region</button>}
-                                    </div>
-                                </div>
-
-                                {/* 4. Status สำหรับ Subcontract */}
-                                <div className={`p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-indigo-200 ring-1 ring-indigo-100' : 'bg-slate-100/50 border-slate-200'}`}>
-                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-tags text-indigo-500 mr-2"></i> Status สำหรับ Subcontract</h3>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-500">รายชื่อสถานะงานฝั่ง Subcontract และสี</label>
-                                        <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">
-                                            {Array.isArray(tempData.subconStatuses) && tempData.subconStatuses.map((st, idx) => (
-                                                <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
-                                                    <input type="text" disabled={!isEditing} value={st.name} onChange={e => { let newS = [...(tempData.subconStatuses||[])]; newS[idx] = { ...newS[idx], name: e.target.value }; setTempData({...tempData, subconStatuses: newS}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อสถานะ" />
-                                                    <div className="flex flex-col items-center shrink-0">
-                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">พื้นหลัง</span>
-                                                        <input type="color" disabled={!isEditing} value={st.bg || '#e0e7ff'} onChange={e => { let newS = [...(tempData.subconStatuses||[])]; newS[idx] = { ...newS[idx], bg: e.target.value }; setTempData({...tempData, subconStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" />
-                                                    </div>
-                                                    <div className="flex flex-col items-center shrink-0">
-                                                        <span className="text-[8px] text-slate-400 font-bold mb-0.5">ตัวอักษร</span>
-                                                        <input type="color" disabled={!isEditing} value={st.text || '#4338ca'} onChange={e => { let newS = [...(tempData.subconStatuses||[])]; newS[idx] = { ...newS[idx], text: e.target.value }; setTempData({...tempData, subconStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" />
-                                                    </div>
-                                                    {isEditing && <button onClick={() => { let newS = (tempData.subconStatuses||[]).filter((_, i) => i !== idx); setTempData({...tempData, subconStatuses: newS}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}
-                                                </div>
-                                            ))}
-                                        </div>
-                                        {isEditing && <button onClick={() => setTempData({...tempData, subconStatuses: [...(tempData.subconStatuses||[]), {name: '', bg: '#e0e7ff', text: '#4338ca'}]})} className="text-[10px] font-bold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มสถานะ Subcontract</button>}
-                                    </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
-                            <div className="lg:col-span-2">
+                            {/* กล่อง 2: ทีมงาน Subcontract */}
+                            <div className={`flex-1 min-w-[300px] p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-blue-200 ring-1 ring-blue-100' : 'bg-slate-100/50 border-slate-200'}`} style={{ resize: isEditing ? 'both' : 'none', overflow: 'auto' }}>
+                                <h3 className="font-bold text-slate-800 mb-3 flex items-center cursor-move"><i className="fa-solid fa-users-gear text-indigo-500 mr-2"></i> ฐานข้อมูลทีมงาน (Subcon)</h3>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500">รายชื่อทีม Subcontract (คั่นด้วยลูกน้ำ ,)</label>
+                                    <textarea disabled={!isEditing} value={Array.isArray(tempData.teams) ? tempData.teams.join(', ') : tempData.teams} onChange={e => setTempData({...tempData, teams: e.target.value})} rows="4" className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:bg-slate-100 disabled:text-slate-500"></textarea>
+                                </div>
+                            </div>
+
+                            {/* กล่อง 3: NS Responsible */}
+                            <div className={`flex-1 min-w-[300px] p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-amber-200 ring-1 ring-amber-100' : 'bg-slate-100/50 border-slate-200'}`} style={{ resize: isEditing ? 'both' : 'none', overflow: 'auto' }}>
+                                <h3 className="font-bold text-slate-800 mb-3 flex items-center cursor-move"><i className="fa-solid fa-user-tie text-amber-500 mr-2"></i> ฐานข้อมูล NS Responsible</h3>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500">รายชื่อผู้รับผิดชอบ NS และสี</label>
+                                    <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                                        {Array.isArray(tempData.nsTeams) && tempData.nsTeams.map((team, idx) => (
+                                            <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
+                                                <input type="text" disabled={!isEditing} value={team.name} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], name: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อทีม NS" />
+                                                <input type="color" disabled={!isEditing} value={team.bg || '#e0f2fe'} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], bg: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" />
+                                                <input type="color" disabled={!isEditing} value={team.text || '#0369a1'} onChange={e => { let newT = [...tempData.nsTeams]; newT[idx] = { ...newT[idx], text: e.target.value }; setTempData({...tempData, nsTeams: newT}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" />
+                                                {isEditing && <button onClick={() => { let newT = tempData.nsTeams.filter((_, i) => i !== idx); setTempData({...tempData, nsTeams: newT}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {isEditing && <button onClick={() => setTempData({...tempData, nsTeams: [...(tempData.nsTeams||[]), {name: '', bg: '#e0f2fe', text: '#0369a1'}]})} className="text-[10px] font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มทีม NS</button>}
+                                </div>
+                            </div>
+
+                            {/* กล่อง 4: Status Region */}
+                            <div className={`flex-1 min-w-[300px] p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-emerald-200 ring-1 ring-emerald-100' : 'bg-slate-100/50 border-slate-200'}`} style={{ resize: isEditing ? 'both' : 'none', overflow: 'auto' }}>
+                                <h3 className="font-bold text-slate-800 mb-3 flex items-center cursor-move"><i className="fa-solid fa-tags text-emerald-500 mr-2"></i> Status สำหรับ Region</h3>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500">รายชื่อสถานะงานฝั่ง Region และสี</label>
+                                    <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                                        {Array.isArray(tempData.nsStatuses) && tempData.nsStatuses.map((st, idx) => (
+                                            <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
+                                                <input type="text" disabled={!isEditing} value={st.name} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], name: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อสถานะ" />
+                                                <input type="color" disabled={!isEditing} value={st.bg || '#fef3c7'} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], bg: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" />
+                                                <input type="color" disabled={!isEditing} value={st.text || '#b45309'} onChange={e => { let newS = [...tempData.nsStatuses]; newS[idx] = { ...newS[idx], text: e.target.value }; setTempData({...tempData, nsStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" />
+                                                {isEditing && <button onClick={() => { let newS = tempData.nsStatuses.filter((_, i) => i !== idx); setTempData({...tempData, nsStatuses: newS}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {isEditing && <button onClick={() => setTempData({...tempData, nsStatuses: [...(tempData.nsStatuses||[]), {name: '', bg: '#fef3c7', text: '#b45309'}]})} className="text-[10px] font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มสถานะ Region</button>}
+                                </div>
+                            </div>
+
+                            {/* กล่อง 5: Status Subcontract */}
+                            <div className={`flex-1 min-w-[300px] p-5 rounded-xl border shadow-sm transition-colors ${isEditing ? 'bg-white border-indigo-200 ring-1 ring-indigo-100' : 'bg-slate-100/50 border-slate-200'}`} style={{ resize: isEditing ? 'both' : 'none', overflow: 'auto' }}>
+                                <h3 className="font-bold text-slate-800 mb-3 flex items-center cursor-move"><i className="fa-solid fa-tags text-indigo-500 mr-2"></i> Status สำหรับ Subcontract</h3>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500">รายชื่อสถานะงานฝั่ง Subcontract และสี</label>
+                                    <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                                        {Array.isArray(tempData.subconStatuses) && tempData.subconStatuses.map((st, idx) => (
+                                            <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
+                                                <input type="text" disabled={!isEditing} value={st.name} onChange={e => { let newS = [...(tempData.subconStatuses||[])]; newS[idx] = { ...newS[idx], name: e.target.value }; setTempData({...tempData, subconStatuses: newS}); }} className="flex-1 w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white disabled:bg-slate-100 disabled:text-slate-500" placeholder="ชื่อสถานะ" />
+                                                <input type="color" disabled={!isEditing} value={st.bg || '#e0e7ff'} onChange={e => { let newS = [...(tempData.subconStatuses||[])]; newS[idx] = { ...newS[idx], bg: e.target.value }; setTempData({...tempData, subconStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีพื้นหลัง" />
+                                                <input type="color" disabled={!isEditing} value={st.text || '#4338ca'} onChange={e => { let newS = [...(tempData.subconStatuses||[])]; newS[idx] = { ...newS[idx], text: e.target.value }; setTempData({...tempData, subconStatuses: newS}); }} className="w-6 h-6 p-0 border-0 cursor-pointer disabled:opacity-50 rounded" title="สีตัวอักษร" />
+                                                {isEditing && <button onClick={() => { let newS = (tempData.subconStatuses||[]).filter((_, i) => i !== idx); setTempData({...tempData, subconStatuses: newS}); }} className="text-slate-300 hover:text-red-500 transition-colors ml-1"><i className="fa-solid fa-circle-xmark"></i></button>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {isEditing && <button onClick={() => setTempData({...tempData, subconStatuses: [...(tempData.subconStatuses||[]), {name: '', bg: '#e0e7ff', text: '#4338ca'}]})} className="text-[10px] font-bold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-3 py-1.5 rounded-lg transition-colors w-full flex items-center justify-center"><i className="fa-solid fa-plus mr-1"></i> เพิ่มสถานะ Subcontract</button>}
+                                </div>
+                            </div>
+
+                            {/* กล่อง 6: โซนพื้นที่ (กว้างสุด) */}
+                            <div className="w-full bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                                 <div className="flex justify-between items-center mb-4">
                                     <h3 className="font-bold text-slate-800"><i className="fa-solid fa-map-location-dot text-amber-500 mr-2"></i> ฐานข้อมูลโซนพื้นที่ (Zones)</h3>
                                     {isEditing && (
@@ -599,7 +628,6 @@
                                         </button>
                                     )}
                                 </div>
-                                
                                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                                     {(tempData.zones || []).map((zone, idx) => (
                                         <div key={zone.id} className={`p-4 rounded-xl shadow-sm relative transition-colors ${isEditing ? 'bg-white border border-amber-200 hover:shadow-md' : 'bg-slate-100/50 border border-slate-200'}`}>
@@ -609,39 +637,22 @@
                                             <div className="space-y-3">
                                                 <div className="pr-6">
                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ชื่อโซน</label>
-                                                    <input 
-                                                        type="text" 
-                                                        disabled={!isEditing}
-                                                        value={zone.name} 
-                                                        onChange={e => handleSaveZone(idx, 'name', e.target.value)} 
-                                                        className="w-full mt-0.5 px-2 py-1 border-b border-slate-200 bg-transparent outline-none focus:border-amber-500 text-sm font-bold text-slate-800 disabled:text-slate-600" 
-                                                    />
+                                                    <input type="text" disabled={!isEditing} value={zone.name} onChange={e => handleSaveZone(idx, 'name', e.target.value)} className="w-full mt-0.5 px-2 py-1 border-b border-slate-200 bg-transparent outline-none focus:border-amber-500 text-sm font-bold text-slate-800 disabled:text-slate-600" />
                                                 </div>
                                                 <div>
                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">เขต/อำเภอ (คั่นด้วยลูกน้ำ ,)</label>
-                                                    <textarea 
-                                                        disabled={!isEditing}
-                                                        value={zone.districts} 
-                                                        onChange={e => handleSaveZone(idx, 'districts', e.target.value)} 
-                                                        rows="2" 
-                                                        className="w-full mt-0.5 px-2 py-1 border border-slate-200 rounded bg-slate-50 outline-none focus:ring-1 focus:ring-amber-500 text-xs disabled:bg-transparent disabled:border-transparent disabled:px-0" 
-                                                        ></textarea>
+                                                    <textarea disabled={!isEditing} value={zone.districts} onChange={e => handleSaveZone(idx, 'districts', e.target.value)} rows="2" className="w-full mt-0.5 px-2 py-1 border border-slate-200 rounded bg-slate-50 outline-none focus:ring-1 focus:ring-amber-500 text-xs disabled:bg-transparent disabled:border-transparent disabled:px-0" ></textarea>
                                                 </div>
                                                 <div>
                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ทีมที่รับผิดชอบ (เรียงตามคิว)</label>
-                                                    <textarea 
-                                                        disabled={!isEditing}
-                                                        value={zone.teams} 
-                                                        onChange={e => handleSaveZone(idx, 'teams', e.target.value)} 
-                                                        rows="1" 
-                                                        className="w-full mt-0.5 px-2 py-1 border border-slate-200 rounded bg-slate-50 outline-none focus:ring-1 focus:ring-amber-500 text-xs disabled:bg-transparent disabled:border-transparent disabled:px-0 font-semibold text-indigo-700" 
-                                                        ></textarea>
+                                                    <textarea disabled={!isEditing} value={zone.teams} onChange={e => handleSaveZone(idx, 'teams', e.target.value)} rows="1" className="w-full mt-0.5 px-2 py-1 border border-slate-200 rounded bg-slate-50 outline-none focus:ring-1 focus:ring-amber-500 text-xs disabled:bg-transparent disabled:border-transparent disabled:px-0 font-semibold text-indigo-700" ></textarea>
                                                 </div>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
+
                         </div>
                     </div>
                 </div>
