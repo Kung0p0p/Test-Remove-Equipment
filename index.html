@@ -2237,14 +2237,95 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         <table className="w-full text-left border-collapse text-sm relative" style={{ tableLayout: 'auto' }}>
                           <thead className="bg-slate-800 shadow-sm shadow-slate-800/50 sticky top-0 z-40">
                             <tr>
-                              {(orderedVisibleColumnsTable?.length || 0) > 0 ? {(orderedVisibleColumnsTable || []).map((col, idx) => {
-                                    // 🔥 ดึงการตั้งค่าคอลัมน์จากหน้า Setting
+                              {(orderedVisibleColumnsTable?.length || 0) > 0 ? orderedVisibleColumnsTable.map((col, idx) => {
+                                  const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
+                                  const isAuto = colConfig.mode === 'auto';
+                                  const isPinned = (pinnedColumns || []).includes(col);
+                                  const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
+                                  
+                                  let finalWidth;
+                                  if (colWidths[col]) {
+                                      finalWidth = typeof colWidths[col] === 'number' ? `${colWidths[col]}px` : colWidths[col];
+                                  } else {
+                                      finalWidth = isAuto ? 'max-content' : `${colConfig.width}px`;
+                                  }
+
+                                  let thStyle = { 
+                                      whiteSpace: isAuto ? 'nowrap' : 'normal', 
+                                      wordBreak: isAuto ? 'normal' : 'break-word',
+                                      width: finalWidth,
+                                      minWidth: finalWidth,
+                                      maxWidth: isAuto ? 'none' : finalWidth
+                                  };
+
+                                  if (isPinned) {
+                                      thStyle.position = 'sticky';
+                                      thStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
+                                      thStyle.zIndex = 50;
+                                  }
+
+                                  let thClass = `p-0 align-middle relative group transition-colors select-none sortable-header bg-slate-800 border-r border-slate-700 hover:bg-slate-700`;
+                                  if (isLastPinned) thClass += ` shadow-[4px_0_6px_-1px_rgba(0,0,0,0.3)] border-r-slate-500`;
+
+                                  return (
+                                      <th key={idx} className={thClass} style={thStyle}>
+                                          <div className="flex items-center justify-between px-2 md:px-4 py-2 md:py-3 w-full h-full cursor-pointer" onClick={() => handleSort(col)}>
+                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                <div className="th-content text-xs md:text-sm font-semibold text-white">{col}</div>
+                                                <button onClick={(e) => { e.stopPropagation(); handlePinToggle(e, col); }} className={`hover:scale-110 transition-transform ${isPinned ? 'text-blue-400' : 'text-slate-500 hover:text-white'}`} title="ตรึงคอลัมน์">
+                                                    <i className="fa-solid fa-thumbtack text-[10px]"></i>
+                                                </button>
+                                            </div>
+                                            <div className="ml-2 text-white opacity-70 shrink-0">{sortConfig.key === col ? (sortConfig.direction === 'asc' ? <i className="fa-solid fa-sort-up text-blue-400"></i> : <i className="fa-solid fa-sort-down text-blue-400"></i>) : <i className="fa-solid fa-sort opacity-30 text-[10px]"></i>}</div>
+                                          </div>
+                                          <div 
+                                              onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e, col); }} 
+                                              onDoubleClick={(e) => { e.stopPropagation(); setColWidths(prev => ({ ...prev, [col]: 'max-content' })); }}
+                                              onClick={(e) => e.stopPropagation()} 
+                                              className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-10 hover:bg-blue-500 flex flex-col justify-center items-center transition-colors opacity-0 group-hover:opacity-100"
+                                              title="ลากเพื่อปรับขนาด / ดับเบิ้ลคลิกเพื่อขยายอัตโนมัติ"
+                                          >
+                                              <div className="w-[2px] h-4 bg-white/60 rounded-full pointer-events-none"></div>
+                                          </div>
+                                      </th>
+                                  );
+                              }) : <th className="p-4 text-white sticky top-0 bg-slate-800 z-30">ตารางงาน</th>}
+                              
+                              <th className="bg-slate-800 border-l border-slate-700 p-0 align-middle sticky right-0 z-40 w-24 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.2)]">
+                                  <div className="px-2 py-2 text-center text-xs md:text-sm font-semibold text-white whitespace-nowrap">
+                                      <i className="fa-solid fa-gear text-slate-300"></i> จัดการ
+                                  </div>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200">
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-0">
+                                        <div className="w-full h-[400px] flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm">
+                                            <div className="relative w-20 h-20 mb-4">
+                                                <div className="absolute inset-0 border-4 border-blue-100 rounded-full"></div>
+                                                <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+                                                <div className="absolute inset-0 flex items-center justify-center text-blue-600">
+                                                    <i className="fa-solid fa-cloud-arrow-down text-xl animate-pulse"></i>
+                                                </div>
+                                            </div>
+                                            <h3 className="text-lg font-bold text-slate-800 animate-pulse">กำลังซิงค์ข้อมูล...</h3>
+                                            <p className="text-sm text-slate-500 mt-2 font-medium">กรุณารอสักครู่ ระบบกำลังดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )
+                            : (currentTasksTable?.length || 0) === 0 ? <tr><td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-8 text-center text-slate-500">ฐานข้อมูลว่างเปล่า</td></tr>
+                            : (finalTableTasks?.length || 0) === 0 ? <tr><td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-8 text-center text-slate-500">ไม่พบข้อมูล...</td></tr>
+                            : (paginatedTasks || []).map((task) => (
+                              <tr key={task.id} className={`transition-colors tr-hover hover:bg-slate-50`} style={{ height: rowHeights[task.id] ? `${rowHeights[task.id]}px` : 'auto' }}>
+                                {(orderedVisibleColumnsTable || []).map((col, idx) => {
                                     const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
                                     const isAuto = colConfig.mode === 'auto';
                                     const isPinned = (pinnedColumns || []).includes(col);
                                     const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
                                     
-                                    // ลำดับความกว้าง: 1.ลากเอง > 2.Auto > 3.ค่าใน Setting
                                     let finalWidth;
                                     if (colWidths[col]) {
                                         finalWidth = typeof colWidths[col] === 'number' ? `${colWidths[col]}px` : colWidths[col];
@@ -2265,7 +2346,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdStyle.zIndex = 20;
                                     }
 
-                                    // ตั้งค่าการแสดงผลข้อความ
                                     let tdWhiteSpace = isAuto ? 'nowrap' : 'normal'; 
                                     let tdWordBreak = isAuto ? 'normal' : 'break-word';
                                     let tdOverflow = 'visible'; 
@@ -2273,7 +2353,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     let tdLineHeight = '1.5'; 
                                     let tdDisplay = 'inline-block'; 
                                     
-                                    // ใช้ความกว้างเดียวกับ tdStyle เพื่อใส่ในกล่องข้อความด้านใน
                                     let innerWidth = finalWidth;
 
                                     const isStatusCell = col === t_statusCol;
@@ -2286,7 +2365,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     const isContactJobCell = col === contactJobColMatch;
                                     const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
 
-                                    // ข้อยกเว้นสำหรับคอลัมน์ที่ต้องขึ้นบรรทัดใหม่เสมอ (Multi-line)
                                     const isSpecialMulti = isGroupedMultiLine || col === 'รายการอุปกรณ์' || col === contactJobColMatch;
                                     if (isSpecialMulti) {
                                         tdWhiteSpace = 'pre-wrap';
@@ -2298,7 +2376,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     const cellId = `${task.id}-${col}`;
                                     const isEditing = editingCell === cellId;
                                     
-                                    // 🔥 นำระบบสีกลับมา
                                     let styleObj = {};
                                     
                                     if (isStatusCell) {
@@ -2407,7 +2484,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     }
                                 })}
                                 
-                                <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-10 text-center shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)]">
+                                <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-10 text-center shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] relative group">
                                     <div className="flex flex-col gap-1.5 h-full justify-center px-1">
                                         {tasksSubTab === 'ns' && (
                                             <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="w-full py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 rounded text-[10px] font-bold transition-all shadow-sm flex items-center justify-center gap-1" title="ส่ง CID นี้ไปหน้าจ่ายงาน">
@@ -2419,6 +2496,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                 <i className="fa-solid fa-trash"></i> ลบ
                                             </button>
                                         )}
+                                    </div>
+                                    <div onPointerDown={(e) => handleRowPointerDown(e, task.id)} className="absolute bottom-0 left-0 right-0 h-2 cursor-row-resize z-20 hover:bg-blue-500 flex justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity" title="ลากเพื่อขยายขนาดแถว">
+                                        <div className="w-6 h-[2px] bg-white/80 rounded-full pointer-events-none"></div>
                                     </div>
                                 </td>
                               </tr>
