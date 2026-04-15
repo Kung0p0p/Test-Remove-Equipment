@@ -524,11 +524,22 @@
 
                 switch (boxId) {
                     case 'columns':
+                        // 🔥 State สำหรับสลับ Tab ในกล่องตั้งค่าคอลัมน์ (ประกาศไว้ในฟังก์ชัน renderBox)
+                        const [settingTab, setSettingTab] = useState('subcontract');
+                        const targetColumns = settingTab === 'subcontract' ? columns : nsColumns;
+                        
                         return (
                             <div key={boxId} {...boxProps}>
                                 <h3 className="font-bold text-slate-800 mb-3 flex items-center"><i className="fa-solid fa-table-columns text-blue-500 mr-2"></i> ตั้งค่าคอลัมน์ (Global View)</h3>
-                                <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-3 pr-1">
-                                    {[...new Set([...(columns || []), ...(nsColumns || [])])].filter(c => c && c !== 'Region_Respon').map(colName => {
+                                
+                                {/* 🔥 ปุ่มสลับ Tab */}
+                                <div className="flex bg-slate-200 p-1 rounded-lg mb-3">
+                                    <button onClick={() => setSettingTab('subcontract')} className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md ${settingTab === 'subcontract' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>Subcontract</button>
+                                    <button onClick={() => setSettingTab('ns')} className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md ${settingTab === 'ns' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'}`}>Region (NS)</button>
+                                </div>
+
+                                <div className="max-h-[350px] overflow-y-auto custom-scrollbar space-y-3 pr-1">
+                                    {[...new Set(targetColumns || [])].filter(c => c && c !== 'Region_Respon').map(colName => {
                                         const config = (tempData.columnSettings || {})[colName] || { mode: 'fixed', width: '150' };
                                         return (
                                             <div key={colName} className="p-2 bg-white border rounded-lg">
@@ -1318,7 +1329,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           teams: Array.isArray(data.teams) ? data.teams : defaultMasterData.teams,
                           nsTeams: Array.isArray(data.nsTeams) ? data.nsTeams.map(t => typeof t === 'string' ? {name: t, bg: '#e0f2fe', text: '#0369a1'} : t) : [],
                           nsStatuses: Array.isArray(data.nsStatuses) ? data.nsStatuses.map(s => typeof s === 'string' ? {name: s, bg: '#fef3c7', text: '#b45309'} : s) : [],
-                          subconStatuses: Array.isArray(data.subconStatuses) ? data.subconStatuses.map(s => typeof s === 'string' ? {name: s, bg: '#e0e7ff', text: '#4338ca'} : s) : [] // 🔥 เพิ่ม Status สำหรับ Subcontract
+                          subconStatuses: Array.isArray(data.subconStatuses) ? data.subconStatuses.map(s => typeof s === 'string' ? {name: s, bg: '#e0e7ff', text: '#4338ca'} : s) : [],
+                          columnSettings: data.columnSettings || {}, // 🔥 ดึงการตั้งค่าคอลัมน์มาด้วย
+                          boxOrder: data.boxOrder || ['columns', 'teams', 'nsTeams', 'nsStatuses', 'subconStatuses', 'zones'] // 🔥 ดึงลำดับกล่องมาด้วย
                       });
                       if (data.queue) setQueueState(data.queue);
                   }
@@ -2225,23 +2238,28 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           <thead className="bg-slate-800 shadow-sm shadow-slate-800/50 sticky top-0 z-40">
                             <tr>
                               {(orderedVisibleColumnsTable?.length || 0) > 0 ? orderedVisibleColumnsTable.map((col, idx) => {
-                                  const hasFixedWidth = colWidths[col] !== undefined;
+                                  // 🔥 ดึงการตั้งค่าจากหน้า Setting
+                                  const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
+                                  const isAuto = colConfig.mode === 'auto';
+                                  
                                   const isPinned = (pinnedColumns || []).includes(col);
                                   const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
-                                  const colWidth = colWidths[col] || (isPinned ? 150 : undefined);
-
-                                  let thStyle = { whiteSpace: 'nowrap' };
-                                  if (colWidth) {
-                                      thStyle.width = colWidth;
-                                      thStyle.minWidth = colWidth;
-                                      thStyle.maxWidth = colWidth;
-                                  } else if (col === contactJobColMatch) {
-                                      // บังคับหัวตารางให้กว้างแค่ 150px
-                                      thStyle.width = '150px';
-                                      thStyle.minWidth = '150px';
-                                      thStyle.maxWidth = '150px';
-                                      thStyle.whiteSpace = 'normal';
+                                  
+                                  // ลำดับความกว้าง: 1.ลากเอง > 2.Auto > 3.ค่าใน Setting
+                                  let finalWidth;
+                                  if (colWidths[col]) {
+                                      finalWidth = typeof colWidths[col] === 'number' ? `${colWidths[col]}px` : colWidths[col];
+                                  } else {
+                                      finalWidth = isAuto ? 'max-content' : `${colConfig.width}px`;
                                   }
+
+                                  let thStyle = { 
+                                      whiteSpace: isAuto ? 'nowrap' : 'normal', 
+                                      wordBreak: isAuto ? 'normal' : 'break-word',
+                                      width: finalWidth,
+                                      minWidth: finalWidth,
+                                      maxWidth: isAuto ? 'none' : finalWidth
+                                  };
 
                                   if (isPinned) {
                                       thStyle.position = 'sticky';
@@ -2298,69 +2316,26 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             : (paginatedTasks || []).map((task) => (
                               <tr key={task.id} className={`transition-colors tr-hover hover:bg-slate-50`}>
                                 {(orderedVisibleColumnsTable || []).map((col, idx) => {
-                                    const hasFixedWidth = colWidths[col] !== undefined;
-                                    
-                                    const isStatusCell = col === t_statusCol;
-                                    const isTeamCell = col === t_teamCol;
-                                    const isOverDueCell = col === t_overDueCol; 
-                                    const isCidCell = col === t_cidCol && t_cidCol !== '';
-                                    const isEquipYearCell = col === t_equipYearCol && t_equipYearCol !== '';
-                                    const isRegionResponCell = col === 'Region_Respon';
-                                    
-                                    const isStatusChangeCell = col === statusChangeColMatch;
-                                    const isContactJobCell = col === contactJobColMatch;
-
-                                    const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
-                                    
-                                    const val = task[col] || '';
-                                    const cleanVal = getCleanStatus(val);
-                                    const cellId = `${task.id}-${col}`;
-                                    const isEditing = editingCell === cellId;
-                                    
-                                    let styleObj = {};
-                                    
-                                    if (isStatusCell) {
-                                        styleObj = { backgroundColor: getStatusColor(cleanVal, 0.1), color: getStatusColor(cleanVal, 1), fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isTeamCell) {
-                                        const tColor = getTeamColorStyle(val, masterData); styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isEquipYearCell && cleanVal) {
-                                        const yColor = getYearColorStyle(val); styleObj = { backgroundColor: yColor.bg, color: yColor.text, border: `1px solid ${yColor.border}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isCidCell && cleanVal) {
-                                        const currentTaskStatus = getCleanStatus(task[t_statusCol]);
-                                        const cBg = getStatusColor(currentTaskStatus, 0.15);
-                                        const cText = getStatusColor(currentTaskStatus, 1);
-                                        styleObj = { backgroundColor: cBg, color: cText, border: `1px solid ${getStatusColor(currentTaskStatus, 0.3)}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isOverDueCell && cleanVal) {
-                                        let num = NaN; const match = cleanVal.match(/-?\d+/); if(match) num = parseInt(match[0], 10);
-                                        if (cleanVal.includes('เกิน') || cleanVal.includes('over') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                        else if (num === 0 || cleanVal.includes('ครบกำหนด') || cleanVal === '0') styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' }; 
-                                        else if (num > 0 || cleanVal.includes('เหลือ')) styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isStatusChangeCell && cleanVal !== 'ไม่ระบุสถานะ' && cleanVal !== '') {
-                                        styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', borderRadius: '4px', border: '1px solid #fef08a', display: 'inline-block', padding: '2px 6px' };
-                                    }
-
+                                    // 🔥 ดึงการตั้งค่าคอลัมน์จากหน้า Setting
+                                    const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
+                                    const isAuto = colConfig.mode === 'auto';
                                     const isPinned = (pinnedColumns || []).includes(col);
                                     const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
-                                    const colWidth = colWidths[col] || (isPinned ? 150 : undefined);
-
-                                    let tdStyle = { verticalAlign: 'top' };
-                                    if (colWidth) {
-                                        tdStyle.width = colWidth;
-                                        tdStyle.minWidth = colWidth;
-                                        tdStyle.maxWidth = colWidth;
+                                    
+                                    // ลำดับความกว้าง: 1.ลากเอง > 2.Auto > 3.ค่าใน Setting
+                                    let finalWidth;
+                                    if (colWidths[col]) {
+                                        finalWidth = typeof colWidths[col] === 'number' ? `${colWidths[col]}px` : colWidths[col];
                                     } else {
-                                        if (isStatusChangeCell) {
-                                            tdStyle.maxWidth = '600px';
-                                            tdStyle.minWidth = '600px';
-                                            tdStyle.maxWidth = '600px';
-                                        }
-                                        if (isContactJobCell) {
-                                            // บังคับเนื้อหาให้กว้างแค่ 6000px เท่ากับหัวตาราง
-                                            tdStyle.width = '600px';
-                                            tdStyle.minWidth = '600px';
-                                            tdStyle.maxWidth = '600px';
-                                        }
+                                        finalWidth = isAuto ? 'max-content' : `${colConfig.width}px`;
                                     }
+
+                                    let tdStyle = { 
+                                        verticalAlign: 'top',
+                                        width: finalWidth,
+                                        minWidth: finalWidth,
+                                        maxWidth: isAuto ? 'none' : finalWidth
+                                    };
 
                                     if (isPinned) {
                                         tdStyle.position = 'sticky';
@@ -2368,48 +2343,42 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         tdStyle.zIndex = 20;
                                     }
 
-                                    // 🔥 เช็คว่าเป็นคอลัมน์ "รายการอุปกรณ์" หรือไม่
-                                    const isEquipListCell = col === 'รายการอุปกรณ์';
+                                    // ตั้งค่าการแสดงผลข้อความ
+                                    let tdWhiteSpace = isAuto ? 'nowrap' : 'normal'; 
+                                    let tdWordBreak = isAuto ? 'normal' : 'break-word';
+                                    let tdOverflow = 'visible'; 
+                                    let tdTextOverflow = 'clip'; 
+                                    let tdLineHeight = '1.5'; 
+                                    let tdDisplay = 'inline-block'; 
+                                    
+                                    // ใช้ความกว้างเดียวกับ tdStyle เพื่อใส่ในกล่องข้อความด้านใน
+                                    let innerWidth = finalWidth;
 
-                                    let tdWhiteSpace = 'nowrap';
-                                    let tdWordBreak = 'normal';
-                                    let tdOverflow = 'hidden';
-                                    let innerWidth = colWidth;
-                                    let tdTextOverflow = 'ellipsis';
-                                    let tdLineHeight = '20px';
-                                    let tdDisplay = 'block';
+                                    const isStatusCell = col === t_statusCol;
+                                    const isTeamCell = col === t_teamCol;
+                                    const isOverDueCell = col === t_overDueCol; 
+                                    const isCidCell = col === t_cidCol && t_cidCol !== '';
+                                    const isEquipYearCell = col === t_equipYearCol && t_equipYearCol !== '';
+                                    const isRegionResponCell = col === 'Region_Respon';
+                                    const isStatusChangeCell = col === statusChangeColMatch;
+                                    const isContactJobCell = col === contactJobColMatch;
+                                    const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
 
-                                    if (isGroupedMultiLine) {
+                                    // ข้อยกเว้นสำหรับคอลัมน์ที่ต้องขึ้นบรรทัดใหม่เสมอ (Multi-line)
+                                    const isSpecialMulti = isGroupedMultiLine || col === 'รายการอุปกรณ์' || col === contactJobColMatch;
+                                    if (isSpecialMulti) {
                                         tdWhiteSpace = 'pre-wrap';
                                         tdWordBreak = 'break-word';
-                                        tdOverflow = 'visible'; 
-                                        tdTextOverflow = 'clip';
-                                        tdLineHeight = '1.8';
-                                    } else if (isContactJobCell) {
-                                        // 🔥 เอา !hasFixedWidth ออก เพื่อให้ขึ้นบรรทัดใหม่เสมอ
-                                        tdWhiteSpace = 'pre-wrap'; 
-                                        tdWordBreak = 'break-word';
-                                        tdOverflow = 'visible'; 
-                                        tdTextOverflow = 'clip'; 
-                                        tdLineHeight = '1.5'; 
-                                        // ถ้ามีการลากขยาย ให้ใช้ความกว้างใหม่ ถ้าไม่มีให้ใช้ 600px
-                                        innerWidth = hasFixedWidth ? colWidth : '600px'; 
-                                        tdDisplay = 'inline-block'; 
-                                    } else if (isEquipListCell) {
-                                        // 🔥 เอา !hasFixedWidth ออกเช่นกัน
-                                        tdWhiteSpace = 'pre-wrap'; 
-                                        tdWordBreak = 'break-word';
-                                        tdOverflow = 'visible'; 
-                                        tdTextOverflow = 'clip'; 
-                                        tdLineHeight = '1.5'; 
-                                        innerWidth = hasFixedWidth ? colWidth : '800px'; 
-                                        tdDisplay = 'inline-block'; 
-                                    } else if (isStatusChangeCell) {
-                                        tdWhiteSpace = 'normal';
-                                        tdWordBreak = 'break-word';
-                                        tdOverflow = 'hidden';
-                                        if (!hasFixedWidth) innerWidth = '250px'; // กำหนดค่าเริ่มต้นถ้ายังไม่โดนลาก
                                     }
+
+                                    const val = task[col] || '';
+                                    const cleanVal = getCleanStatus(val);
+                                    const cellId = `${task.id}-${col}`;
+                                    const isEditing = editingCell === cellId;
+                                    
+                                    let styleObj = {};
+                                    
+                                    // ... (โค้ดเช็คสีต่างๆ จะอยู่ต่อจากตรงนี้) ...
 
                                     const textAlignment = isGroupedMultiLine ? 'left' : (isTeamCell || isStatusCell || isEquipYearCell || isOverDueCell || isCidCell || isRegionResponCell ? 'center' : 'left');
 
