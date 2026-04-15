@@ -434,7 +434,7 @@
         // -------------------------------------------------------------
         // --- COMPONENT: MASTER DATA MANAGEMENT (DRAG & DROP + RESIZE) ---
         // -------------------------------------------------------------
-        const MasterDataTab = ({ masterData, masterDataRef, customAlert, customConfirm, columns, nsColumns }) => {
+        const MasterDataTab = ({ masterData, masterDataRef, customAlert, customConfirm, columns, nsColumns, setMasterData }) => {
             const [isEditing, setIsEditing] = useState(false);
             const [tempData, setTempData] = useState(masterData);
             
@@ -451,7 +451,9 @@
                     subconStatuses: Array.isArray(masterData.subconStatuses) ? masterData.subconStatuses : [],
                     columnSettings: masterData.columnSettings || {}
                 }); 
-                if (masterData.boxOrder) setBoxOrder(masterData.boxOrder);
+                if (masterData.boxOrder && masterData.boxOrder.length > 0) {
+                    setBoxOrder(masterData.boxOrder);
+                }
             }, [masterData]);
 
             const handleSaveZone = (index, field, val) => {
@@ -480,19 +482,28 @@
                     nsStatuses: tempData.nsStatuses || [],
                     subconStatuses: tempData.subconStatuses || [],
                     columnSettings: tempData.columnSettings || {},
-                    boxOrder: boxOrder // 🔥 บันทึกลำดับกล่อง
+                    boxOrder: boxOrder // 🔥 บันทึกลำดับกล่องลง Firebase
                 };
+
+                // 🔥 อัปเดต State หลักทันที เพื่อให้สีในตารางเปลี่ยนแบบ Real-time
+                if (setMasterData) setMasterData(dataToSave);
 
                 masterDataRef.set(dataToSave, { merge: true });
                 setIsEditing(false);
                 customAlert('บันทึกข้อมูลส่วนกลางเรียบร้อยแล้ว', 'success');
             };
 
-            // 🔥 ฟังก์ชันจัดการ Drag & Drop
+            // 🔥 ฟังก์ชันจัดการ Drag & Drop (แบบแทรก - Insert)
             const handleSort = () => {
+                if (dragItem.current === null || dragOverItem.current === null) return;
+                if (dragItem.current === dragOverItem.current) return;
+
                 let _boxOrder = [...boxOrder];
+                // ดึงกล่องที่ถูกลากออกมา
                 const draggedItemContent = _boxOrder.splice(dragItem.current, 1)[0];
+                // แทรกกล่องกลับเข้าไปในตำแหน่งที่ปล่อยเมาส์
                 _boxOrder.splice(dragOverItem.current, 0, draggedItemContent);
+                
                 dragItem.current = null;
                 dragOverItem.current = null;
                 setBoxOrder(_boxOrder);
@@ -2807,7 +2818,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 )}
 
                 {/* --- 4. หน้า MASTER DATA --- */}
-                {activeTab === 'master_data' && <MasterDataTab masterData={masterData} masterDataRef={masterDataRef} customAlert={customAlert} customConfirm={customConfirm} />}
+                {activeTab === 'master_data' && <MasterDataTab masterData={masterData} masterDataRef={masterDataRef} customAlert={customAlert} customConfirm={customConfirm} columns={columns} nsColumns={nsColumns} setMasterData={setMasterData} />}
 
                 {/* --- 5. หน้า ASSIGN JOB --- */}
                 {activeTab === 'assign' && <AssignJobTab masterData={masterData} queueState={queueState} setQueueState={setQueueState} masterDataRef={masterDataRef} collectionRef={collectionRef} GAS_WEB_APP_URL={GAS_WEB_APP_URL} nsTasks={nsTasks} autoAssignData={autoAssignData} clearAutoAssignData={clearAutoAssignData} customAlert={customAlert} setTasks={setTasks} />}
