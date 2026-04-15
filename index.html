@@ -1196,6 +1196,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
           const [tooltipData, setTooltipData] = useState({ visible: false, task: null, x: 0, y: 0 });
           const [colWidths, setColWidths] = useState({}); 
+          const [rowHeights, setRowHeights] = useState({}); // 🔥 State สำหรับเก็บความสูงของแถว
           const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
           const [editingCell, setEditingCell] = useState(null);
 
@@ -1433,7 +1434,30 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               document.addEventListener('pointerup', onPointerUp);
               document.addEventListener('touchmove', onPointerMove, { passive: false }); 
               document.addEventListener('touchend', onPointerUp);
+          };// 🔥 ฟังก์ชันใหม่สำหรับลากขยายความสูงของแถว (วางต่อท้ายได้เลย)
+          const handleRowPointerDown = (e, rowId) => {
+              e.preventDefault(); e.stopPropagation(); 
+              const startY = e.pageY || (e.touches ? e.touches[0].pageY : 0); 
+              const tr = e.currentTarget.closest('tr');
+              const startHeight = tr ? tr.getBoundingClientRect().height : 40;
+              
+              const onPointerMove = (me) => {
+                  const currentY = me.pageY || (me.touches ? me.touches[0].pageY : 0);
+                  setRowHeights(prev => ({ ...prev, [rowId]: Math.max(40, startHeight + (currentY - startY)) }));
+              };
+              const onPointerUp = () => { 
+                  document.removeEventListener('pointermove', onPointerMove); 
+                  document.removeEventListener('pointerup', onPointerUp); 
+                  document.removeEventListener('touchmove', onPointerMove); 
+                  document.removeEventListener('touchend', onPointerUp); 
+              };
+              
+              document.addEventListener('pointermove', onPointerMove); 
+              document.addEventListener('pointerup', onPointerUp);
+              document.addEventListener('touchmove', onPointerMove, { passive: false }); 
+              document.addEventListener('touchend', onPointerUp);
           };
+            
 
           useEffect(() => {
               setVisibleRows(100); // รีเซ็ตให้กลับมาโชว์ 100 แถวแรกเสมอเวลาค้นหาหรือเปลี่ยนแท็บ
