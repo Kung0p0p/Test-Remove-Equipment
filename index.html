@@ -2345,34 +2345,28 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             : (paginatedTasks || []).map((task) => (
                               <tr key={task.id} className={`transition-colors tr-hover hover:bg-slate-50`} style={{ height: rowHeights[task.id] ? `${rowHeights[task.id]}px` : 'auto' }}>
                                 {(orderedVisibleColumnsTable || []).map((col, idx) => {
-                                    // 1. ดึงการตั้งค่าคอลัมน์
+                                    // --- 1. ดึงการตั้งค่าและสถานะเซลล์ ---
                                     const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
                                     const isAuto = colConfig.mode === 'auto';
                                     const isPinned = (pinnedColumns || []).includes(col);
                                     const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
                                     
-                                    let finalWidth = colWidths[col] || (isAuto ? 'max-content' : `${colConfig.width}px`);
-                                    if (typeof finalWidth === 'number') finalWidth = `${finalWidth}px`;
-
-                                    // 2. ตั้งค่าพื้นฐานของช่อง (td)
-                                    let tdStyle = { verticalAlign: 'top', width: finalWidth, minWidth: finalWidth, maxWidth: finalWidth };
-                                    if (isPinned) {
-                                        tdStyle.position = 'sticky';
-                                        tdStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
-                                        tdStyle.zIndex = 20;
-                                    }
-
-                                    // 3. ดึงข้อมูลและเช็คประเภทคอลัมน์
                                     const val = task[col] || '';
                                     const cleanVal = String(val).trim();
                                     const cellId = `${task.id}-${col}`;
                                     const isEditing = editingCell === cellId;
 
-                                    const isStatusChangeCell = col === statusChangeColMatch;
+                                    // --- 2. ตรวจสอบประเภทคอลัมน์ (เพื่อใส่สีและจัดการบรรทัด) ---
+                                    const isStatusChangeCell = (col === statusChangeColMatch || col === 'Status_change');
                                     const isCidCell = (col === t_cidCol || col === 'CID Customer' || col === 'Circuit No');
                                     const isOverDueCell = (col === t_overDueCol || col === 'นัดหมายลูกค้า');
+                                    const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
 
-                                    // 4. คำนวณสีและสไตล์ (styleObj) - แก้ไขให้ครบทั้ง 4 คอลัมน์ที่แจ้ง
+                                    // --- 3. คำนวณความกว้าง ---
+                                    let finalWidth = colWidths[col] || (isAuto ? 'max-content' : `${colConfig.width}px`);
+                                    if (typeof finalWidth === 'number') finalWidth = `${finalWidth}px`;
+
+                                    // --- 4. คำนวณสีและสไตล์ (styleObj) ---
                                     let styleObj = { backgroundColor: 'transparent', color: 'inherit', fontWeight: 'normal', border: 'none' };
                                     
                                     if (col === t_statusCol) {
@@ -2392,13 +2386,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', border: '1px solid #fef08a' };
                                     }
 
-                                    // 5. จัดการการขึ้นบรรทัดใหม่
+                                    // --- 5. ตั้งค่าการแสดงผลข้อความ ---
                                     let tdWhiteSpace = isAuto ? 'nowrap' : 'normal';
                                     if (isGroupedMultiLine || col === 'รายการอุปกรณ์' || col === contactJobColMatch || isStatusChangeCell) {
                                         tdWhiteSpace = 'pre-wrap';
                                     }
 
-                                    // 6. เตรียมตัวเลือก Dropdown
+                                    // --- 6. เตรียมตัวเลือก Dropdown ---
                                     let options = [];
                                     if (col === t_statusCol) {
                                         options = tasksSubTab === 'ns' ? (masterData.nsStatuses || []).map(s => s.name) : (masterData.subconStatuses || []).map(s => s.name);
@@ -2406,8 +2400,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         options = tasksSubTab === 'ns' ? (masterData.nsTeams || []).map(t => t.name) : (masterData.teams || []);
                                     }
 
+                                    // --- 7. กำหนด Class ของช่อง (td) ---
+                                    let tdStyle = { verticalAlign: 'top', width: finalWidth, minWidth: finalWidth, maxWidth: finalWidth };
                                     let tdClass = `p-1 md:p-1.5 align-middle border-r border-slate-100 bg-white`;
-                                    if (isPinned) tdClass += ` sticky-col-cell ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`;
+                                    if (isPinned) {
+                                        tdStyle.position = 'sticky';
+                                        tdStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
+                                        tdStyle.zIndex = 20;
+                                        tdClass += ` sticky-col-cell ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`;
+                                    }
 
                                     return (
                                         <td key={idx} className={tdClass} style={tdStyle}>
