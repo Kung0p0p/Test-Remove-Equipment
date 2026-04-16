@@ -1735,22 +1735,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   tableTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex));
               }
               // 🔥 กรองตาม Region Responsible (เฉพาะหน้า Subcontract)
-              if (tasksSubTab === 'subcontract' && tableFilterRegionRespon.length > 0) {
-                  processedTasks = processedTasks.filter(t => tableFilterRegionRespon.includes(t['Region_Respon']));
-              }
-              // 🔥 กรองตาม Region Responsible (เฉพาะหน้า Subcontract)
-              if (tasksSubTab === 'subcontract' && tableFilterRegionRespon && tableFilterRegionRespon.length > 0) {
-                  tableTasks = tableTasks.filter(t => {
-                      const val = t['Region_Respon'] ? String(t['Region_Respon']).trim() : '-';
-                      return tableFilterRegionRespon.includes(val);
-                  });
-              }
-              
-              if (searchTerm) tableTasks = tableTasks.filter(t => Object.values(t).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase())));
-              
-              let processedTasks = tableTasks;
+             let processedTasks = [...tableTasks];
 
-              // 🟢 ทำการ Mapping และกรองข้อมูล Region Responsible
+              // 🟢 1. ทำการ Mapping ข้อมูล Region Responsible ก่อน (เฉพาะหน้า Subcontract)
               if (tasksSubTab === 'subcontract') {
                   const nsTeamCol = getTeamColumnName(nsColumns);
                   const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
@@ -1764,19 +1751,26 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       });
                   }
 
-                  // 1. ใส่ข้อมูล Region_Respon ลงในทุกแถว
+                  // ใส่ข้อมูล Region_Respon ลงในทุกแถวเพื่อให้ระบบรู้จักคอลัมน์นี้ก่อนกรอง
                   processedTasks = processedTasks.map(t => {
-                      const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
+                      const cid = t_cidCol ? String(t[t_cidCol] || '').trim() : '';
                       return { ...t, 'Region_Respon': nsCidMap[cid] || '-' };
                   });
 
-                  // 2. กรองตามที่เลือก (ถ้ามีการเลือก)
+                  // 🟢 2. กรองตาม Region Responsible (ถ้ามีการเลือก)
                   if (Array.isArray(tableFilterRegionRespon) && tableFilterRegionRespon.length > 0) {
                       processedTasks = processedTasks.filter(t => {
                           const val = t['Region_Respon'] || '-';
                           return tableFilterRegionRespon.includes(val);
                       });
                   }
+              }
+              
+              // 🟢 3. กรองด้วยคำค้นหา (Search)
+              if (searchTerm) {
+                  processedTasks = processedTasks.filter(t => 
+                      Object.values(t).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
+                  );
               }
 
               if (tasksSubTab === 'ns') {
@@ -2279,20 +2273,23 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             {t_equipYearCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueYears} selected={tableFilterYear} onChange={setTableFilterYear} placeholder="ปี" /></div>}
                             {t_statusCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueStatuses} selected={tableFilterStatus} onChange={setTableFilterStatus} placeholder="Status" /></div>}
                             {t_overDueCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={['ครบกำหนด', 'ยังไม่ครบกำหนด', 'เกินกำหนด']} selected={tableFilterOverdue} onChange={setTableFilterOverdue} placeholder="นัดหมายลูกค้า" /></div>}
-                            {tasksSubTab === 'subcontract' && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect 
+                            {tasksSubTab === 'subcontract' && (
+                                <div className="w-[calc(50%-4px)] sm:w-auto">
+                                    <MultiSelect 
                                         options={(() => {
-                                            // ดึงรายชื่อ Region Responsible จากข้อมูลที่ถูก Map ไว้ใน processedTasks (หรือคำนวณสด)
                                             const nsTeamCol = getTeamColumnName(nsColumns);
                                             const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
+                                            if (!nsTeamCol || !nsCidCol) return ['-'];
+
                                             const nsCidMap = {};
-                                            if (nsCidCol && nsTeamCol) {
-                                                nsTasks.forEach(nt => {
-                                                    const cid = nt[nsCidCol] ? String(nt[nsCidCol]).trim() : '';
-                                                    if (cid) nsCidMap[cid] = nt[nsTeamCol];
-                                                });
-                                            }
+                                            nsTasks.forEach(nt => {
+                                                const cid = String(nt[nsCidCol] || '').trim();
+                                                if (cid) nsCidMap[cid] = nt[nsTeamCol];
+                                            });
+
+                                            const subCidKey = t_getCol(['cid', 'circuitno']);
                                             const regionsInSub = tasks.map(t => {
-                                                const cid = t[t_getCol(['cid', 'circuitno'])] ? String(t[t_getCol(['cid', 'circuitno'])]).trim() : '';
+                                                const cid = String(t[subCidKey] || '').trim();
                                                 return nsCidMap[cid] || '-';
                                             });
                                             return [...new Set(regionsInSub)].sort();
@@ -2301,7 +2298,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         onChange={setTableFilterRegionRespon} 
                                         placeholder="Region Respon" 
                                     />
-                                </div>}
+                                </div>
+                            )}
                             <div className="ml-auto flex flex-wrap items-center gap-2 mt-2 md:mt-0 w-full sm:w-auto">
                                 {tasksSubTab === 'subcontract' && t_cidCol && (
                                     <button 
