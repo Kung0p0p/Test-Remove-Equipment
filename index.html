@@ -475,6 +475,15 @@
             const handleSave = () => {
                 const newTeamsArr = typeof tempData.teams === 'string' ? tempData.teams.split(',').map(t=>t.trim()).filter(Boolean) : tempData.teams;
 
+                // 🔥 ดึงขนาดกล่องปัจจุบันจากหน้าจอมาบันทึก
+                const layout = {};
+                boxOrder.forEach(id => {
+                    const el = document.getElementById(`box-${id}`);
+                    if (el) {
+                        layout[id] = { width: el.style.width, height: el.style.height };
+                    }
+                });
+
                 const dataToSave = {
                     zones: tempData.zones || [],
                     teams: newTeamsArr || [],
@@ -482,15 +491,14 @@
                     nsStatuses: tempData.nsStatuses || [],
                     subconStatuses: tempData.subconStatuses || [],
                     columnSettings: tempData.columnSettings || {},
-                    boxOrder: boxOrder // 🔥 บันทึกลำดับกล่องลง Firebase
+                    boxOrder: boxOrder,
+                    layoutSettings: layout // 🔥 บันทึกขนาดกล่อง
                 };
 
-                // 🔥 อัปเดต State หลักทันที เพื่อให้สีในตารางเปลี่ยนแบบ Real-time
                 if (setMasterData) setMasterData(dataToSave);
-
                 masterDataRef.set(dataToSave, { merge: true });
                 setIsEditing(false);
-                customAlert('บันทึกข้อมูลส่วนกลางเรียบร้อยแล้ว', 'success');
+                customAlert('บันทึกข้อมูลและ Layout เรียบร้อยแล้ว', 'success');
             };
 
             // 🔥 ฟังก์ชันจัดการ Drag & Drop (แบบแทรก - Insert)
