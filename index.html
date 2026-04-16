@@ -2350,12 +2350,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     const isPinned = (pinnedColumns || []).includes(col);
                                     const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
                                     
-                                    let finalWidth;
-                                    if (colWidths[col]) {
-                                        finalWidth = typeof colWidths[col] === 'number' ? `${colWidths[col]}px` : colWidths[col];
-                                    } else {
-                                        finalWidth = isAuto ? 'max-content' : `${colConfig.width}px`;
-                                    }
+                                    let finalWidth = colWidths[col] || (isAuto ? 'max-content' : `${colConfig.width}px`);
+                                    if (typeof finalWidth === 'number') finalWidth = `${finalWidth}px`;
 
                                     let tdStyle = { 
                                         verticalAlign: 'top',
@@ -2371,72 +2367,30 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     }
 
                                     let tdWhiteSpace = isAuto ? 'nowrap' : 'normal'; 
-                                    let tdWordBreak = isAuto ? 'normal' : 'break-word';
-                                    let tdOverflow = 'visible'; 
-                                    let tdTextOverflow = 'clip'; 
                                     let tdLineHeight = '1.5'; 
                                     let tdDisplay = 'inline-block'; 
                                     
-                                    let innerWidth = finalWidth;
-
-                                    const isStatusCell = col === t_statusCol;
-                                    const isTeamCell = col === t_teamCol;
-                                    const isOverDueCell = col === t_overDueCol; 
-                                    const isCidCell = col === t_cidCol && t_cidCol !== '';
-                                    const isEquipYearCell = col === t_equipYearCol && t_equipYearCol !== '';
-                                    const isRegionResponCell = col === 'Region_Respon';
-                                    const isStatusChangeCell = col === statusChangeColMatch;
-                                    const isContactJobCell = col === contactJobColMatch;
-                                    const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
-
-                                    const isSpecialMulti = isGroupedMultiLine || col === 'รายการอุปกรณ์' || col === contactJobColMatch;
-                                    if (isSpecialMulti) {
+                                    if (isGroupedMultiLine || col === 'รายการอุปกรณ์' || col === contactJobColMatch) {
                                         tdWhiteSpace = 'pre-wrap';
-                                        tdWordBreak = 'break-word';
                                     }
 
                                     const val = task[col] || '';
                                     const cleanVal = getCleanStatus(val);
                                     const cellId = `${task.id}-${col}`;
                                     const isEditing = editingCell === cellId;
-                                    
+
+                                    let tdClass = `p-1.5 align-middle border-r border-slate-100 bg-white`;
+                                    if (isPinned) tdClass += ` sticky-col-cell ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`;
+
                                     let styleObj = {};
-                                    
-                                    if (isStatusCell) {
-                                        styleObj = { backgroundColor: getStatusColor(cleanVal, 0.1), color: getStatusColor(cleanVal, 1), fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isTeamCell) {
-                                        const tColor = getTeamColorStyle(val, masterData); styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isEquipYearCell && cleanVal) {
-                                        const yColor = getYearColorStyle(val); styleObj = { backgroundColor: yColor.bg, color: yColor.text, border: `1px solid ${yColor.border}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isCidCell && cleanVal) {
-                                        const currentTaskStatus = getCleanStatus(task[t_statusCol]);
-                                        const cBg = getStatusColor(currentTaskStatus, 0.15);
-                                        const cText = getStatusColor(currentTaskStatus, 1);
-                                        styleObj = { backgroundColor: cBg, color: cText, border: `1px solid ${getStatusColor(currentTaskStatus, 0.3)}`, fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isOverDueCell && cleanVal) {
-                                        let num = NaN; const match = cleanVal.match(/-?\d+/); if(match) num = parseInt(match[0], 10);
-                                        if (cleanVal.includes('เกิน') || cleanVal.includes('over') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                        else if (num === 0 || cleanVal.includes('ครบกำหนด') || cleanVal === '0') styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' }; 
-                                        else if (num > 0 || cleanVal.includes('เหลือ')) styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold', textAlign: 'center', borderRadius: '6px' };
-                                    } else if (isStatusChangeCell && cleanVal !== 'ไม่ระบุสถานะ' && cleanVal !== '') {
-                                        styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', borderRadius: '4px', border: '1px solid #fef08a', display: 'inline-block', padding: '2px 6px' };
+                                    if (col === t_statusCol) {
+                                        styleObj = { backgroundColor: getStatusColor(cleanVal, 0.15), color: getStatusColor(cleanVal, 1), fontWeight: 'bold', textAlign: 'center' };
+                                    } else if (col === t_teamCol) {
+                                        const tColor = getTeamColorStyle(val, masterData);
+                                        styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold', textAlign: 'center' };
                                     }
 
-                                    const textAlignment = isGroupedMultiLine ? 'left' : (isTeamCell || isStatusCell || isEquipYearCell || isOverDueCell || isCidCell || isRegionResponCell ? 'center' : 'left');
-
-                                    let tdClass = `p-1 md:p-1.5 align-middle border-r border-slate-100`;
-                                    if (isPinned) {
-                                        tdClass += ` sticky-col-cell`;
-                                        if (isLastPinned) tdClass += ` shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300`;
-                                    } else {
-                                        tdClass += ` bg-white`;
-                                    }
-
-                                    let cellClasses = `px-2 md:px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`;
-                                    if (isGroupedMultiLine) cellClasses += ' cell-scrollbar';
-
-                                    if (isRegionResponCell) {
-                                        return (
+                                    return (
                                         <td key={idx} className={tdClass} style={tdStyle}>
                                             <div 
                                                 contentEditable={isEditing} 
@@ -2444,28 +2398,26 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                 className={`px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} 
                                                 style={{ 
                                                     ...styleObj, 
-                                                    display: tdDisplay || 'inline-block', 
+                                                    display: tdDisplay, 
                                                     width: '100%',
-                                                    boxSizing: 'border-box',
+                                                    boxSizing: 'border-box', // 🔥 ป้องกันกล่องล้น
                                                     minHeight: '28px', 
                                                     height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto',
-                                                    whiteSpace: tdWhiteSpace || 'normal', 
+                                                    whiteSpace: tdWhiteSpace, 
                                                     wordBreak: 'break-word',
-                                                    lineHeight: tdLineHeight || '1.5',
+                                                    lineHeight: tdLineHeight,
                                                     overflow: 'visible',
-                                                    textAlign: textAlignment || 'left'
+                                                    textAlign: (col === t_statusCol || col === t_teamCol) ? 'center' : 'left',
+                                                    borderRadius: '6px'
                                                 }} 
                                                 onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} 
-                                                onBlur={e => { 
-                                                    const currentCols = tasksSubTab === 'subcontract' ? columns : nsColumns;
-                                                    handleCellChangeTable(task, col, e.target.innerText, currentCols).then(res=>{ if(res===false) e.target.innerText = val; }); 
-                                                    setEditingCell(null); 
-                                                }}
+                                                onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}
                                             >
                                                 {val}
                                             </div>
                                         </td>
                                     );
+                                })}
                                     } else if (isStatusCell) {
                                         let statusOptions = [];
                                         if (tasksSubTab === 'ns') {
