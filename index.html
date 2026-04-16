@@ -2269,7 +2269,28 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             {t_equipYearCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueYears} selected={tableFilterYear} onChange={setTableFilterYear} placeholder="ปี" /></div>}
                             {t_statusCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueStatuses} selected={tableFilterStatus} onChange={setTableFilterStatus} placeholder="Status" /></div>}
                             {t_overDueCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={['ครบกำหนด', 'ยังไม่ครบกำหนด', 'เกินกำหนด']} selected={tableFilterOverdue} onChange={setTableFilterOverdue} placeholder="นัดหมายลูกค้า" /></div>}
-                            {tasksSubTab === 'subcontract' && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={[...new Set(nsTasks.map(t => getCleanTeam(t[getTeamColumnName(nsColumns)])))].sort()} selected={tableFilterRegionRespon} onChange={setTableFilterRegionRespon} placeholder="Region Respon" /></div>}
+                            {tasksSubTab === 'subcontract' && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect 
+                                        options={(() => {
+                                            // ดึงรายชื่อ Region Responsible เฉพาะที่มีการ Mapping อยู่ในหน้า Sub ปัจจุบัน
+                                            const nsTeamCol = getTeamColumnName(nsColumns);
+                                            const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
+                                            const nsCidMap = {};
+                                            if (nsCidCol && nsTeamCol) {
+                                                nsTasks.forEach(nt => {
+                                                    const cid = nt[nsCidCol] ? String(nt[nsCidCol]).trim() : '';
+                                                    if (cid) nsCidMap[cid] = nt[nsTeamCol];
+                                                });
+                                            }
+                                            const regionsInSub = tasks.map(t => {
+                                                const cid = t[t_getCol(['cid', 'circuitno'])] ? String(t[t_getCol(['cid', 'circuitno'])]).trim() : '';
+                                                return nsCidMap[cid] || '-';
+                                            });
+                                            return [...new Set(regionsInSub)].sort();
+                                        })()} 
+                                        selected={tableFilterRegionRespon} 
+                                        onChange={setTableFilterRegionRespon} 
+                                        placeholder="Region Respon" 
+                                    /></div>}
                             <div className="ml-auto flex flex-wrap items-center gap-2 mt-2 md:mt-0 w-full sm:w-auto">
                                 {tasksSubTab === 'subcontract' && t_cidCol && (
                                     <button 
