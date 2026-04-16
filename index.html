@@ -2398,9 +2398,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                 <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-30 text-center group relative">
                                     <div className="flex flex-col gap-1 px-1">
                                         {tasksSubTab === 'ns' ? (
-                                            <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="py-1 bg-indigo-600 text-white rounded text-[10px] font-bold">จ่ายงาน</button>
+                                            <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="py-1 bg-indigo-600 text-white rounded text-[10px] font-bold flex items-center justify-center gap-1">
+                                                <i className="fa-solid fa-bolt"></i> จ่ายงาน
+                                            </button>
                                         ) : (
-                                            <button onClick={() => handleDeleteTask(task)} className="py-1 bg-red-500 text-white rounded text-[10px] font-bold">ลบ</button>
+                                            <button onClick={() => handleDeleteTask(task)} className="py-1 bg-red-500 text-white rounded text-[10px] font-bold flex items-center justify-center">
+                                                <i className="fa-solid fa-trash-can"></i>
+                                            </button>
                                         )}
                                     </div>
                                     <div onPointerDown={(e) => handleRowPointerDown(e, task.id)} className="absolute bottom-0 left-0 right-0 h-1 cursor-row-resize hover:bg-blue-400 opacity-0 group-hover:opacity-100"></div>
