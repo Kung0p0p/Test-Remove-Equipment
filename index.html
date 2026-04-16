@@ -1750,7 +1750,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               
               let processedTasks = tableTasks;
 
-              // 🟢 ดึงข้อมูล Region_Respon มาใส่ในหน้า Subcontract โดยเทียบ CID
+              // 🟢 ทำการ Mapping และกรองข้อมูล Region Responsible
               if (tasksSubTab === 'subcontract') {
                   const nsTeamCol = getTeamColumnName(nsColumns);
                   const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
@@ -1758,15 +1758,25 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   const nsCidMap = {};
                   if (nsCidCol && nsTeamCol) {
                       nsTasks.forEach(nt => {
+                          if (!nt) return;
                           const cid = nt[nsCidCol] ? String(nt[nsCidCol]).trim() : '';
                           if (cid) nsCidMap[cid] = nt[nsTeamCol];
                       });
                   }
 
+                  // 1. ใส่ข้อมูล Region_Respon ลงในทุกแถว
                   processedTasks = processedTasks.map(t => {
                       const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
                       return { ...t, 'Region_Respon': nsCidMap[cid] || '-' };
                   });
+
+                  // 2. กรองตามที่เลือก (ถ้ามีการเลือก)
+                  if (Array.isArray(tableFilterRegionRespon) && tableFilterRegionRespon.length > 0) {
+                      processedTasks = processedTasks.filter(t => {
+                          const val = t['Region_Respon'] || '-';
+                          return tableFilterRegionRespon.includes(val);
+                      });
+                  }
               }
 
               if (tasksSubTab === 'ns') {
@@ -2271,7 +2281,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             {t_overDueCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={['ครบกำหนด', 'ยังไม่ครบกำหนด', 'เกินกำหนด']} selected={tableFilterOverdue} onChange={setTableFilterOverdue} placeholder="นัดหมายลูกค้า" /></div>}
                             {tasksSubTab === 'subcontract' && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect 
                                         options={(() => {
-                                            // ดึงรายชื่อ Region Responsible เฉพาะที่มีการ Mapping อยู่ในหน้า Sub ปัจจุบัน
+                                            // ดึงรายชื่อ Region Responsible จากข้อมูลที่ถูก Map ไว้ใน processedTasks (หรือคำนวณสด)
                                             const nsTeamCol = getTeamColumnName(nsColumns);
                                             const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
                                             const nsCidMap = {};
@@ -2290,7 +2300,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         selected={tableFilterRegionRespon} 
                                         onChange={setTableFilterRegionRespon} 
                                         placeholder="Region Respon" 
-                                    /></div>}
+                                    />
+                                </div>}
                             <div className="ml-auto flex flex-wrap items-center gap-2 mt-2 md:mt-0 w-full sm:w-auto">
                                 {tasksSubTab === 'subcontract' && t_cidCol && (
                                     <button 
@@ -2436,14 +2447,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     );
                                 })}
                                 <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-30 text-center group relative">
-                                    <div className="flex flex-col gap-1.5 px-1">
+                                    <div className="flex flex-col gap-2 px-1 py-1">
                                         {tasksSubTab === 'ns' ? (
-                                            <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded text-[10px] font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all">
-                                                <i className="fa-solid fa-bolt"></i> จ่ายงาน
+                                            <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="py-2 bg-indigo-50 border border-indigo-300 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-black flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95">
+                                                <i className="fa-solid fa-bolt text-sm"></i> จ่ายงาน
                                             </button>
                                         ) : (
-                                            <button onClick={() => handleDeleteTask(task)} className="py-1.5 bg-red-50 border border-red-200 text-red-600 hover:bg-red-600 hover:text-white rounded text-[10px] font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all">
-                                                <i className="fa-solid fa-trash-can"></i> ลบ
+                                            <button onClick={() => handleDeleteTask(task)} className="py-2 bg-red-50 border border-red-300 text-red-600 hover:bg-red-600 hover:text-white rounded-lg text-xs font-black flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95">
+                                                <i className="fa-solid fa-trash-can text-sm"></i> ลบ
                                             </button>
                                         )}
                                     </div>
