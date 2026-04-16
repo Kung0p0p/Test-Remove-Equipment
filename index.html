@@ -2261,25 +2261,19 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         <table className="w-full text-left border-collapse text-sm relative" style={{ tableLayout: 'auto' }}>
                           <thead className="bg-slate-800 shadow-sm shadow-slate-800/50 sticky top-0 z-40">
                             <tr>
-                              {(orderedVisibleColumnsTable?.length || 0) > 0 ? orderedVisibleColumnsTable.map((col, idx) => {
+                              {(orderedVisibleColumnsTable || []).map((col, idx) => {
                                   const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
                                   const isAuto = colConfig.mode === 'auto';
                                   const isPinned = (pinnedColumns || []).includes(col);
                                   const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
                                   
-                                  let finalWidth;
-                                  if (colWidths[col]) {
-                                      finalWidth = typeof colWidths[col] === 'number' ? `${colWidths[col]}px` : colWidths[col];
-                                  } else {
-                                      finalWidth = isAuto ? 'max-content' : `${colConfig.width}px`;
-                                  }
+                                  let finalWidth = colWidths[col] || (isAuto ? 'max-content' : `${colConfig.width}px`);
+                                  if (typeof finalWidth === 'number') finalWidth = `${finalWidth}px`;
 
                                   let thStyle = { 
                                       whiteSpace: isAuto ? 'nowrap' : 'normal', 
                                       wordBreak: isAuto ? 'normal' : 'break-word',
-                                      width: finalWidth,
-                                      minWidth: finalWidth,
-                                      maxWidth: isAuto ? 'none' : finalWidth
+                                      width: finalWidth, minWidth: finalWidth, maxWidth: isAuto ? 'none' : finalWidth
                                   };
 
                                   if (isPinned) {
@@ -2288,251 +2282,114 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       thStyle.zIndex = 50;
                                   }
 
-                                  let thClass = `p-0 align-middle relative group transition-colors select-none sortable-header bg-slate-800 border-r border-slate-700 hover:bg-slate-700`;
-                                  if (isLastPinned) thClass += ` shadow-[4px_0_6px_-1px_rgba(0,0,0,0.3)] border-r-slate-500`;
-
                                   return (
-                                      <th key={idx} className={thClass} style={thStyle}>
-                                          <div className="flex items-center justify-between px-2 md:px-4 py-2 md:py-3 w-full h-full cursor-pointer" onClick={() => handleSort(col)}>
+                                      <th key={idx} className={`p-0 align-middle relative group transition-colors select-none sortable-header bg-slate-800 border-r border-slate-700 hover:bg-slate-700 ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.3)] border-r-slate-500' : ''}`} style={thStyle}>
+                                          <div className="flex items-center justify-between px-4 py-3 w-full h-full cursor-pointer" onClick={() => handleSort(col)}>
                                             <div className="flex items-center gap-2 overflow-hidden">
                                                 <div className="th-content text-xs md:text-sm font-semibold text-white">{col}</div>
-                                                <button onClick={(e) => { e.stopPropagation(); handlePinToggle(e, col); }} className={`hover:scale-110 transition-transform ${isPinned ? 'text-blue-400' : 'text-slate-500 hover:text-white'}`} title="ตรึงคอลัมน์">
+                                                <button onClick={(e) => { e.stopPropagation(); handlePinToggle(e, col); }} className={`hover:scale-110 transition-transform ${isPinned ? 'text-blue-400' : 'text-slate-500 hover:text-white'}`}>
                                                     <i className="fa-solid fa-thumbtack text-[10px]"></i>
                                                 </button>
                                             </div>
-                                            <div className="ml-2 text-white opacity-70 shrink-0">{sortConfig.key === col ? (sortConfig.direction === 'asc' ? <i className="fa-solid fa-sort-up text-blue-400"></i> : <i className="fa-solid fa-sort-down text-blue-400"></i>) : <i className="fa-solid fa-sort opacity-30 text-[10px]"></i>}</div>
+                                            <div className="ml-2 text-white opacity-70 shrink-0">{sortConfig.key === col ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</div>
                                           </div>
-                                          <div 
-                                              onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e, col); }} 
-                                              onDoubleClick={(e) => { e.stopPropagation(); setColWidths(prev => ({ ...prev, [col]: 'max-content' })); }}
-                                              onClick={(e) => e.stopPropagation()} 
-                                              className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-10 hover:bg-blue-500 flex flex-col justify-center items-center transition-colors opacity-0 group-hover:opacity-100"
-                                              title="ลากเพื่อปรับขนาด / ดับเบิ้ลคลิกเพื่อขยายอัตโนมัติ"
-                                          >
-                                              <div className="w-[2px] h-4 bg-white/60 rounded-full pointer-events-none"></div>
-                                          </div>
+                                          <div onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e, col); }} onDoubleClick={(e) => { e.stopPropagation(); setColWidths(prev => ({ ...prev, [col]: 'max-content' })); }} className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-10 hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                       </th>
                                   );
-                              }) : <th className="p-4 text-white sticky top-0 bg-slate-800 z-30">ตารางงาน</th>}
-                              
-                              <th className="bg-slate-800 border-l border-slate-700 p-0 align-middle sticky right-0 z-40 w-24 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.2)]">
-                                  <div className="px-2 py-2 text-center text-xs md:text-sm font-semibold text-white whitespace-nowrap">
-                                      <i className="fa-solid fa-gear text-slate-300"></i> จัดการ
-                                  </div>
-                              </th>
+                              })}
+                              <th className="bg-slate-800 border-l border-slate-700 p-0 align-middle sticky right-0 z-40 w-24 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.2)] text-white text-xs font-bold text-center">จัดการ</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-200">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-0">
-                                        <div className="w-full h-[400px] flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm">
-                                            <div className="relative w-20 h-20 mb-4">
-                                                <div className="absolute inset-0 border-4 border-blue-100 rounded-full"></div>
-                                                <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
-                                                <div className="absolute inset-0 flex items-center justify-center text-blue-600">
-                                                    <i className="fa-solid fa-cloud-arrow-down text-xl animate-pulse"></i>
-                                                </div>
-                                            </div>
-                                            <h3 className="text-lg font-bold text-slate-800 animate-pulse">กำลังซิงค์ข้อมูล...</h3>
-                                            <p className="text-sm text-slate-500 mt-2 font-medium">กรุณารอสักครู่ ระบบกำลังดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )
-                            : (currentTasksTable?.length || 0) === 0 ? <tr><td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-8 text-center text-slate-500">ฐานข้อมูลว่างเปล่า</td></tr>
-                            : (finalTableTasks?.length || 0) === 0 ? <tr><td colSpan={Math.max((orderedVisibleColumnsTable?.length || 0) + 1, 1)} className="p-8 text-center text-slate-500">ไม่พบข้อมูล...</td></tr>
-                            : (paginatedTasks || []).map((task) => (
-                              <tr key={task.id} className={`transition-colors tr-hover hover:bg-slate-50`} style={{ height: rowHeights[task.id] ? `${rowHeights[task.id]}px` : 'auto' }}>
+                            {paginatedTasks.map((task) => (
+                              <tr key={task.id} className="hover:bg-slate-50 transition-colors" style={{ height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto' }}>
                                 {(orderedVisibleColumnsTable || []).map((col, idx) => {
-                                    // --- 1. ประกาศตัวแปรเช็คประเภทคอลัมน์ (ป้องกันจอขาว) ---
-                                    const isStatusCell = col === t_statusCol;
-                                    const isTeamCell = col === t_teamCol;
-                                    const isEquipYearCell = col === t_equipYearCol && t_equipYearCol !== '';
-                                    const isCidCell = (col === t_cidCol || col === 'CID Customer' || col === 'Circuit No');
-                                    const isOverDueCell = (col === t_overDueCol || col === 'นัดหมายลูกค้า');
-                                    const isStatusChangeCell = (col === statusChangeColMatch || col === 'Status_change');
-                                    const isContactJobCell = col === contactJobColMatch;
-                                    const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
-                                    
+                                    // --- Logic ภายในก้อนเดียวเพื่อป้องกันจอขาว ---
                                     const val = task[col] || '';
                                     const cleanVal = String(val).trim();
                                     const cellId = `${task.id}-${col}`;
                                     const isEditing = editingCell === cellId;
+                                    
+                                    // หาชื่อคอลัมน์แบบ Dynamic
+                                    const isStatus = col === t_statusCol;
+                                    const isTeam = col === t_teamCol;
+                                    const isCid = (col === t_cidCol || col.toLowerCase().includes('cid') || col.toLowerCase().includes('circuit'));
+                                    const isOverdue = (col === t_overDueCol || col.includes('นัดหมาย'));
+                                    const isStatusChange = col.toLowerCase().includes('status_change');
+                                    const isContact = col === contactJobColMatch;
+                                    const isEquip = col === 'รายการอุปกรณ์';
 
-                                    // --- 2. คำนวณความกว้างคอลัมน์ ---
                                     const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
-                                    const isAuto = colConfig.mode === 'auto';
                                     const isPinned = (pinnedColumns || []).includes(col);
                                     const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
-                                    
-                                    let finalWidth = colWidths[col] || (isAuto ? 'max-content' : `${colConfig.width}px`);
-                                    if (typeof finalWidth === 'number') finalWidth = `${finalWidth}px`;
+                                    const finalWidth = colWidths[col] || (colConfig.mode === 'auto' ? 'max-content' : `${colConfig.width}px`);
 
-                                    // --- 3. คำนวณสีและสไตล์ (styleObj) ---
-                                    let styleObj = { backgroundColor: 'transparent', color: 'inherit', fontWeight: 'normal', border: 'none' };
-                                    
-                                    if (isStatusCell) {
+                                    // ตั้งค่าสี
+                                    let styleObj = { backgroundColor: 'transparent', color: 'inherit', fontWeight: 'normal' };
+                                    if (isStatus) {
                                         styleObj = { backgroundColor: getStatusColor(cleanVal, 0.15), color: getStatusColor(cleanVal, 1), fontWeight: 'bold' };
-                                    } else if (isTeamCell) {
+                                    } else if (isTeam) {
                                         const tColor = getTeamColorStyle(val, masterData);
                                         styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold' };
-                                    } else if (isEquipYearCell && cleanVal) {
-                                        const yColor = getYearColorStyle(val);
-                                        styleObj = { backgroundColor: yColor.bg, color: yColor.text, border: `1px solid ${yColor.border}`, fontWeight: 'bold' };
-                                    } else if (isCidCell && cleanVal) {
-                                        const currentTaskStatus = getCleanStatus(task[t_statusCol]);
-                                        styleObj = { backgroundColor: getStatusColor(currentTaskStatus, 0.1), color: getStatusColor(currentTaskStatus, 1), fontWeight: 'bold', border: `1px solid ${getStatusColor(currentTaskStatus, 0.2)}` };
-                                    } else if (isOverDueCell && cleanVal && cleanVal !== 'ไม่ระบุสถานะ') {
-                                        let num = NaN; const match = cleanVal.match(/-?\d+/); if(match) num = parseInt(match[0], 10);
-                                        if (cleanVal.includes('เกิน') || cleanVal.includes('over') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' };
-                                        else if (num === 0 || cleanVal.includes('ครบกำหนด') || cleanVal === '0') styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold' }; 
-                                        else if (num > 0 || cleanVal.includes('เหลือ')) styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold' };
-                                    } else if (isStatusChangeCell && cleanVal && cleanVal !== 'ไม่ระบุสถานะ') {
+                                    } else if (isCid && cleanVal) {
+                                        const s = getCleanStatus(task[t_statusCol]);
+                                        styleObj = { backgroundColor: getStatusColor(s, 0.1), color: getStatusColor(s, 1), fontWeight: 'bold', border: `1px solid ${getStatusColor(s, 0.2)}` };
+                                    } else if (isOverdue && cleanVal && cleanVal !== 'ไม่ระบุสถานะ') {
+                                        let num = NaN; const m = cleanVal.match(/-?\d+/); if(m) num = parseInt(m[0], 10);
+                                        if (cleanVal.includes('เกิน') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' };
+                                        else if (num === 0 || cleanVal.includes('ครบ')) styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold' };
+                                        else styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold' };
+                                    } else if (isStatusChange && cleanVal) {
                                         styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', border: '1px solid #fef08a' };
                                     }
 
-                                    // --- 4. จัดการการขึ้นบรรทัดใหม่ ---
-                                    let tdWhiteSpace = isAuto ? 'nowrap' : 'normal';
-                                    if (isGroupedMultiLine || col === 'รายการอุปกรณ์' || isContactJobCell || isStatusChangeCell) {
-                                        tdWhiteSpace = 'pre-wrap';
-                                    }
-
-                                    // --- 5. ตั้งค่าคลาสและสไตล์ของช่อง (td) ---
                                     let tdStyle = { verticalAlign: 'top', width: finalWidth, minWidth: finalWidth, maxWidth: finalWidth };
-                                    let tdClass = `p-1 md:p-1.5 align-middle border-r border-slate-100 bg-white`;
                                     if (isPinned) {
                                         tdStyle.position = 'sticky';
                                         tdStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
                                         tdStyle.zIndex = 20;
-                                        tdClass += ` sticky-col-cell ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`;
-                                    }
-
-                                    // --- 6. เตรียมตัวเลือก Dropdown ---
-                                    let options = [];
-                                    if (isStatusCell) {
-                                        options = tasksSubTab === 'ns' ? (masterData.nsStatuses || []).map(s => s.name) : (masterData.subconStatuses || []).map(s => s.name);
-                                    } else if (isTeamCell) {
-                                        options = tasksSubTab === 'ns' ? (masterData.nsTeams || []).map(t => t.name) : (masterData.teams || []);
-                                    } else if (isEquipYearCell) {
-                                        options = tableUniqueYears || [];
                                     }
 
                                     return (
-                                        <td key={idx} className={tdClass} style={tdStyle}>
-                                            {/* 🔥 Wrapper: บังคับความกว้างสูงสุด 100% และซ่อนส่วนที่ล้น */}
-                                            <div className="flex items-stretch w-full mx-auto relative" 
-                                                 style={{ 
-                                                     backgroundColor: styleObj.backgroundColor, 
-                                                     border: styleObj.border || 'none',
-                                                     borderRadius: '6px',
-                                                     overflow: 'hidden',
-                                                     boxSizing: 'border-box',
-                                                     width: '100%',
-                                                     maxWidth: '100%' 
-                                                 }}>
-                                                
+                                        <td key={idx} className={`p-1 md:p-1.5 align-middle border-r border-slate-100 bg-white ${isPinned ? 'sticky-col-cell' : ''} ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`} style={tdStyle}>
+                                            <div className="flex items-stretch w-full mx-auto relative" style={{ backgroundColor: styleObj.backgroundColor, border: styleObj.border || 'none', borderRadius: '6px', overflow: 'hidden', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
                                                 <div 
                                                     contentEditable={isEditing} 
                                                     suppressContentEditableWarning={true} 
                                                     className={`px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} 
                                                     style={{ 
-                                                        color: styleObj.color,
-                                                        fontWeight: styleObj.fontWeight,
-                                                        display: 'block', 
-                                                        width: '100%', 
-                                                        minWidth: 0,
-                                                        boxSizing: 'border-box', 
-                                                        minHeight: '28px', 
+                                                        color: styleObj.color, fontWeight: styleObj.fontWeight, display: 'block', width: '100%', minWidth: 0, boxSizing: 'border-box', minHeight: '28px', 
                                                         height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto',
-                                                        cursor: isEditing ? 'text' : 'pointer', 
-                                                        whiteSpace: tdWhiteSpace, 
-                                                        wordBreak: 'break-word', 
-                                                        textAlign: (isStatusCell || isTeamCell || isCidCell || isOverDueCell || isEquipYearCell) ? 'center' : 'left', 
-                                                        lineHeight: '1.5', 
-                                                        overflow: 'visible'
+                                                        whiteSpace: (isContact || isEquip || isStatusChange || (task._groupDocs && task._groupDocs.length > 1)) ? 'pre-wrap' : (colConfig.mode === 'auto' ? 'nowrap' : 'normal'), 
+                                                        wordBreak: 'break-word', lineHeight: '1.5', overflow: 'visible', textAlign: (isStatus || isTeam || isCid || isOverdue) ? 'center' : 'left'
                                                     }} 
                                                     onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} 
-                                                    onBlur={e => { 
-                                                        const currentCols = tasksSubTab === 'subcontract' ? columns : nsColumns;
-                                                        handleCellChangeTable(task, col, e.target.innerText, currentCols); 
-                                                        setEditingCell(null); 
-                                                    }}
+                                                    onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, (tasksSubTab === 'subcontract' ? columns : nsColumns)); setEditingCell(null); }}
                                                 >
                                                     {val}
                                                 </div>
-
-                                                {options.length > 0 && (
-                                                    <div className="relative w-5 md:w-6 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5">
-                                                        <i className="fa-solid fa-chevron-down text-[10px]" style={{ color: styleObj.color, opacity: 0.5 }}></i>
-                                                        <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(task, col, e.target.value, currentColumnsTable); }}>
+                                                {(isStatus || isTeam) && (
+                                                    <div className="relative w-5 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5">
+                                                        <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns))}>
                                                             <option value="" disabled></option>
-                                                            {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                            {(isStatus ? (tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses) : (tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams)).map(opt => <option key={typeof opt === 'string' ? opt : opt.name} value={typeof opt === 'string' ? opt : opt.name}>{typeof opt === 'string' ? opt : opt.name}</option>)}
                                                         </select>
+                                                        <i className="fa-solid fa-chevron-down text-[8px] opacity-30"></i>
                                                     </div>
                                                 )}
                                             </div>
                                         </td>
                                     );
                                 })}
-                                    } else if (isTeamCell) {
-                                        const teamOptions = tasksSubTab === 'ns' 
-                                            ? (masterData.nsTeams && masterData.nsTeams.length > 0 ? masterData.nsTeams.map(s=>s.name) : tableUniqueTeams)
-                                            : (masterData.teams && masterData.teams.length > 0 ? masterData.teams : tableUniqueTeams);
-                                        return (
-                                            <td key={idx} className={tdClass} style={tdStyle}>
-                                                <div className="flex items-stretch w-full transition-colors mx-auto relative" style={styleObj}>
-                                                    <div contentEditable={isEditing} suppressContentEditableWarning={true} className={`flex-1 px-2 md:px-3 py-1 outline-none text-center editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} style={{ minHeight: '28px', lineHeight: '20px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
-                                                    <div className="relative w-5 md:w-6 flex-shrink-0 flex items-center justify-center hover:bg-black/10 rounded-r-md cursor-pointer">
-                                                        <i className="fa-solid fa-chevron-down text-[10px]"></i>
-                                                        <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(task, col, e.target.value, currentColumnsTable); }}>
-                                                            <option value="" disabled></option>
-                                                            {(teamOptions || []).map(s => <option key={s} value={s}>{s}</option>)}
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        );
-                                    } else if (isEquipYearCell) {
-                                        return (
-                                            <td key={idx} className={tdClass} style={tdStyle}>
-                                                <div className="flex items-stretch w-full transition-colors mx-auto relative" style={styleObj}>
-                                                    <div contentEditable={isEditing} suppressContentEditableWarning={true} className={`flex-1 px-2 md:px-3 py-1 outline-none text-center editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} style={{ minHeight: '28px', lineHeight: '20px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
-                                                    <div className="relative w-5 md:w-6 flex-shrink-0 flex items-center justify-center hover:bg-black/10 rounded-r-md cursor-pointer">
-                                                        <i className="fa-solid fa-chevron-down text-[10px]"></i>
-                                                        <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(task, col, e.target.value, currentColumnsTable); }}>
-                                                            <option value="" disabled></option>
-                                                            {(tableUniqueYears || []).map(y => <option key={y} value={y}>{y}</option>)}
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        );
-                                    } else {
-                                        return (
-                                            <td key={idx} className={tdClass} style={tdStyle}>
-                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={cellClasses} style={{ ...styleObj, display: tdDisplay, width: innerWidth, minWidth: innerWidth, maxWidth: innerWidth, minHeight: '28px', height: rowHeights[task.id] ? '100%' : 'auto', cursor: isEditing ? 'text' : 'pointer', whiteSpace: tdWhiteSpace, wordBreak: tdWordBreak, textAlign: textAlignment, lineHeight: tdLineHeight, overflow: tdOverflow, textOverflow: tdTextOverflow, maxHeight: 'none' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}>{val}</div>
-                                            </td>
-                                        );
-                                    }
-                                })}
-                                
-                                <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-10 text-center shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] relative group">
-                                    <div className="flex flex-col gap-1.5 h-full justify-center px-1">
-                                        {tasksSubTab === 'ns' && (
-                                            <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="w-full py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 rounded text-[10px] font-bold transition-all shadow-sm flex items-center justify-center gap-1" title="ส่ง CID นี้ไปหน้าจ่ายงาน">
-                                                <i className="fa-solid fa-bolt"></i> จ่ายงาน
-                                            </button>
-                                        )}
-                                        {tasksSubTab === 'subcontract' && (
-                                            <button onClick={() => handleDeleteTask(task)} className="w-full py-1.5 bg-red-50 border border-red-200 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 rounded text-[10px] font-bold transition-all shadow-sm flex items-center justify-center gap-1" title="ลบข้อมูลแถวนี้">
-                                                <i className="fa-solid fa-trash"></i> ลบ
-                                            </button>
+                                <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-30 text-center group relative">
+                                    <div className="flex flex-col gap-1 px-1">
+                                        {tasksSubTab === 'ns' ? (
+                                            <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="py-1 bg-indigo-600 text-white rounded text-[10px] font-bold">จ่ายงาน</button>
+                                        ) : (
+                                            <button onClick={() => handleDeleteTask(task)} className="py-1 bg-red-500 text-white rounded text-[10px] font-bold">ลบ</button>
                                         )}
                                     </div>
-                                    <div onPointerDown={(e) => handleRowPointerDown(e, task.id)} className="absolute bottom-0 left-0 right-0 h-2 cursor-row-resize z-20 hover:bg-blue-500 flex justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity" title="ลากเพื่อขยายขนาดแถว">
-                                        <div className="w-6 h-[2px] bg-white/80 rounded-full pointer-events-none"></div>
-                                    </div>
+                                    <div onPointerDown={(e) => handleRowPointerDown(e, task.id)} className="absolute bottom-0 left-0 right-0 h-1 cursor-row-resize hover:bg-blue-400 opacity-0 group-hover:opacity-100"></div>
                                 </td>
                               </tr>
                             ))}
