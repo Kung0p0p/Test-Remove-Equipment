@@ -525,9 +525,16 @@
                     onDragEnter: (e) => (dragOverItem.current = index),
                     onDragEnd: handleSort,
                     onDragOver: (e) => e.preventDefault(),
+                    id: `box-${boxId}`, // 🔥 เพิ่ม ID เพื่อให้ฟังก์ชัน Save หาเจอ
                     className: `flex-1 min-w-[300px] p-5 rounded-xl border shadow-sm transition-all ${isEditing ? 'bg-white ring-1 ring-blue-100 cursor-move hover:shadow-md' : 'bg-slate-100/50 border-slate-200'}`,
-                    // 🔥 ปลดล็อคให้ Resize ได้ทั้งกว้างและสูง
-                    style: { resize: isEditing ? 'both' : 'none', overflow: 'auto', minHeight: '200px' }
+                    style: { 
+                        resize: isEditing ? 'both' : 'none', 
+                        overflow: 'auto', 
+                        minHeight: '200px',
+                        // 🔥 ดึงขนาดที่เคยบันทึกไว้มาแสดงผล
+                        width: (masterData.layoutSettings && masterData.layoutSettings[boxId]) ? masterData.layoutSettings[boxId].width : 'auto',
+                        height: (masterData.layoutSettings && masterData.layoutSettings[boxId]) ? masterData.layoutSettings[boxId].height : 'auto'
+                    }
                 };
 
                 switch (boxId) {
