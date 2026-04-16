@@ -1193,6 +1193,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const [tableFilterOverdue, setTableFilterOverdue] = useState([]);
           const [searchTerm, setSearchTerm] = useState('');
           const [calendarFilterTeams, setCalendarFilterTeams] = useState([]); // 🔥 ฟิลเตอร์ทีมในปฏิทิน
+          const [tableFilterRegionRespon, setTableFilterRegionRespon] = useState([]); // 🔥 เพิ่มตัวกรอง Region Respon
 
           const [tooltipData, setTooltipData] = useState({ visible: false, task: null, x: 0, y: 0 });
           const [colWidths, setColWidths] = useState({}); 
@@ -1717,7 +1718,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               } else {
                   tableTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex));
               }
-              
+              // 🔥 กรองตาม Region Responsible (เฉพาะหน้า Subcontract)
+              if (tasksSubTab === 'subcontract' && tableFilterRegionRespon.length > 0) {
+                  processedTasks = processedTasks.filter(t => tableFilterRegionRespon.includes(t['Region_Respon']));
+              }
               if (searchTerm) tableTasks = tableTasks.filter(t => Object.values(t).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase())));
               
               let processedTasks = tableTasks;
@@ -2241,6 +2245,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             {t_equipYearCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueYears} selected={tableFilterYear} onChange={setTableFilterYear} placeholder="ปี" /></div>}
                             {t_statusCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={tableUniqueStatuses} selected={tableFilterStatus} onChange={setTableFilterStatus} placeholder="Status" /></div>}
                             {t_overDueCol && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={['ครบกำหนด', 'ยังไม่ครบกำหนด', 'เกินกำหนด']} selected={tableFilterOverdue} onChange={setTableFilterOverdue} placeholder="นัดหมายลูกค้า" /></div>}
+                            {tasksSubTab === 'subcontract' && <div className="w-[calc(50%-4px)] sm:w-auto"><MultiSelect options={[...new Set(nsTasks.map(t => getCleanTeam(t[getTeamColumnName(nsColumns)])))].sort()} selected={tableFilterRegionRespon} onChange={setTableFilterRegionRespon} placeholder="Region Respon" /></div>}
                             <div className="ml-auto flex flex-wrap items-center gap-2 mt-2 md:mt-0 w-full sm:w-auto">
                                 {tasksSubTab === 'subcontract' && t_cidCol && (
                                     <button 
