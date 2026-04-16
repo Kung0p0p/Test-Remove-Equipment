@@ -2453,34 +2453,43 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                 : (tableUniqueStatuses || []);
                                         }
                                         return (
+                                            return (
                                             <td key={idx} className={tdClass} style={tdStyle}>
-                                                <div className="flex items-stretch w-full transition-colors mx-auto relative" style={styleObj}>
+                                                {/* 🔥 ตัวครอบ: ใส่สีพื้นหลังและจัดการขนาดที่นี่ที่เดียว */}
+                                                <div className="flex items-stretch w-full transition-colors mx-auto relative" 
+                                                     style={{ ...styleObj, boxSizing: 'border-box', overflow: 'hidden', borderRadius: '6px' }}>
+                                                    
                                                     <div 
-                                                contentEditable={isEditing} 
-                                                suppressContentEditableWarning={true} 
-                                                className={`px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} 
-                                                style={{ 
-                                                    ...styleObj, 
-                                                    display: tdDisplay, 
-                                                    width: '100%', // 🔥 ปรับเป็น 100% เพื่อให้พอดีช่อง
-                                                    boxSizing: 'border-box', // 🔥 ป้องกันกล่องสีล้นขอบ
-                                                    minHeight: '28px', 
-                                                    cursor: isEditing ? 'text' : 'pointer', 
-                                                    whiteSpace: tdWhiteSpace, 
-                                                    wordBreak: tdWordBreak, 
-                                                    textAlign: textAlignment, 
-                                                    lineHeight: tdLineHeight, 
-                                                    overflow: tdOverflow, 
-                                                    textOverflow: tdTextOverflow, 
-                                                    maxHeight: isGroupedMultiLine ? '120px' : 'none' 
-                                                }} 
-                                                onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} 
-                                                onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}
-                                            >
-                                                {val}
-                                            </div>
-                                                    <div className="relative w-5 md:w-6 flex-shrink-0 flex items-center justify-center hover:bg-black/10 rounded-r-md cursor-pointer">
-                                                        <i className="fa-solid fa-chevron-down text-[10px]"></i>
+                                                        contentEditable={isEditing} 
+                                                        suppressContentEditableWarning={true} 
+                                                        className={`px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} 
+                                                        style={{ 
+                                                            // 🔥 ไม่ใส่ styleObj ซ้ำที่นี่ เพื่อป้องกันพื้นหลังซ้อนและขนาดล้น
+                                                            color: styleObj.color, // ดึงแค่สีตัวอักษรมา
+                                                            fontWeight: styleObj.fontWeight, // ดึงความหนามา
+                                                            display: 'block', 
+                                                            width: '100%', 
+                                                            minWidth: 0, // สำคัญสำหรับ Flexbox เพื่อไม่ให้ดันออก
+                                                            boxSizing: 'border-box', 
+                                                            minHeight: '28px', 
+                                                            cursor: isEditing ? 'text' : 'pointer', 
+                                                            whiteSpace: tdWhiteSpace, 
+                                                            wordBreak: 'break-word', 
+                                                            textAlign: textAlignment, 
+                                                            lineHeight: tdLineHeight, 
+                                                            overflow: 'visible', 
+                                                            textOverflow: tdTextOverflow, 
+                                                            maxHeight: isGroupedMultiLine ? '120px' : 'none' 
+                                                        }} 
+                                                        onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} 
+                                                        onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, currentColumnsTable).then(res=>{ if(res===false) e.target.innerText = val; }); setEditingCell(null); }}
+                                                    >
+                                                        {val}
+                                                    </div>
+
+                                                    {/* ปุ่ม Dropdown */}
+                                                    <div className="relative w-5 md:w-6 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5">
+                                                        <i className="fa-solid fa-chevron-down text-[10px]" style={{ color: styleObj.color, opacity: 0.5 }}></i>
                                                         <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(task, col, e.target.value, currentColumnsTable); }}>
                                                             <option value="" disabled></option>
                                                             {(statusOptions || []).map(s => <option key={s} value={s}>{s}</option>)}
