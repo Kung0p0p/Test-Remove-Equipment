@@ -1722,6 +1722,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (tasksSubTab === 'subcontract' && tableFilterRegionRespon.length > 0) {
                   processedTasks = processedTasks.filter(t => tableFilterRegionRespon.includes(t['Region_Respon']));
               }
+              // 🔥 กรองตาม Region Responsible (เฉพาะหน้า Subcontract)
+              if (tasksSubTab === 'subcontract' && tableFilterRegionRespon.length > 0) {
+                  tableTasks = tableTasks.filter(t => tableFilterRegionRespon.includes(t['Region_Respon']));
+              }
+              
               if (searchTerm) tableTasks = tableTasks.filter(t => Object.values(t).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase())));
               
               let processedTasks = tableTasks;
