@@ -1942,7 +1942,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (s.includes('ไม่พบ') || s.includes('หาย')) return 8; if (s.includes('เลื่อน')) return 9; if (s.includes('ยกเลิก') || s.includes('cancel')) return 10;
               return 99; 
           };
-          const sortedStatuses = Object.keys(statusCounts).sort((a, b) => { const rA = getStatusRank(a), rB = getStatusRank(b); return rA !== rB ? rA - rB : statusCounts[b] - statusCounts[a]; });
+          const sortedStatuses = Object.keys(statusCounts).sort((a, b) => {
+              // 1. เช็คการเลือก (Selected มาก่อน)
+              const isSelA = selectedStatuses.includes(a);
+              const isSelB = selectedStatuses.includes(b);
+              if (isSelA !== isSelB) return isSelA ? -1 : 1;
+
+              // 2. ถ้าสถานะเหมือนกัน (เลือกทั้งคู่ หรือไม่เลือกทั้งคู่) ให้เรียงตามตัวอักษร A-Z
+              return a.localeCompare(b, 'en');
+          });
           
           const chartStatusCounts = {}; chartFilteredTasks.forEach(t => { const s = getCleanStatus(t[d_statusCol]); chartStatusCounts[s] = (chartStatusCounts[s] || 0) + 1; });
           const chartSortedStatuses = Object.keys(chartStatusCounts).sort((a, b) => { const rA = getStatusRank(a), rB = getStatusRank(b); return rA !== rB ? rA - rB : chartStatusCounts[b] - chartStatusCounts[a]; });
@@ -2435,7 +2443,18 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                     <div className="relative w-5 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5">
                                                         <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns))}>
                                                             <option value="" disabled></option>
-                                                            {(isStatus ? (tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses) : (tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams)).map(opt => <option key={typeof opt === 'string' ? opt : opt.name} value={typeof opt === 'string' ? opt : opt.name}>{typeof opt === 'string' ? opt : opt.name}</option>)}
+                                                            {(() => {
+                                                                // ดึงข้อมูลตามประเภทคอลัมน์
+                                                                let rawOptions = isStatus 
+                                                                    ? (tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses) 
+                                                                    : (tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams);
+                                                                
+                                                                // แปลงเป็น Array ของ String และเรียง A-Z
+                                                                return (rawOptions || [])
+                                                                    .map(opt => typeof opt === 'string' ? opt : opt.name)
+                                                                    .sort((a, b) => a.localeCompare(b, 'en'))
+                                                                    .map(name => <option key={name} value={name}>{name}</option>);
+                                                            })()}
                                                         </select>
                                                         <i className="fa-solid fa-chevron-down text-[8px] opacity-30"></i>
                                                     </div>
