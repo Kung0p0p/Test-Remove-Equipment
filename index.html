@@ -2778,14 +2778,40 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                         
                                                     </div>
 
-                                                    {/* 5. Status (อัปเดตจากปฏิทินได้) */}
+                                                    {/* 5. Status (อัปเดตจากปฏิทิน 2 ฝั่ง) */}
                                                     <div className="flex justify-start lg:justify-end mt-2 lg:mt-0 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 pt-3 lg:pt-0 lg:pl-4 relative">
                                                         <div style={{backgroundColor: softBg, color: bgColor, borderColor: bgColor}} className="font-bold px-4 md:px-6 py-1.5 md:py-2 rounded-lg md:rounded-xl border-2 text-center min-w-[120px] md:min-w-[140px] shadow-sm relative flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity">
                                                             <span className="flex-1 text-center">{t._calStatusCol ? t[t._calStatusCol] : 'ไม่มีสถานะ'}</span>
                                                             <i className="fa-solid fa-chevron-down text-[10px] ml-2"></i>
-                                                            <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { if (e.target.value) handleCellChangeTable(t, t._calStatusCol, e.target.value, currentColumnsTable); }}>
+                                                            <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" value="" onChange={async (e) => { 
+                                                                if (!e.target.value) return;
+                                                                const newVal = e.target.value;
+                                                                
+                                                                // 1. อัปเดตฝั่งปัจจุบัน (Subcontract) ก่อน
+                                                                await handleCellChangeTable(t, t._calStatusCol, newVal, columns);
+                                                                
+                                                                // 2. ตรวจสอบเงื่อนไข "เก็บเรียบร้อย" เพื่ออัปเดตฝั่ง Region ด้วย
+                                                                const isCompleted = newVal.toLowerCase().match(/(เก็บเรียบร้อย|complete|สำเร็จ|100%)/);
+                                                                
+                                                                if (isCompleted) {
+                                                                    // หาชื่อคอลัมน์ Status ของฝั่ง Region
+                                                                    const regionStatusCol = getStatusColumnName(nsColumns);
+                                                                    const regionCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+                                                                    const subCidVal = t._calCidCol ? t[t._calCidCol] : t[t_getCol(['cid', 'circuitno'])];
+                                                                    
+                                                                    // ถ้าหาคอลัมน์เจอ และมีเลข CID ตรงกัน ให้สั่งอัปเดตฝั่ง Region ด้วยคำว่า "Complete"
+                                                                    if (regionStatusCol && regionCidCol && subCidVal) {
+                                                                        const matchedRegionTask = nsTasks.find(nt => String(nt[regionCidCol]).trim() === String(subCidVal).trim());
+                                                                        if (matchedRegionTask) {
+                                                                            // 🔥 ส่งคำสั่ง Update ไปที่ Sheet ฝั่ง Region ทันที
+                                                                            handleCellChangeTable(matchedRegionTask, regionStatusCol, 'Complete', nsColumns);
+                                                                            customAlert(`อัปเดตสถานะ "${newVal}" ทั้ง 2 ระบบสำเร็จ`, 'success');
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }}>
                                                                 <option value="" disabled></option>
-                                                                {(subcontractStatuses || []).map(s => <option key={s} value={s}>{s}</option>)}
+                                                                {(subcontractStatuses && subcontractStatuses.length > 0 ? subcontractStatuses : tableUniqueStatuses || []).map(s => <option key={s} value={s}>{s}</option>)}
                                                             </select>
                                                         </div>
                                                     </div>
