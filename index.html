@@ -2474,23 +2474,21 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                     {val}
                                                 </div>
                                                 {(isStatus || isTeam) && (
-                                                    <div className="relative w-5 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5">
-                                                        <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns))}>
+                                                    // 🔥 เพิ่ม z-10 และขยายความกว้าง w-8 เพื่อให้กดติดง่ายขึ้น
+                                                    <div className="relative w-8 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5 z-10">
+                                                        <select 
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                                            value="" 
+                                                            onChange={e => handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns))}
+                                                        >
                                                             <option value="" disabled></option>
-                                                            {(() => {
-                                                                // ดึงข้อมูลตามประเภทคอลัมน์
-                                                                let rawOptions = isStatus 
-                                                                    ? (tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses) 
-                                                                    : (tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams);
-                                                                
-                                                                // แปลงเป็น Array ของ String และเรียง A-Z
-                                                                return (rawOptions || [])
-                                                                    .map(opt => typeof opt === 'string' ? opt : opt.name)
-                                                                    .sort((a, b) => a.localeCompare(b, 'en'))
-                                                                    .map(name => <option key={name} value={name}>{name}</option>);
-                                                            })()}
+                                                            {/* 🔥 บังคับสีตัวเลือกเป็นสีดำพื้นขาวเพื่อให้มองง่าย */}
+                                                            {(isStatus ? (tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses) : (tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams)).map(opt => {
+                                                                const name = typeof opt === 'string' ? opt : opt.name;
+                                                                return <option key={name} value={name} className="text-black bg-white">{name}</option>
+                                                            })}
                                                         </select>
-                                                        <i className="fa-solid fa-chevron-down text-[8px] opacity-30"></i>
+                                                        <i className="fa-solid fa-chevron-down text-[8px] opacity-40"></i>
                                                     </div>
                                                 )}
                                             </div>
