@@ -2380,21 +2380,29 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                   }
 
                                   return (
-                                      <th key={idx} className={`p-0 align-middle relative group transition-colors select-none sortable-header bg-slate-800 border-r border-slate-700 hover:bg-slate-700 ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.3)] border-r-slate-500' : ''}`} style={thStyle}>
+                                      <th key={idx} className={thClass} style={thStyle}>
+                                          {/* 🔥 จัดข้อความให้อยู่กึ่งกลางเสมอ */}
                                           <div className="flex items-center justify-center px-4 py-3 w-full h-full cursor-pointer relative" onClick={() => handleSort(col)}>
-                                            {/* 🔥 จัดข้อความให้อยู่กึ่งกลาง */}
-                                            <div className="flex items-center justify-center gap-2 overflow-hidden w-full px-6 text-center">
+                                            <div className="flex items-center justify-center gap-2 overflow-hidden w-full px-8 text-center">
                                                 <div className="th-content text-xs md:text-sm font-semibold text-white truncate">{col}</div>
                                             </div>
-                                            {/* 🔥 ย้ายปุ่ม Pin/Sort ไปไว้ด้านขวาเพื่อไม่ให้บังตัวหนังสือ */}
-                                            <div className="absolute right-2 flex items-center gap-1 opacity-60">
+                                            {/* 🔥 ย้ายปุ่ม Pin/Sort ไปไว้ด้านขวา (ห่างจากขอบ 20px เพื่อหลบตัวลากคอลัมน์) */}
+                                            <div className="absolute right-5 flex items-center gap-1.5 opacity-60">
                                                 <button onClick={(e) => { e.stopPropagation(); handlePinToggle(e, col); }} className={`hover:scale-125 transition-transform ${isPinned ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}>
                                                     <i className="fa-solid fa-thumbtack text-[10px]"></i>
                                                 </button>
                                                 <div className="text-white shrink-0 text-[10px]">{sortConfig.key === col ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</div>
                                             </div>
                                           </div>
-                                          <div onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e, col); }} onDoubleClick={(e) => { e.stopPropagation(); setColWidths(prev => ({ ...prev, [col]: 'max-content' })); }} className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-10 hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                          {/* ตัวลากปรับขนาดคอลัมน์ (อยู่ขวาสุด) */}
+                                          <div 
+                                              onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e, col); }} 
+                                              onDoubleClick={(e) => { e.stopPropagation(); setColWidths(prev => ({ ...prev, [col]: 'max-content' })); }}
+                                              onClick={(e) => e.stopPropagation()} 
+                                              className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-10 hover:bg-blue-500 flex flex-col justify-center items-center transition-colors opacity-0 group-hover:opacity-100"
+                                          >
+                                              <div className="w-[2px] h-4 bg-white/60 rounded-full pointer-events-none"></div>
+                                          </div>
                                       </th>
                                   );
                               })}
