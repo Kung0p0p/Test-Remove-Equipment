@@ -2419,7 +2419,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     const isTeamCell = col === t_teamCol;
                                     const isEquipYearCell = (col === t_equipYearCol || col.toLowerCase().includes('year') || col.includes('ปี'));
                                     const isCidCell = (col === t_cidCol || col === 'CID Customer' || col === 'Circuit No');
-                                    const isOverDueCell = (col === t_overDueCol || col === 'นัดหมายลูกค้า');
+                                    const isOverDueCell = (col === t_overDueCol || col.includes('นัดหมายลูกค้า'));
                                     const isStatusChangeCell = (col === statusChangeColMatch || col === 'Status_change');
                                     const isContactJobCell = col === contactJobColMatch;
                                     const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
@@ -2452,7 +2452,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         styleObj = { backgroundColor: getStatusColor(currentTaskStatus, 0.1), color: getStatusColor(currentTaskStatus, 1), fontWeight: 'bold', border: `1px solid ${getStatusColor(currentTaskStatus, 0.2)}` };
                                     } else if (isOverDueCell && cleanVal && cleanVal !== 'ไม่ระบุสถานะ') {
                                         let num = NaN; const match = cleanVal.match(/-?\d+/); if(match) num = parseInt(match[0], 10);
-                                        if (cleanVal.includes('เกิน') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' };
+                                        if (cleanVal.includes('เกิน') || cleanVal.includes('over') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' };
                                         else if (num === 0 || cleanVal.includes('ครบ')) styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold' }; 
                                         else styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold' };
                                     } else if (isStatusChangeCell && cleanVal) {
@@ -2498,7 +2498,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                                 handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns));
                                                             }}
                                                         >
-                                                            <option value="">-- ว่างเปล่า --</option>
+                                                            <option value="" className="text-black bg-white">-- ว่างเปล่า --</option>
                                                             {options.map(opt => <option key={opt} value={opt} className="text-black bg-white">{opt}</option>)}
                                                         </select>
                                                         <i className="fa-solid fa-chevron-down text-[8px] opacity-40"></i>
