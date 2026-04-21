@@ -285,7 +285,6 @@
             let hash = 0; for (let i = 0; i < String(yearStr).length; i++) hash = String(yearStr).charCodeAt(i) + ((hash << 5) - hash);
             return colors[Math.abs(hash) % colors.length];
         };
-
         const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
         const getFirstDayOfMonth = (y, m) => new Date(y, m, 1).getDay();
         const isSameDate = (dateStr, dateObj) => {
@@ -1366,20 +1365,24 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
                   if (data.subcontract) {
                       setColumns(data.subcontract.columns);
-                      localStorage.setItem('equip_tracker_columns', JSON.stringify(data.subcontract.columns));
                       const validTasks = data.subcontract.tasks.filter(isValidTaskHelper);
-                      setTasks(validTasks);
-                      localStorage.setItem('equip_tracker_tasks', JSON.stringify(validTasks));
-                  }
-                  
-                  if (data.ns) {
-                      setNsColumns(data.ns.columns);
-                      localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(data.ns.columns));
-                      const validNsTasks = data.ns.tasks.filter(isValidTaskHelper);
-                      setNsTasks(validNsTasks);
-                      localStorage.setItem('equip_tracker_ns_tasks', JSON.stringify(validNsTasks));
+                      setTasks(prev => validTasks.map(nt => {
+                          const local = prev.find(p => p.id === nt.id);
+                          if (local && local._lastLocalUpdate && (Date.now() - local._lastLocalUpdate < 15000)) return local;
+                          return nt;
+                      }));
                   }
 
+                  if (data.ns) {
+                      setColumns(data.subcontract.columns);
+                      const validTasks = data.ns.tasks.filter(isValidTaskHelper);
+                      setTasks(prev => validTasks.map(nt => {
+                          const local = prev.find(p => p.id === nt.id);
+                          if (local && local._lastLocalUpdate && (Date.now() - local._lastLocalUpdate < 15000)) return local;
+                          return nt;
+                      }));
+                  }
+                  
               } catch (error) {
                   console.error("Fetch Error:", error);
                   if (!isBackground) setFirebaseError('ไม่สามารถโหลดข้อมูลจากระบบได้ (โปรดตรวจสอบอินเทอร์เน็ต)');
@@ -2360,50 +2363,25 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                   const isAuto = colConfig.mode === 'auto';
                                   const isPinned = (pinnedColumns || []).includes(col);
                                   const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
-                                  
                                   let finalWidth = colWidths[col] || (isAuto ? 'max-content' : `${colConfig.width}px`);
                                   if (typeof finalWidth === 'number') finalWidth = `${finalWidth}px`;
 
-                                  let thStyle = { 
-                                      whiteSpace: isAuto ? 'nowrap' : 'normal', 
-                                      wordBreak: isAuto ? 'normal' : 'break-word',
-                                      width: finalWidth, minWidth: finalWidth, maxWidth: isAuto ? 'none' : finalWidth
-                                  };
-
-                                  if (isPinned) {
-                                      thStyle.position = 'sticky';
-                                      thStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
-                                      thStyle.zIndex = 50;
-                                  }
-
                                   return (
-                                      <th key={idx} className={thClass} style={thStyle}>
+                                      <th key={idx} className={`p-0 align-middle relative group transition-colors select-none sortable-header bg-slate-800 border-r border-slate-700 hover:bg-slate-700 ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.3)] border-r-slate-500' : ''}`} style={{ whiteSpace: isAuto ? 'nowrap' : 'normal', wordBreak: 'break-word', width: finalWidth, minWidth: finalWidth, maxWidth: isAuto ? 'none' : finalWidth, position: isPinned ? 'sticky' : 'relative', left: isPinned ? getPinnedLeftPos(col, orderedVisibleColumnsTable) : 'auto', zIndex: isPinned ? 50 : 1 }}>
                                           <div className="flex items-center justify-center px-4 py-3 w-full h-full cursor-pointer relative" onClick={() => handleSort(col)}>
-                                            {/* 🔥 จัดกึ่งกลาง และเพิ่ม pr-10 เพื่อไม่ให้ไอคอนทับตัวลากคอลัมน์ */}
                                             <div className="flex items-center justify-center gap-2 overflow-hidden w-full pr-10 text-center">
                                                 <div className="th-content text-xs md:text-sm font-semibold text-white truncate text-center w-full">{col}</div>
                                             </div>
-                                            {/* 🔥 ไอคอน Pin/Sort อยู่ขวาแต่ไม่ชิดขอบเกินไป */}
-                                            <div className="absolute right-3 flex items-center gap-1.5 opacity-70">
-                                                <button onClick={(e) => { e.stopPropagation(); handlePinToggle(e, col); }} className={`hover:scale-125 transition-transform ${isPinned ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}>
-                                                    <i className="fa-solid fa-thumbtack text-[10px]"></i>
-                                                </button>
+                                            {/* 🔥 ย้ายปุ่ม Pin/Sort หลบตัวลากคอลัมน์ (ขยับมาทางซ้าย 24px) */}
+                                            <div className="absolute right-6 flex items-center gap-1.5 opacity-60">
+                                                <button onClick={(e) => { e.stopPropagation(); handlePinToggle(e, col); }} className={`hover:scale-125 transition-transform ${isPinned ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}><i className="fa-solid fa-thumbtack text-[10px]"></i></button>
                                                 <div className="text-white shrink-0 text-[10px]">{sortConfig.key === col ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</div>
                                             </div>
                                           </div>
-                                          {/* ตัวลากปรับขนาดคอลัมน์ (อยู่ขวาสุด) */}
-                                          <div 
-                                              onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e, col); }} 
-                                              onDoubleClick={(e) => { e.stopPropagation(); setColWidths(prev => ({ ...prev, [col]: 'max-content' })); }}
-                                              onClick={(e) => e.stopPropagation()} 
-                                              className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-10 hover:bg-blue-500 flex flex-col justify-center items-center transition-colors opacity-0 group-hover:opacity-100"
-                                          >
-                                              <div className="w-[2px] h-4 bg-white/60 rounded-full pointer-events-none"></div>
-                                          </div>
+                                          <div onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e, col); }} onDoubleClick={(e) => { e.stopPropagation(); setColWidths(prev => ({ ...prev, [col]: 'max-content' })); }} className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-10 hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                       </th>
                                   );
                               })}
-                              {/* 🔥 แก้ไขให้ปรับขนาดได้โดยใช้ ID '__manage__' */}
                               <th className="bg-slate-800 border-l border-slate-700 p-0 align-middle sticky right-0 z-40 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.2)] text-white text-xs font-bold text-center group" style={{ width: colWidths['__manage__'] || '100px', minWidth: colWidths['__manage__'] || '100px' }}>
                                   จัดการ
                                   <div onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e, '__manage__'); }} className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -2414,91 +2392,50 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             {paginatedTasks.map((task) => (
                               <tr key={task.id} className="hover:bg-slate-50 transition-colors" style={{ height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto' }}>
                                 {(orderedVisibleColumnsTable || []).map((col, idx) => {
-                                    // --- 1. ประกาศตัวแปรเช็คประเภทคอลัมน์ (ป้องกันจอขาว) ---
-                                    const isStatusCell = col === t_statusCol;
-                                    const isTeamCell = col === t_teamCol;
-                                    const isEquipYearCell = (col === t_equipYearCol || col.toLowerCase().includes('year') || col.includes('ปี'));
-                                    const isCidCell = (col === t_cidCol || col === 'CID Customer' || col === 'Circuit No');
-                                    const isOverDueCell = (col === t_overDueCol || col.includes('นัดหมายลูกค้า'));
-                                    const isStatusChangeCell = (col === statusChangeColMatch || col === 'Status_change');
-                                    const isContactJobCell = col === contactJobColMatch;
-                                    const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
-                                    
                                     const val = task[col] || '';
                                     const cleanVal = String(val).trim();
                                     const cellId = `${task.id}-${col}`;
                                     const isEditing = editingCell === cellId;
+                                    
+                                    // 🔥 ประกาศตัวแปรภายในลูป (ป้องกันจอขาว)
+                                    const isStatus = col === t_statusCol;
+                                    const isTeam = col === t_teamCol;
+                                    const isEquipYear = (col === t_equipYearCol || col.toLowerCase().includes('year') || col.includes('ปี'));
+                                    const isCid = (col === t_cidCol || col === 'CID Customer' || col === 'Circuit No');
+                                    const isOverdue = (col === t_overDueCol || col === 'นัดหมายลูกค้า');
+                                    const isStatusChange = (col === statusChangeColMatch || col === 'Status_change');
 
-                                    // --- 2. คำนวณความกว้างคอลัมน์ ---
                                     const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
-                                    const isAuto = colConfig.mode === 'auto';
                                     const isPinned = (pinnedColumns || []).includes(col);
                                     const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
-                                    let finalWidth = colWidths[col] || (isAuto ? 'max-content' : `${colConfig.width}px`);
-                                    if (typeof finalWidth === 'number') finalWidth = `${finalWidth}px`;
+                                    const finalWidth = colWidths[col] || (colConfig.mode === 'auto' ? 'max-content' : `${colConfig.width}px`);
 
-                                    // --- 3. คำนวณสีและสไตล์ (styleObj) ---
-                                    let styleObj = { backgroundColor: 'transparent', color: 'inherit', fontWeight: 'normal', border: 'none' };
-                                    if (isStatusCell) {
-                                        styleObj = { backgroundColor: getStatusColor(cleanVal, 0.15), color: getStatusColor(cleanVal, 1), fontWeight: 'bold' };
-                                    } else if (isTeamCell) {
-                                        const tColor = getTeamColorStyle(val, masterData);
-                                        styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold' };
-                                    } else if (isEquipYearCell && cleanVal) {
-                                        const yColor = getYearColorStyle(val);
-                                        styleObj = { backgroundColor: yColor.bg, color: yColor.text, border: `1px solid ${yColor.border}`, fontWeight: 'bold' };
-                                    } else if (isCidCell && cleanVal) {
-                                        const currentTaskStatus = getCleanStatus(task[t_statusCol]);
-                                        styleObj = { backgroundColor: getStatusColor(currentTaskStatus, 0.1), color: getStatusColor(currentTaskStatus, 1), fontWeight: 'bold', border: `1px solid ${getStatusColor(currentTaskStatus, 0.2)}` };
-                                    } else if (isOverDueCell && cleanVal && cleanVal !== 'ไม่ระบุสถานะ') {
-                                        let num = NaN; const match = cleanVal.match(/-?\d+/); if(match) num = parseInt(match[0], 10);
-                                        if (cleanVal.includes('เกิน') || cleanVal.includes('over') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' };
-                                        else if (num === 0 || cleanVal.includes('ครบ')) styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold' }; 
+                                    let styleObj = { backgroundColor: 'transparent', color: 'inherit', fontWeight: 'normal' };
+                                    if (isStatus) { styleObj = { backgroundColor: getStatusColor(cleanVal, 0.15), color: getStatusColor(cleanVal, 1), fontWeight: 'bold' }; }
+                                    else if (isTeam) { const tColor = getTeamColorStyle(val, masterData); styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold' }; }
+                                    else if (isEquipYear && cleanVal) { const yColor = getYearColorStyle(val); styleObj = { backgroundColor: yColor.bg, color: yColor.text, border: `1px solid ${yColor.border}`, fontWeight: 'bold' }; }
+                                    else if (isCid && cleanVal) { const s = getCleanStatus(task[t_statusCol]); styleObj = { backgroundColor: getStatusColor(s, 0.1), color: getStatusColor(s, 1), fontWeight: 'bold', border: `1px solid ${getStatusColor(s, 0.2)}` }; }
+                                    else if (isOverdue && cleanVal && cleanVal !== 'ไม่ระบุสถานะ') {
+                                        let num = NaN; const m = cleanVal.match(/-?\d+/); if(m) num = parseInt(m[0], 10);
+                                        if (cleanVal.includes('เกิน') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' };
+                                        else if (num === 0 || cleanVal.includes('ครบ')) styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold' };
                                         else styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold' };
-                                    } else if (isStatusChangeCell && cleanVal) {
-                                        styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', border: '1px solid #fef08a' };
-                                    }
+                                    } else if (isStatusChange && cleanVal) { styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', border: '1px solid #fef08a' }; }
 
-                                    // --- 4. เตรียมตัวเลือก Dropdown ---
+                                    // เตรียมตัวเลือก Dropdown
                                     let options = [];
-                                    if (isStatusCell) options = tasksSubTab === 'ns' ? (masterData.nsStatuses || []).map(s => s.name) : (masterData.subconStatuses || []).map(s => s.name);
-                                    else if (isTeamCell) options = tasksSubTab === 'ns' ? (masterData.nsTeams || []).map(t => t.name) : (masterData.teams || []);
-                                    else if (isEquipYearCell) options = [...new Set(currentTasksTable.map(t => t[col]).filter(Boolean))].sort();
+                                    if (isStatus) options = tasksSubTab === 'ns' ? (masterData.nsStatuses || []).map(s => s.name) : (masterData.subconStatuses || []).map(s => s.name);
+                                    else if (isTeam) options = tasksSubTab === 'ns' ? (masterData.nsTeams || []).map(t => t.name) : (masterData.teams || []);
+                                    else if (isEquipYear) options = [...new Set(currentTasksTable.map(t => t[col]).filter(Boolean))].sort();
 
                                     return (
-                                        <td key={idx} className={`p-1 md:p-1.5 align-middle border-r border-slate-100 bg-white ${isPinned ? 'sticky-col-cell' : ''} ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`} style={{ verticalAlign: 'top', width: finalWidth, minWidth: finalWidth, maxWidth: finalWidth }}>
+                                        <td key={idx} className={`p-1 md:p-1.5 align-middle border-r border-slate-100 bg-white ${isPinned ? 'sticky-col-cell' : ''} ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`} style={{ verticalAlign: 'top', width: finalWidth, minWidth: finalWidth, maxWidth: finalWidth, position: isPinned ? 'sticky' : 'relative', left: isPinned ? getPinnedLeftPos(col, orderedVisibleColumnsTable) : 'auto', zIndex: isPinned ? 20 : 1 }}>
                                             <div className="flex items-stretch w-full mx-auto relative" style={{ backgroundColor: styleObj.backgroundColor, border: styleObj.border || 'none', borderRadius: '6px', overflow: 'hidden', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
-                                                <div 
-                                                    contentEditable={isEditing} 
-                                                    suppressContentEditableWarning={true} 
-                                                    className={`px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} 
-                                                    style={{ 
-                                                        color: styleObj.color, fontWeight: styleObj.fontWeight, display: 'block', width: '100%', minWidth: 0, boxSizing: 'border-box', minHeight: '28px', 
-                                                        height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto',
-                                                        whiteSpace: (isContactJobCell || col === 'รายการอุปกรณ์' || isStatusChangeCell || isGroupedMultiLine) ? 'pre-wrap' : (isAuto ? 'nowrap' : 'normal'), 
-                                                        wordBreak: 'break-word', lineHeight: '1.5', overflow: 'visible', textAlign: (isStatusCell || isTeamCell || isCidCell || isOverDueCell || isEquipYearCell) ? 'center' : 'left'
-                                                    }} 
-                                                    onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} 
-                                                    onBlur={e => { 
-                                                        // 🔥 ป้องกันข้อมูลเด้งกลับ: ใส่ Timestamp ล็อกไว้
-                                                        task._lastLocalUpdate = Date.now();
-                                                        handleCellChangeTable(task, col, e.target.innerText, (tasksSubTab === 'subcontract' ? columns : nsColumns)); 
-                                                        setEditingCell(null); 
-                                                    }}
-                                                >
-                                                    {val}
-                                                </div>
-                                                {(options.length > 0 || isStatusCell || isTeamCell || isEquipYearCell) && (
+                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={`px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} style={{ color: styleObj.color, fontWeight: styleObj.fontWeight, display: 'block', width: '100%', minWidth: 0, boxSizing: 'border-box', minHeight: '28px', height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto', whiteSpace: (col === contactJobColMatch || col === 'รายการอุปกรณ์' || isStatusChange || (task._groupDocs && task._groupDocs.length > 1)) ? 'pre-wrap' : (colConfig.mode === 'auto' ? 'nowrap' : 'normal'), wordBreak: 'break-word', lineHeight: '1.5', overflow: 'visible', textAlign: (isStatus || isTeam || isCid || isOverdue || isEquipYear) ? 'center' : 'left' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { task._lastLocalUpdate = Date.now(); handleCellChangeTable(task, col, e.target.innerText, (tasksSubTab === 'subcontract' ? columns : nsColumns)); setEditingCell(null); }}>{val}</div>
+                                                {(options.length > 0 || isStatus || isTeam || isEquipYear) && (
                                                     <div className="relative w-8 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5 z-10">
-                                                        <select 
-                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                                                            value="" 
-                                                            onChange={e => {
-                                                                task._lastLocalUpdate = Date.now();
-                                                                handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns));
-                                                            }}
-                                                        >
-                                                            <option value="" className="text-black bg-white">-- ว่างเปล่า --</option>
+                                                        <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { task._lastLocalUpdate = Date.now(); handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns)); }}>
+                                                            <option value="">-- ว่างเปล่า --</option>
                                                             {options.map(opt => <option key={opt} value={opt} className="text-black bg-white">{opt}</option>)}
                                                         </select>
                                                         <i className="fa-solid fa-chevron-down text-[8px] opacity-40"></i>
@@ -2508,7 +2445,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         </td>
                                     );
                                 })}
-                                <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-30 text-center group relative">
+                                <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-30 text-center group relative" style={{ width: colWidths['__manage__'] || '100px' }}>
                                     <div className="flex flex-col gap-2 px-1 py-1">
                                         {tasksSubTab === 'ns' ? (
                                             <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="py-2 bg-indigo-50 border border-indigo-300 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-black flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95">
@@ -2733,97 +2670,66 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     {(dayTasks || []).map(t => {
                                         const bgColor = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 1);
                                         const softBg = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 0.1);
-                                        
                                         const cidVal = t._calCidCol ? t[t._calCidCol] : '';
                                         const companyVal = t._calCompCol ? t[t._calCompCol] : '-';
-                                        
                                         const contactVal = (t._calContactCol && t[t._calContactCol]) ? t[t._calContactCol] : 'ไม่ระบุ';
                                         const phoneVal = (t._calPhoneCol && t[t._calPhoneCol]) ? t[t._calPhoneCol] : '';
-                                        
                                         const collectionDateVal = t._calDateCol ? t[t._calDateCol] : '-';
                                         const collectionTimeVal = t._calTimeCol ? t[t._calTimeCol] : '-';
                                         
                                         return (
                                           <div key={t.id} className="flex bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer relative" onMouseMove={(e) => handleMouseMove(e, t)} onMouseLeave={handleMouseLeave}>
                                             <div style={{backgroundColor: bgColor}} className="w-2 md:w-3 shrink-0"></div>
-                                            
                                             <div className="p-3 md:p-4 flex-1 flex flex-col text-xs md:text-sm min-w-0">
                                                 <div className="flex flex-col lg:flex-row gap-3 md:gap-4 lg:items-center w-full min-w-0">
-                                                    
-                                                    {/* กลุ่มข้อมูลด้านซ้าย */}
                                                     <div className="flex-1 flex flex-col lg:flex-row gap-3 lg:gap-4 lg:items-center min-w-0">
-                                                        
-                                                        {/* 1. ทีมงาน */}
                                                         <div className="flex flex-col justify-center items-start shrink-0 lg:pr-4 lg:border-r border-slate-200">
                                                             <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">ทีมงาน</p>
-                                                            <div className="px-2 py-1 md:py-1.5 rounded-md text-sm md:text-base font-bold border w-24 md:w-32 text-center truncate shadow-sm" style={{ backgroundColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').bg, color: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').text, borderColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').border }} title={t._calTeamCol ? t[t._calTeamCol] : 'ไม่ระบุทีม'}>
+                                                            <div className="px-2 py-1 md:py-1.5 rounded-md text-sm md:text-base font-bold border w-24 md:w-32 text-center truncate shadow-sm" style={{ backgroundColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').bg, color: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').text, borderColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').border }}>
                                                                 {t._calTeamCol ? t[t._calTeamCol] : 'ไม่ระบุทีม'}
                                                             </div>
                                                         </div>
-
-                                                        {/* 2. บริษัทลูกค้า + CID */}
                                                         <div className="flex-1 flex flex-col justify-center overflow-hidden min-w-0 lg:pr-2">
                                                             <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider">CID / บริษัทลูกค้า</p>
-                                                            <p className="font-bold text-slate-800 text-sm md:text-base leading-tight truncate mt-0.5" title={`${cidVal ? '['+cidVal+'] ' : ''}${companyVal}`}>
+                                                            <p className="font-bold text-slate-800 text-sm md:text-base leading-tight truncate mt-0.5">
                                                                 {cidVal && <span className="text-blue-600 mr-1">[{cidVal}]</span>}
                                                                 <span>{companyVal}</span>
                                                             </p>
                                                         </div>
-
-                                                        {/* 3 & 4. ผู้ประสานงาน และ เข้าเก็บ */}
                                                         <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 shrink-0 lg:pl-2">
-                                                            {/* 3. ผู้ประสานงาน */}
                                                             <div className="flex flex-col justify-center sm:w-40 lg:w-56">
                                                                 <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider">ผู้ประสานงาน / เบอร์โทร</p>
                                                                 <p className="text-slate-700 break-words font-medium mt-0.5">{contactVal}</p>
-                                                                {phoneVal && contactVal !== phoneVal && <p className="text-slate-500 text-xs mt-0.5 break-words"><i className="fa-solid fa-phone text-[10px]"></i> {phoneVal}</p>}
+                                                                {phoneVal && <p className="text-slate-500 text-xs mt-0.5"><i className="fa-solid fa-phone text-[10px]"></i> {phoneVal}</p>}
                                                             </div>
-
-                                                            {/* 4. วันและเวลาที่เข้าเก็บ */}
                                                             <div className="flex flex-col justify-center shrink-0">
                                                                 <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider">เข้าเก็บ (วัน-เวลา)</p>
                                                                 <div className="flex items-center gap-2 mt-0.5 text-sm md:text-base font-bold text-slate-700">
                                                                     <p>{collectionDateVal}</p>
-                                                                    {collectionTimeVal !== '-' && (
-                                                                        <p><i className="fa-regular fa-clock mr-1 text-slate-500 text-sm"></i>{collectionTimeVal}</p>
-                                                                    )}
+                                                                    {collectionTimeVal !== '-' && <p><i className="fa-regular fa-clock mr-1 text-slate-500 text-sm"></i>{collectionTimeVal}</p>}
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        
                                                     </div>
-
-                                                    {/* 5. Status (อัปเดตจากปฏิทินได้) */}
                                                     <div className="flex justify-start lg:justify-end mt-2 lg:mt-0 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 pt-3 lg:pt-0 lg:pl-4 relative">
                                                         <div style={{backgroundColor: softBg, color: bgColor, borderColor: bgColor}} className="font-bold px-4 md:px-6 py-1.5 md:py-2 rounded-lg md:rounded-xl border-2 text-center min-w-[120px] md:min-w-[140px] shadow-sm relative flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity">
                                                             <span className="flex-1 text-center">{t._calStatusCol ? t[t._calStatusCol] : 'ไม่มีสถานะ'}</span>
                                                             <i className="fa-solid fa-chevron-down text-[10px] ml-2"></i>
-                                                            <select 
-                                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
-                                                                value="" 
-                                                                onChange={async (e) => { 
-                                                                    const newVal = e.target.value;
-                                                                    // 1. อัปเดตฝั่ง Subcontract
-                                                                    await handleCellChangeTable(t, t._calStatusCol, newVal, columns);
-                                                                    
-                                                                    // 2. 🔥 อัปเดตฝั่ง Region ตาม Status ใน Sub (เช็ค CID)
-                                                                    const cidVal = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
-                                                                    const nsStatusCol = getStatusColumnName(nsColumns);
-                                                                    const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
-                                                                    
-                                                                    if (cidVal && nsStatusCol && nsCidCol) {
-                                                                        const matchedNsTask = nsTasks.find(nt => String(nt[nsCidCol]).trim() === cidVal);
-                                                                        if (matchedNsTask) {
-                                                                            // อัปเดตสถานะใน Region ให้เหมือนกับ Sub
-                                                                            handleCellChangeTable(matchedNsTask, nsStatusCol, newVal, nsColumns);
-                                                                            customAlert(`ซิงค์สถานะ "${newVal || 'ว่างเปล่า'}" ไปยังหน้า Region สำเร็จ`, "success");
-                                                                        }
+                                                            <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" value="" onChange={async (e) => { 
+                                                                const newVal = e.target.value;
+                                                                await handleCellChangeTable(t, t._calStatusCol, newVal, columns);
+                                                                const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
+                                                                const nsStatusCol = getStatusColumnName(nsColumns);
+                                                                const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+                                                                if (cid && nsStatusCol && nsCidCol) {
+                                                                    const matchedNsTask = nsTasks.find(nt => String(nt[nsCidCol]).trim() === cid);
+                                                                    if (matchedNsTask) {
+                                                                        handleCellChangeTable(matchedNsTask, nsStatusCol, newVal, nsColumns);
+                                                                        customAlert(`ซิงค์สถานะ "${newVal || 'ว่างเปล่า'}" ไปยังหน้า Region สำเร็จ`, "success");
                                                                     }
-                                                                }}
-                                                            >
-                                                                {/* 🔥 เพิ่มตัวเลือกว่างเปล่าไว้บนสุด */}
-                                                                <option value="" className="text-slate-400 italic">-- ว่างเปล่า (ลบข้อมูล) --</option>
-                                                                {/* 🔥 ใช้ฐานข้อมูล Status ของ Subcontract และตั้งสีขาวดำ */}
+                                                                }
+                                                            }}>
+                                                                <option value="">-- ว่างเปล่า --</option>
                                                                 {(subcontractStatuses && subcontractStatuses.length > 0 ? subcontractStatuses : tableUniqueStatuses || []).map(s => (
                                                                     <option key={s} value={s} className="text-black bg-white">{s}</option>
                                                                 ))}
@@ -2831,8 +2737,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                         </div>
                                                     </div>
                                                 </div>
-
-                                                {/* 6. หมายเหตุเพิ่มเติม */}
                                                 {t._calNoteCol && t[t._calNoteCol] && (
                                                     <div className="mt-3 pt-3 border-t border-slate-100 w-full">
                                                         <p className="text-[10px] md:text-xs text-amber-600 font-semibold uppercase tracking-wider">หมายเหตุเพิ่มเติม</p>
