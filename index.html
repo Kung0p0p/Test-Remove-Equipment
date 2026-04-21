@@ -2481,31 +2481,29 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                 >
                                                     {val}
                                                 </div>
-                                                {(isStatus || isTeam) && (
-                                                    // 🔥 แก้หน่วง: ขยายความกว้าง w-8, เพิ่ม z-10 และพื้นหลังจางๆ ให้กดง่ายขึ้น
-                                                    <div className="relative w-8 flex-shrink-0 flex items-center justify-center bg-white/20 hover:bg-black/10 cursor-pointer border-l border-black/5 z-10 transition-colors">
+                                                {(isStatus || isTeam || isEquipYearCell) && (
+                                                    // 🔥 เพิ่ม z-10 และขยายความกว้าง w-8 เพื่อให้กดติดง่ายขึ้น
+                                                    <div className="relative w-8 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5 z-10">
                                                         <select 
                                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
                                                             value="" 
+                                                            // 🔥 ลบเงื่อนไข if(e.target.value) ออกเพื่อให้ส่งค่าว่างได้
                                                             onChange={e => handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns))}
                                                         >
-                                                            {/* 🔥 เพิ่มตัวเลือกว่างเปล่าไว้บนสุด */}
-                                                            <option value="" className="text-slate-400 italic">-- ว่างเปล่า (ลบข้อมูล) --</option>
+                                                            <option value="">-- ว่างเปล่า --</option>
                                                             {(() => {
-                                                                let rawOptions = isStatus 
-                                                                    ? (tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses) 
-                                                                    : (tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams);
-                                                                
+                                                                let rawOptions = [];
+                                                                if (isStatus) rawOptions = tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses;
+                                                                else if (isTeam) rawOptions = tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams;
+                                                                else if (isEquipYearCell) rawOptions = tableUniqueYears;
+
                                                                 return (rawOptions || [])
                                                                     .map(opt => typeof opt === 'string' ? opt : opt.name)
                                                                     .sort((a, b) => a.localeCompare(b, 'en'))
-                                                                    .map(name => (
-                                                                        // 🔥 บังคับสีตัวเลือกเป็นสีดำพื้นขาวมาตรฐาน
-                                                                        <option key={name} value={name} className="text-black bg-white">{name}</option>
-                                                                    ));
+                                                                    .map(name => <option key={name} value={name} className="text-black bg-white">{name}</option>);
                                                             })()}
                                                         </select>
-                                                        <i className="fa-solid fa-chevron-down text-[10px] opacity-40"></i>
+                                                        <i className="fa-solid fa-chevron-down text-[8px] opacity-40"></i>
                                                     </div>
                                                 )}
                                             </div>
