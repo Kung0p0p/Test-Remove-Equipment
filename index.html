@@ -1540,11 +1540,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
                   const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
-                  if (tasksSubTab === 'subcontract') {
-                      setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
-                  } else {
-                      setNsTasks(prev => prev.filter(t => !docIds.includes(t.id)));
-                  }
+                  // 🔥 อัปเดตหน้าจอทันที (Optimistic Update)
+              if (tasksSubTab === 'subcontract') {
+                  setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value, _lastLocalUpdate: Date.now() } : t));
+              } else {
+                  setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value, _lastLocalUpdate: Date.now() } : t));
+              }
 
                   try {
                       if (GAS_WEB_APP_URL) {
