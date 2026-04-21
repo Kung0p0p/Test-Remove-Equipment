@@ -2829,12 +2829,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                                     <option key={s} value={s} className="text-black bg-white">{s}</option>
                                                                 ))}
                                                             </select>
-                                                                <option value="" disabled></option>
-                                                                {/* 🔥 ใช้สีขาวดำ และอิงตาม subcontractStatuses */}
-                                                                {(subcontractStatuses && subcontractStatuses.length > 0 ? subcontractStatuses : tableUniqueStatuses || []).map(s => (
-                                                                    <option key={s} value={s} className="text-black bg-white">{s}</option>
-                                                                ))}
-                                                            </select>
                                                         </div>
                                                     </div>
                                                 </div>
