@@ -2803,25 +2803,20 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                                 value="" 
                                                                 onChange={async (e) => { 
                                                                     const newVal = e.target.value;
-                                                                    // 1. อัปเดตฝั่ง Subcontract (ตารางหลักของปฏิทิน)
+                                                                    // 1. อัปเดตฝั่ง Subcontract
                                                                     await handleCellChangeTable(t, t._calStatusCol, newVal, columns);
                                                                     
-                                                                    // 2. 🔥 ถ้าเป็น "เก็บเรียบร้อย" หรือ "Completed" ให้หาและอัปเดตฝั่ง Region ด้วยสถานะเดียวกัน
-                                                                    if (newVal) {
-                                                                        const isDone = newVal.match(/(เก็บเรียบร้อย|completed|complete|สำเร็จ|100%)/i);
-                                                                        if (isDone) {
-                                                                            const cidVal = t._calCidCol ? t[t._calCidCol] : t[t_getCol(['cid', 'circuitno'])];
-                                                                            const regionStatusCol = getStatusColumnName(nsColumns);
-                                                                            const regionCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
-                                                                            
-                                                                            if (cidVal && regionStatusCol && regionCidCol) {
-                                                                                const matchedNsTask = nsTasks.find(nt => String(nt[regionCidCol]).trim() === String(cidVal).trim());
-                                                                                if (matchedNsTask) {
-                                                                                    // 🔥 ยิงสถานะเดียวกันไปที่หน้า Region
-                                                                                    handleCellChangeTable(matchedNsTask, regionStatusCol, newVal, nsColumns);
-                                                                                    customAlert(`อัปเดตสถานะ "${newVal}" ทั้ง 2 ระบบสำเร็จ`, "success");
-                                                                                }
-                                                                            }
+                                                                    // 2. 🔥 อัปเดตฝั่ง Region ตาม Status ใน Sub (เช็ค CID)
+                                                                    const cidVal = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
+                                                                    const nsStatusCol = getStatusColumnName(nsColumns);
+                                                                    const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+                                                                    
+                                                                    if (cidVal && nsStatusCol && nsCidCol) {
+                                                                        const matchedNsTask = nsTasks.find(nt => String(nt[nsCidCol]).trim() === cidVal);
+                                                                        if (matchedNsTask) {
+                                                                            // อัปเดตสถานะใน Region ให้เหมือนกับ Sub
+                                                                            handleCellChangeTable(matchedNsTask, nsStatusCol, newVal, nsColumns);
+                                                                            customAlert(`ซิงค์สถานะ "${newVal || 'ว่างเปล่า'}" ไปยังหน้า Region สำเร็จ`, "success");
                                                                         }
                                                                     }
                                                                 }}
