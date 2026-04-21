@@ -136,16 +136,16 @@
         // 1. Global Setup & Firebase Config
         // ==========================================
         const firebaseConfig = {
-            apiKey: "AIzaSyBzHPhjjxRqcfno1QUkKUZddOPP_pota-Y",
-            authDomain: "remove-equipment-tracking.firebaseapp.com",
-            projectId: "remove-equipment-tracking",
-            storageBucket: "remove-equipment-tracking.firebasestorage.app",
-            messagingSenderId: "902157523949",
-            appId: "1:902157523949:web:e5f4db82a028867f4da5e4",
-            measurementId: "G-DT2FYYWJ26"
+            apiKey: "AIzaSyAvJPbPWiK632FpuOSlTT6tiEjsk3Rjh7Y",
+            authDomain: "test-remove-equipment.firebaseapp.com",
+            projectId: "test-remove-equipment",
+            storageBucket: "test-remove-equipment.firebasestorage.app",
+            messagingSenderId: "822143014604",
+            appId: "1:822143014604:web:1c86c25ec9541059371469",
+            measurementId: "G-VB3VDMQ9D1"
         };
         
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzbFJLODMmAOXPNf-5W-m7Y2fq_WnQNLy90EWA76cjaKUDR676KTjZ73iV1-2rxxJUD/exec"; 
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbye-_6F3rztyJpCh4PvmKVNS3Y0cjDGeZ4y4KMDzUQHn0Sx1XyTTrVGxXdgcngG3-4U/exec"; 
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -2130,7 +2130,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 <div className="p-6 h-auto min-h-[80px] flex items-center border-b border-slate-100 shrink-0">
                   <h1 className="text-base md:text-lg font-bold flex items-center gap-3 leading-snug whitespace-normal">
                       <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-truck-fast text-xl"></i></div>
-                      <span>Remove Equipment Tracking</span>
+                      <span>[TEST] Equipment Tracking</span>
                   </h1>
                 </div>
                 
@@ -2359,124 +2359,136 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           <thead className="bg-slate-800 shadow-sm shadow-slate-800/50 sticky top-0 z-40">
                             <tr>
                               {(orderedVisibleColumnsTable || []).map((col, idx) => {
-                                    const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
-                                    const isAuto = colConfig.mode === 'auto';
-                                    const isPinned = (pinnedColumns || []).includes(col);
-                                    const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
-                                    
+                                  const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
+                                  const isAuto = colConfig.mode === 'auto';
+                                  const isPinned = (pinnedColumns || []).includes(col);
+                                  const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
+                                  
+                                  let finalWidth = colWidths[col] || (isAuto ? 'max-content' : `${colConfig.width}px`);
+                                  if (typeof finalWidth === 'number') finalWidth = `${finalWidth}px`;
+
+                                  let thStyle = { 
+                                      whiteSpace: isAuto ? 'nowrap' : 'normal', 
+                                      wordBreak: isAuto ? 'normal' : 'break-word',
+                                      width: finalWidth, minWidth: finalWidth, maxWidth: isAuto ? 'none' : finalWidth
+                                  };
+
+                                  if (isPinned) {
+                                      thStyle.position = 'sticky';
+                                      thStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
+                                      thStyle.zIndex = 50;
+                                  }
+
+                                  return (
+                                      <th key={idx} className={`p-0 align-middle relative group transition-colors select-none sortable-header bg-slate-800 border-r border-slate-700 hover:bg-slate-700 ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.3)] border-r-slate-500' : ''}`} style={thStyle}>
+                                          <div className="flex items-center justify-center px-4 py-3 w-full h-full cursor-pointer relative" onClick={() => handleSort(col)}>
+                                            {/* 🔥 จัดข้อความให้อยู่กึ่งกลาง */}
+                                            <div className="flex items-center justify-center gap-2 overflow-hidden w-full px-6 text-center">
+                                                <div className="th-content text-xs md:text-sm font-semibold text-white truncate">{col}</div>
+                                            </div>
+                                            {/* 🔥 ย้ายปุ่ม Pin/Sort ไปไว้ด้านขวา */}
+                                            <div className="absolute right-2 flex items-center gap-1 opacity-60">
+                                                <button onClick={(e) => { e.stopPropagation(); handlePinToggle(e, col); }} className={`hover:scale-125 transition-transform ${isPinned ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}>
+                                                    <i className="fa-solid fa-thumbtack text-[10px]"></i>
+                                                </button>
+                                                <div className="text-white shrink-0 text-[10px]">{sortConfig.key === col ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</div>
+                                            </div>
+                                          </div>
+                                          <div onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e, col); }} onDoubleClick={(e) => { e.stopPropagation(); setColWidths(prev => ({ ...prev, [col]: 'max-content' })); }} className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-10 hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                      </th>
+                                  );
+                              })}
+                              {/* 🔥 แก้ไขให้ปรับขนาดได้โดยใช้ ID '__manage__' */}
+                              <th className="bg-slate-800 border-l border-slate-700 p-0 align-middle sticky right-0 z-40 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.2)] text-white text-xs font-bold text-center group" style={{ width: colWidths['__manage__'] || '100px', minWidth: colWidths['__manage__'] || '100px' }}>
+                                  จัดการ
+                                  <div onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e, '__manage__'); }} className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200">
+                            {paginatedTasks.map((task) => (
+                              <tr key={task.id} className="hover:bg-slate-50 transition-colors" style={{ height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto' }}>
+                                {(orderedVisibleColumnsTable || []).map((col, idx) => {
+                                    // --- Logic ภายในก้อนเดียวเพื่อป้องกันจอขาว ---
                                     const val = task[col] || '';
                                     const cleanVal = String(val).trim();
                                     const cellId = `${task.id}-${col}`;
                                     const isEditing = editingCell === cellId;
-
-                                    const isStatusChangeCell = (col === statusChangeColMatch || col === 'Status_change');
-                                    const isCidCell = (col === t_cidCol || col === 'CID Customer' || col === 'Circuit No');
-                                    const isOverDueCell = (col === t_overDueCol || col === 'นัดหมายลูกค้า');
-                                    const isGroupedMultiLine = task._groupDocs && task._groupDocs.length > 1 && (col === itemColMatch || col === snColMatch);
-
-                                    let finalWidth = colWidths[col] || (isAuto ? 'max-content' : `${colConfig.width}px`);
-                                    if (typeof finalWidth === 'number') finalWidth = `${finalWidth}px`;
-
-                                    let styleObj = { backgroundColor: 'transparent', color: 'inherit', fontWeight: 'normal', border: 'none' };
                                     
-                                    if (col === t_statusCol) {
+                                    // หาชื่อคอลัมน์แบบ Dynamic
+                                    const isStatus = col === t_statusCol;
+                                    const isTeam = col === t_teamCol;
+                                    const isCid = (col === t_cidCol || col.toLowerCase().includes('cid') || col.toLowerCase().includes('circuit'));
+                                    const isOverdue = (col === t_overDueCol || col.includes('นัดหมาย'));
+                                    const isStatusChange = col.toLowerCase().includes('status_change');
+                                    const isContact = col === contactJobColMatch;
+                                    const isEquip = col === 'รายการอุปกรณ์';
+
+                                    const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
+                                    const isPinned = (pinnedColumns || []).includes(col);
+                                    const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
+                                    const finalWidth = colWidths[col] || (colConfig.mode === 'auto' ? 'max-content' : `${colConfig.width}px`);
+
+                                    // ตั้งค่าสี
+                                    let styleObj = { backgroundColor: 'transparent', color: 'inherit', fontWeight: 'normal' };
+                                    if (isStatus) {
                                         styleObj = { backgroundColor: getStatusColor(cleanVal, 0.15), color: getStatusColor(cleanVal, 1), fontWeight: 'bold' };
-                                    } else if (col === t_teamCol) {
+                                    } else if (isTeam) {
                                         const tColor = getTeamColorStyle(val, masterData);
                                         styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold' };
-                                    } else if (isCidCell && cleanVal) {
-                                        const currentTaskStatus = getCleanStatus(task[t_statusCol]);
-                                        styleObj = { backgroundColor: getStatusColor(currentTaskStatus, 0.1), color: getStatusColor(currentTaskStatus, 1), fontWeight: 'bold', border: `1px solid ${getStatusColor(currentTaskStatus, 0.2)}` };
-                                    } else if (isOverDueCell && cleanVal && cleanVal !== 'ไม่ระบุสถานะ') {
-                                        let num = NaN; const match = cleanVal.match(/-?\d+/); if(match) num = parseInt(match[0], 10);
-                                        if (cleanVal.includes('เกิน') || cleanVal.includes('over') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' };
-                                        else if (num === 0 || cleanVal.includes('ครบกำหนด') || cleanVal === '0') styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold' }; 
-                                        else if (num > 0 || cleanVal.includes('เหลือ')) styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold' };
-                                    } else if (isStatusChangeCell && cleanVal && cleanVal !== 'ไม่ระบุสถานะ') {
+                                    } else if (isCid && cleanVal) {
+                                        const s = getCleanStatus(task[t_statusCol]);
+                                        styleObj = { backgroundColor: getStatusColor(s, 0.1), color: getStatusColor(s, 1), fontWeight: 'bold', border: `1px solid ${getStatusColor(s, 0.2)}` };
+                                    } else if (isOverdue && cleanVal && cleanVal !== 'ไม่ระบุสถานะ') {
+                                        let num = NaN; const m = cleanVal.match(/-?\d+/); if(m) num = parseInt(m[0], 10);
+                                        if (cleanVal.includes('เกิน') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' };
+                                        else if (num === 0 || cleanVal.includes('ครบ')) styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold' };
+                                        else styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold' };
+                                    } else if (isStatusChange && cleanVal) {
                                         styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', border: '1px solid #fef08a' };
                                     }
 
-                                    let tdWhiteSpace = isAuto ? 'nowrap' : 'normal';
-                                    if (isGroupedMultiLine || col === 'รายการอุปกรณ์' || col === contactJobColMatch || isStatusChangeCell) {
-                                        tdWhiteSpace = 'pre-wrap';
-                                    }
-
-                                    let options = [];
-                                    if (col === t_statusCol) {
-                                        options = tasksSubTab === 'ns' ? (masterData.nsStatuses || []).map(s => s.name) : (masterData.subconStatuses || []).map(s => s.name);
-                                    } else if (col === t_teamCol) {
-                                        options = tasksSubTab === 'ns' ? (masterData.nsTeams || []).map(t => t.name) : (masterData.teams || []);
-                                    }
-
                                     let tdStyle = { verticalAlign: 'top', width: finalWidth, minWidth: finalWidth, maxWidth: finalWidth };
-                                    let tdClass = `p-1 md:p-1.5 align-middle border-r border-slate-100 bg-white`;
                                     if (isPinned) {
                                         tdStyle.position = 'sticky';
                                         tdStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
                                         tdStyle.zIndex = 20;
-                                        tdClass += ` sticky-col-cell ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`;
                                     }
 
                                     return (
-                                        <td key={idx} className={tdClass} style={tdStyle}>
-                                            <div className="flex items-stretch w-full mx-auto relative" 
-                                                 style={{ 
-                                                     backgroundColor: styleObj.backgroundColor, 
-                                                     border: styleObj.border || 'none',
-                                                     borderRadius: '6px',
-                                                     overflow: 'hidden',
-                                                     boxSizing: 'border-box',
-                                                     width: '100%',
-                                                     maxWidth: '100%' 
-                                                 }}>
-                                                
+                                        <td key={idx} className={`p-1 md:p-1.5 align-middle border-r border-slate-100 bg-white ${isPinned ? 'sticky-col-cell' : ''} ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`} style={tdStyle}>
+                                            <div className="flex items-stretch w-full mx-auto relative" style={{ backgroundColor: styleObj.backgroundColor, border: styleObj.border || 'none', borderRadius: '6px', overflow: 'hidden', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
                                                 <div 
                                                     contentEditable={isEditing} 
                                                     suppressContentEditableWarning={true} 
                                                     className={`px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} 
                                                     style={{ 
-                                                        color: styleObj.color,
-                                                        fontWeight: styleObj.fontWeight,
-                                                        display: 'block', 
-                                                        width: '100%', 
-                                                        minWidth: 0,
-                                                        boxSizing: 'border-box', 
-                                                        minHeight: '28px', 
+                                                        color: styleObj.color, fontWeight: styleObj.fontWeight, display: 'block', width: '100%', minWidth: 0, boxSizing: 'border-box', minHeight: '28px', 
                                                         height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto',
-                                                        cursor: isEditing ? 'text' : 'pointer', 
-                                                        whiteSpace: tdWhiteSpace, 
-                                                        wordBreak: 'break-word', 
-                                                        textAlign: (col === t_statusCol || col === t_teamCol || isCidCell || isOverDueCell) ? 'center' : 'left', 
-                                                        lineHeight: '1.5', 
-                                                        overflow: 'visible'
+                                                        whiteSpace: (isContact || isEquip || isStatusChange || (task._groupDocs && task._groupDocs.length > 1)) ? 'pre-wrap' : (colConfig.mode === 'auto' ? 'nowrap' : 'normal'), 
+                                                        wordBreak: 'break-word', lineHeight: '1.5', overflow: 'visible', textAlign: (isStatus || isTeam || isCid || isOverdue) ? 'center' : 'left'
                                                     }} 
                                                     onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} 
-                                                    onBlur={e => { 
-                                                        const currentCols = tasksSubTab === 'subcontract' ? columns : nsColumns;
-                                                        handleCellChangeTable(task, col, e.target.innerText, currentCols); 
-                                                        setEditingCell(null); 
-                                                    }}
+                                                    onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, (tasksSubTab === 'subcontract' ? columns : nsColumns)); setEditingCell(null); }}
                                                 >
                                                     {val}
                                                 </div>
-
-                                                {options.length > 0 && (
-                                                    // 🔥 แก้ Dropdown หน่วง: ขยายปุ่ม เพิ่มสีพื้นหลังจางๆ และใส่ z-10
-                                                    <div className="relative w-6 md:w-8 flex-shrink-0 flex items-center justify-center bg-white/30 hover:bg-black/10 cursor-pointer border-l border-black/10 z-10 transition-colors" title="คลิกเพื่อเปลี่ยนข้อมูล">
-                                                        <i className="fa-solid fa-caret-down text-[10px] md:text-xs" style={{ color: styleObj.color !== 'inherit' ? styleObj.color : '#475569', opacity: 0.8 }}></i>
+                                                {(isStatus || isTeam) && (
+                                                    // 🔥 เพิ่ม z-10 และขยายความกว้าง w-8 เพื่อให้กดติดง่ายขึ้น
+                                                    <div className="relative w-8 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5 z-10">
                                                         <select 
                                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
                                                             value="" 
-                                                            onChange={e => { 
-                                                                const currentCols = tasksSubTab === 'subcontract' ? columns : nsColumns;
-                                                                handleCellChangeTable(task, col, e.target.value, currentCols); 
-                                                            }}
+                                                            onChange={e => handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns))}
                                                         >
-                                                            {/* 🔥 เพิ่มตัวเลือกล้างค่า ให้อยู่อันดับแรกเสมอ */}
-                                                            <option value="" className="text-slate-400 font-normal italic">-- ว่างเปล่า (ลบข้อมูล) --</option>
-                                                            {/* 🔥 บังคับสีตัวอักษรเป็นดำ พื้นขาว */}
-                                                            {options.map(opt => <option key={opt} value={opt} className="text-slate-800 bg-white font-medium not-italic">{opt}</option>)}
+                                                            <option value="" disabled></option>
+                                                            {/* 🔥 บังคับสีตัวเลือกเป็นสีดำพื้นขาวเพื่อให้มองง่าย */}
+                                                            {(isStatus ? (tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses) : (tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams)).map(opt => {
+                                                                const name = typeof opt === 'string' ? opt : opt.name;
+                                                                return <option key={name} value={name} className="text-black bg-white">{name}</option>
+                                                            })}
                                                         </select>
+                                                        <i className="fa-solid fa-chevron-down text-[8px] opacity-40"></i>
                                                     </div>
                                                 )}
                                             </div>
@@ -2731,6 +2743,48 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                         {/* 1. ทีมงาน */}
                                                         <div className="flex flex-col justify-center items-start shrink-0 lg:pr-4 lg:border-r border-slate-200">
                                                             <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">ทีมงาน</p>
+                                                            <div className="px-2 py-1 md:py-1.5 rounded-md te{calendarView === 'day' && (() => {
+                        const dayTasks = getTasksForDateObj(currentDate);
+                        return (
+                          <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col p-4 md:p-6 min-h-0 overflow-hidden">
+                            <h4 className="text-base md:text-lg font-bold text-slate-800 mb-4 md:mb-6 border-b pb-3 md:pb-4 flex justify-between items-center shrink-0">
+                              <span><i className="fa-regular fa-calendar-check text-blue-600 mr-2"></i> ตารางงานประจำวัน</span>
+                              <span className="text-xs md:text-sm font-medium bg-blue-50 text-blue-700 px-3 md:px-4 py-1 md:py-1.5 rounded-full shadow-sm">{(dayTasks || []).length} งาน</span>
+                            </h4>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                                {(dayTasks || []).length === 0 ? (
+                                  <div className="text-center text-slate-400 py-12 md:py-20 flex flex-col items-center">
+                                      <i className="fa-regular fa-calendar-xmark text-4xl md:text-6xl mb-3 md:mb-4 text-slate-200"></i>
+                                      <p className="text-sm md:text-lg font-medium">ไม่มีงานที่ต้องดำเนินการในวันนี้</p>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-3 md:space-y-4">
+                                    {(dayTasks || []).map(t => {
+                                        const bgColor = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 1);
+                                        const softBg = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 0.1);
+                                        
+                                        const cidVal = t._calCidCol ? t[t._calCidCol] : '';
+                                        const companyVal = t._calCompCol ? t[t._calCompCol] : '-';
+                                        
+                                        const contactVal = (t._calContactCol && t[t._calContactCol]) ? t[t._calContactCol] : 'ไม่ระบุ';
+                                        const phoneVal = (t._calPhoneCol && t[t._calPhoneCol]) ? t[t._calPhoneCol] : '';
+                                        
+                                        const collectionDateVal = t._calDateCol ? t[t._calDateCol] : '-';
+                                        const collectionTimeVal = t._calTimeCol ? t[t._calTimeCol] : '-';
+                                        
+                                        return (
+                                          <div key={t.id} className="flex bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer relative" onMouseMove={(e) => handleMouseMove(e, t)} onMouseLeave={handleMouseLeave}>
+                                            <div style={{backgroundColor: bgColor}} className="w-2 md:w-3 shrink-0"></div>
+                                            
+                                            <div className="p-3 md:p-4 flex-1 flex flex-col text-xs md:text-sm min-w-0">
+                                                <div className="flex flex-col lg:flex-row gap-3 md:gap-4 lg:items-center w-full min-w-0">
+                                                    
+                                                    {/* กลุ่มข้อมูลด้านซ้าย */}
+                                                    <div className="flex-1 flex flex-col lg:flex-row gap-3 lg:gap-4 lg:items-center min-w-0">
+                                                        
+                                                        {/* 1. ทีมงาน */}
+                                                        <div className="flex flex-col justify-center items-start shrink-0 lg:pr-4 lg:border-r border-slate-200">
+                                                            <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">ทีมงาน</p>
                                                             <div className="px-2 py-1 md:py-1.5 rounded-md text-sm md:text-base font-bold border w-24 md:w-32 text-center truncate shadow-sm" style={{ backgroundColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').bg, color: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').text, borderColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').border }} title={t._calTeamCol ? t[t._calTeamCol] : 'ไม่ระบุทีม'}>
                                                                 {t._calTeamCol ? t[t._calTeamCol] : 'ไม่ระบุทีม'}
                                                             </div>
@@ -2768,41 +2822,46 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                         
                                                     </div>
 
-                                                    {/* 5. Status (อัปเดตจากปฏิทินได้) */}
+                                                    {/* 5. Status (อัปเดตจากปฏิทิน 2 ฝั่ง) */}
                                                     <div className="flex justify-start lg:justify-end mt-2 lg:mt-0 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 pt-3 lg:pt-0 lg:pl-4 relative">
                                                         <div style={{backgroundColor: softBg, color: bgColor, borderColor: bgColor}} className="font-bold px-4 md:px-6 py-1.5 md:py-2 rounded-lg md:rounded-xl border-2 text-center min-w-[120px] md:min-w-[140px] shadow-sm relative flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity">
                                                             <span className="flex-1 text-center">{t._calStatusCol ? t[t._calStatusCol] : 'ไม่มีสถานะ'}</span>
-                                                            <i className="fa-solid fa-chevron-down text-[10px] ml-2"></i>
+                                                            <i className="fa-solid fa-caret-down text-[10px] ml-2"></i>
                                                             <select 
                                                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
                                                                 value="" 
                                                                 onChange={async (e) => { 
-                                                                    if (!e.target.value) return;
-                                                                    const newVal = e.target.value;
-                                                                    // 1. อัปเดตฝั่ง Subcontract (ตารางหลักของปฏิทิน)
+                                                                    const newVal = e.target.value; // ยอมรับค่าว่างเพื่อลบข้อมูล
+                                                                    
+                                                                    // 1. อัปเดตตารางหลักของปฏิทิน (Subcontract)
                                                                     await handleCellChangeTable(t, t._calStatusCol, newVal, columns);
                                                                     
-                                                                    // 2. 🔥 ถ้าเป็น "เก็บเรียบร้อย" หรือ "Complete" ให้หาและอัปเดตฝั่ง Region ด้วย
-                                                                    const isDone = newVal.match(/(เก็บเรียบร้อย|complete|สำเร็จ|100%)/i);
-                                                                    if (isDone) {
-                                                                        const cidVal = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
-                                                                        const nsStatusCol = getStatusColumnName(nsColumns);
-                                                                        const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
-                                                                        
-                                                                        if (cidVal && nsStatusCol && nsCidCol) {
-                                                                            const matchedNsTask = nsTasks.find(nt => String(nt[nsCidCol]).trim() === cidVal);
-                                                                            if (matchedNsTask) {
-                                                                                handleCellChangeTable(matchedNsTask, nsStatusCol, 'Complete', nsColumns);
-                                                                                customAlert("อัปเดตสถานะสำเร็จทั้ง 2 ระบบ", "success");
+                                                                    // 2. 🔥 เช็คเงื่อนไข: ถ้าเป็นกลุ่ม "เก็บเรียบร้อย" ให้อัปเดต Region ด้วย "สถานะเดียวกัน"
+                                                                    if (newVal) {
+                                                                        const isCompleted = newVal.toLowerCase().match(/(เก็บเรียบร้อย|completed|complete|สำเร็จ|100%)/);
+                                                                        if (isCompleted) {
+                                                                            const cidVal = t._calCidCol ? t[t._calCidCol] : t[t_getCol(['cid', 'circuitno'])];
+                                                                            const regionStatusCol = getStatusColumnName(nsColumns);
+                                                                            const regionCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+                                                                            
+                                                                            // หาข้อมูลในตาราง Region ที่ CID ตรงกัน
+                                                                            if (cidVal && regionStatusCol && regionCidCol) {
+                                                                                const matchedRegionTask = nsTasks.find(nt => String(nt[regionCidCol]).trim() === String(cidVal).trim());
+                                                                                if (matchedRegionTask) {
+                                                                                    // 🔥 ยิงค่า newVal (ค่าจาก Subcontract) ไปใส่ใน Region ตรงๆ เลย
+                                                                                    handleCellChangeTable(matchedRegionTask, regionStatusCol, newVal, nsColumns);
+                                                                                    customAlert(`อัปเดตสถานะ "${newVal}" ไปยังหน้า Region สำเร็จ`, 'success');
+                                                                                }
                                                                             }
                                                                         }
                                                                     }
                                                                 }}
                                                             >
-                                                                <option value="" disabled></option>
-                                                                {/* 🔥 ใช้สีขาวดำ และอิงตาม subcontractStatuses */}
+                                                                {/* 🔥 เพิ่มตัวเลือกล้างค่า ให้อยู่อันดับแรกเสมอ */}
+                                                                <option value="" className="text-slate-400 font-normal italic">-- ว่างเปล่า (ลบข้อมูล) --</option>
+                                                                {/* 🔥 บังคับใช้ Status ของ Subcontract และให้ข้อความเป็นสีขาว-ดำ */}
                                                                 {(subcontractStatuses && subcontractStatuses.length > 0 ? subcontractStatuses : tableUniqueStatuses || []).map(s => (
-                                                                    <option key={s} value={s} className="text-black bg-white">{s}</option>
+                                                                    <option key={s} value={s} className="text-slate-800 bg-white font-medium not-italic">{s}</option>
                                                                 ))}
                                                             </select>
                                                         </div>
