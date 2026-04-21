@@ -229,30 +229,12 @@
 
         function isValidTaskHelper(taskObj) {
             if (!taskObj) return false;
-            
-            // 🔥 ปลดล็อคให้งานใหม่ (ที่เพิ่ง Assign จากเว็บ) โชว์ได้ทันที
             if (taskObj._rowIndex === 0) return true;
-
-            let hasRealData = false;
-            Object.keys(taskObj).forEach(k => {
-                if (k === 'id' || k === '_rowIndex') return;
-                
-                const lk = String(k).toLowerCase().replace(/[\s_]+/g, '');
-                // ยกเว้นคอลัมน์สูตรหรือวันที่ ไม่นำมาคิดเป็นข้อมูลหลัก
-                if (lk.includes('นัดหมาย') || lk.includes('over') || lk.includes('เกินกำหนด') || 
-                    lk.includes('สถานะ') || lk.includes('status') || lk.includes('วันที่') || 
-                    lk.includes('เวลา') || lk.includes('date') || lk.includes('time') || 
-                    lk.includes('timestamp')) {
-                    return;
-                }
-                
-                const val = String(taskObj[k]).trim();
-                // ถ้ามีข้อมูลอื่นๆ ถือว่าเป็นแถวข้อมูลจริง
-                if (val !== '' && val !== '-' && val !== 'ไม่ระบุสถานะ' && val !== 'ไม่ระบุทีม') {
-                    hasRealData = true;
-                }
+            // เช็คแค่ว่ามีข้อมูลอย่างน้อย 1 ช่องที่ไม่ใช่ ID และเลขแถว ก็ให้ผ่านเลย
+            return Object.keys(taskObj).some(k => {
+                if (k === 'id' || k === '_rowIndex') return false;
+                return String(taskObj[k]).trim() !== '';
             });
-            return hasRealData;
         }
 
         const fallbackTeamColors = [ { bg: '#f3e8ff', text: '#7e22ce', border: '#e9d5ff' }, { bg: '#ccfbf1', text: '#0f766e', border: '#99f6e4' }, { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa' }, { bg: '#e0e7ff', text: '#4338ca', border: '#c7d2fe' }, { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0' }, { bg: '#ffe4e6', text: '#be123c', border: '#fecdd3' } ];
@@ -1368,15 +1350,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       const validTasks = data.subcontract.tasks.filter(isValidTaskHelper);
                       setTasks(prev => validTasks.map(nt => {
                           const local = prev.find(p => p.id === nt.id);
+                          // ถ้าเพิ่งแก้ในเว็บไม่เกิน 15 วิ ให้ใช้ค่าในเว็บไปก่อน กันข้อมูลเก่าจาก Sheet มาทับ
                           if (local && local._lastLocalUpdate && (Date.now() - local._lastLocalUpdate < 15000)) return local;
                           return nt;
                       }));
                   }
-
                   if (data.ns) {
-                      setColumns(data.subcontract.columns);
-                      const validTasks = data.ns.tasks.filter(isValidTaskHelper);
-                      setTasks(prev => validTasks.map(nt => {
+                      setNsColumns(data.ns.columns);
+                      const validNsTasks = data.ns.tasks.filter(isValidTaskHelper);
+                      setNsTasks(prev => validNsTasks.map(nt => {
                           const local = prev.find(p => p.id === nt.id);
                           if (local && local._lastLocalUpdate && (Date.now() - local._lastLocalUpdate < 15000)) return local;
                           return nt;
@@ -2372,7 +2354,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                             <div className="flex items-center justify-center gap-2 overflow-hidden w-full pr-10 text-center">
                                                 <div className="th-content text-xs md:text-sm font-semibold text-white truncate text-center w-full">{col}</div>
                                             </div>
-                                            {/* 🔥 ย้ายปุ่ม Pin/Sort หลบตัวลากคอลัมน์ (ขยับมาทางซ้าย 24px) */}
                                             <div className="absolute right-6 flex items-center gap-1.5 opacity-60">
                                                 <button onClick={(e) => { e.stopPropagation(); handlePinToggle(e, col); }} className={`hover:scale-125 transition-transform ${isPinned ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}><i className="fa-solid fa-thumbtack text-[10px]"></i></button>
                                                 <div className="text-white shrink-0 text-[10px]">{sortConfig.key === col ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</div>
@@ -2397,12 +2378,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     const cellId = `${task.id}-${col}`;
                                     const isEditing = editingCell === cellId;
                                     
-                                    // 🔥 ประกาศตัวแปรภายในลูป (ป้องกันจอขาว)
                                     const isStatus = col === t_statusCol;
                                     const isTeam = col === t_teamCol;
                                     const isEquipYear = (col === t_equipYearCol || col.toLowerCase().includes('year') || col.includes('ปี'));
                                     const isCid = (col === t_cidCol || col === 'CID Customer' || col === 'Circuit No');
-                                    const isOverdue = (col === t_overDueCol || col === 'นัดหมายลูกค้า');
+                                    const isOverdue = (col === t_overDueCol || col.includes('นัดหมายลูกค้า'));
                                     const isStatusChange = (col === statusChangeColMatch || col === 'Status_change');
 
                                     const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
@@ -2422,7 +2402,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         else styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold' };
                                     } else if (isStatusChange && cleanVal) { styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', border: '1px solid #fef08a' }; }
 
-                                    // เตรียมตัวเลือก Dropdown
                                     let options = [];
                                     if (isStatus) options = tasksSubTab === 'ns' ? (masterData.nsStatuses || []).map(s => s.name) : (masterData.subconStatuses || []).map(s => s.name);
                                     else if (isTeam) options = tasksSubTab === 'ns' ? (masterData.nsTeams || []).map(t => t.name) : (masterData.teams || []);
@@ -2651,7 +2630,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         </div>
                       )}
 
-                      {calendarView === 'day' && (() => {
+                      {{calendarView === 'day' && (() => {
                         const dayTasks = getTasksForDateObj(currentDate);
                         return (
                           <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col p-4 md:p-6 min-h-0 overflow-hidden">
