@@ -2043,10 +2043,17 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           }
 
           // ==========================================
-          // CONDITIONAL CHART LOGIC v2.3.0 (Enhanced NS View)
+          // CONDITIONAL CHART LOGIC v2.4.0 (Summary Labels & Large Text)
           // ==========================================
           let teamChartData, unassignedChartData, teamChartOptions, unassignedChartOptions;
           const allActiveTeams = [...new Set(chartFilteredTasks.map(t => getCleanTeam(t[d_teamCol])))].sort();
+          
+          // ปรับขนาด Data Label ให้ใหญ่ขึ้น
+          const largeDlStyle = { 
+              ...dlStyle, 
+              font: { weight: 'bold', size: 14, family: 'Prompt' }, // 🔥 เพิ่มขนาดเป็น 14
+              formatter: (val) => val > 0 ? val : '' // แสดงเฉพาะค่าที่มากกว่า 0
+          };
 
           if (dashboardView === 'ns') {
               // --- LOGIC สำหรับ REGION TASKS (NS) ---
@@ -2056,21 +2063,29 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const mainTeams = allActiveTeams.filter(t => t !== 'ไม่ระบุทีม');
               const unassignedLabel = 'ไม่ระบุทีม';
 
-              // 1. กราฟทีมหลัก: แสดง 2 แท่ง (Completed vs On Process)
+              // สร้าง Labels พร้อมสรุปยอด (C: XX | P: XX)
+              const teamLabelsWithSummary = mainTeams.map(team => {
+                  const c = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
+                  const p = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
+                  return [team, `(C:${c} | P:${p})` || '']; // แสดงเป็น 2 บรรทัด
+              });
+
               teamChartData = { 
-                  labels: mainTeams, 
+                  labels: teamLabelsWithSummary, 
                   datasets: [
                       { label: 'Completed', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 },
                       { label: 'On Process', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(59, 130, 246, 0.8)', borderRadius: 4 }
                   ] 
               };
 
-              // 2. กราฟไม่ระบุทีม: แยกตาม Status จริง (ของใครของมัน)
+              // กราฟไม่ระบุทีม พร้อมสรุปยอด
               const unassignedTasks = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === unassignedLabel);
+              const uC = unassignedTasks.filter(t => isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
+              const uP = unassignedTasks.filter(t => !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
               const unassignedStatuses = [...new Set(unassignedTasks.map(t => getCleanStatus(t[d_statusCol])))].sort();
 
               unassignedChartData = {
-                  labels: [unassignedLabel],
+                  labels: [[unassignedLabel], [`(C:${uC} | P:${uP})`]],
                   datasets: unassignedStatuses.map(status => ({
                       label: status,
                       data: [unassignedTasks.filter(t => getCleanStatus(t[d_statusCol]) === status).length],
@@ -2080,28 +2095,32 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   }))
               };
 
-              // 3. Options สำหรับทีมหลัก (ตัวเลขอยู่กึ่งกลาง)
               teamChartOptions = { 
                   responsive: true, maintainAspectRatio: false, 
                   plugins: { 
-                      legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, family: 'Prompt' } } }, 
-                      datalabels: { ...dlStyle, anchor: 'center', align: 'center', offset: 0 } // 🔥 ตัวเลขอยู่กึ่งกลาง
+                      legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12, family: 'Prompt', weight: 'bold' } } }, 
+                      datalabels: { ...largeDlStyle, anchor: 'center', align: 'center' } 
                   }, 
-                  scales: { y: { beginAtZero: true, grid: { display: false } } } 
+                  scales: { 
+                      x: { ticks: { font: { size: 11, weight: 'bold' } } },
+                      y: { beginAtZero: true, grid: { display: false } } 
+                  } 
               };
 
-              // 4. Options สำหรับไม่ระบุทีม (Legend อยู่ด้านล่างเหมือน Subcontract)
               unassignedChartOptions = {
                   responsive: true, maintainAspectRatio: false,
                   plugins: {
-                      legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9, family: 'Prompt' } } },
-                      datalabels: { ...dlStyle, anchor: 'center', align: 'center' }
+                      legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10, family: 'Prompt' } } },
+                      datalabels: { ...largeDlStyle, anchor: 'center', align: 'center' }
                   },
-                  scales: { y: { beginAtZero: true, grid: { display: false } } }
+                  scales: { 
+                      x: { ticks: { font: { size: 11, weight: 'bold' }, color: '#b45309' } },
+                      y: { beginAtZero: true, grid: { display: false } } 
+                  }
               };
 
           } else {
-              // --- LOGIC เดิมสำหรับ SUBCONTRACT ---
+              // --- LOGIC สำหรับ SUBCONTRACT (ปรับตัวเลขให้ใหญ่ขึ้นด้วย) ---
               const activeStatusesForTeam = [...new Set(chartFilteredTasks.map(t => getCleanStatus(t[d_statusCol])))];
               teamChartData = { 
                   labels: allActiveTeams, 
@@ -2115,7 +2134,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               };
               teamChartOptions = { 
                   responsive: true, maintainAspectRatio: false, 
-                  plugins: { legend: { position: 'bottom', labels: { font: { family: 'Prompt', size: 10 } } }, datalabels: { ...dlStyle, anchor: 'center', align: 'center' } }, 
+                  plugins: { 
+                      legend: { position: 'bottom', labels: { font: { family: 'Prompt', size: 11 } } }, 
+                      datalabels: { ...largeDlStyle, anchor: 'center', align: 'center' } 
+                  }, 
                   scales: { x: { stacked: false }, y: { beginAtZero: true } } 
               };
               unassignedChartData = null;
@@ -2131,7 +2153,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               }
           });
           const overdueChartData = { labels: allActiveTeams, datasets: [{ label: 'เกินกำหนดนัดหมาย (CIDs)', data: allActiveTeams.map(t => overdueByTeamCounts[t]), backgroundColor: 'rgba(239, 68, 68, 0.8)', borderColor: 'rgba(220, 38, 38, 1)', borderWidth: 1 }] };
-          const overdueChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: dlStyle }, scales: { y: { beginAtZero: true } } };
+          const overdueChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { ...largeDlStyle, anchor: 'end', align: 'top' } }, scales: { y: { beginAtZero: true } } };
 
           // ================== CALENDAR CALCULATIONS ==================
           const getTasksForDateObj = (dateObj) => {
@@ -2343,7 +2365,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <h3 className="text-base md:text-lg font-bold mb-4 flex items-center gap-2"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
                               <div className="relative h-60 md:h-72 w-full"><ChartComponent type="bar" data={barChartData} options={barChartOptions} /></div>
                           </div>
-                          {/* ปรับปรุงการแสดงผลกราฟแยกทีม v2.3.0 (แยกสถานะงานค้าง) */}
+                          {/* ปรับปรุงการแสดงผลกราฟแยกทีม v2.4.0 (Summary Labels) */}
                           <div className={`${dashboardView === 'ns' ? 'lg:col-span-3 grid grid-cols-1 lg:grid-cols-4 gap-6' : 'lg:col-span-2'}`}>
                               {dashboardView === 'ns' ? (
                                   <>
@@ -2351,24 +2373,24 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       <div className="lg:col-span-3 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                                           <div className="flex justify-between items-center mb-4">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
-                                                  <i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานแยกตามทีม (Completed vs On Process)
+                                                  <i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานแยกตามทีม <span className="text-xs font-normal text-slate-400">(C = Completed, P = On Process)</span>
                                               </h3>
                                           </div>
-                                          <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
-                                              <div className="min-w-[500px] h-full">
+                                          <div className="relative h-72 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
+                                              <div className="min-w-[600px] h-full">
                                                   {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
                                               </div>
                                           </div>
                                       </div>
 
-                                      {/* กราฟไม่ระบุทีม (1 ส่วน) - แยกตาม Status จริง */}
+                                      {/* กราฟไม่ระบุทีม (1 ส่วน) */}
                                       <div className="lg:col-span-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                                           <div className="flex justify-between items-center mb-4">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2 text-amber-600">
-                                                  <i className="fa-solid fa-layer-group"></i> สถานะงานค้าง (ไม่ระบุทีม)
+                                                  <i className="fa-solid fa-layer-group"></i> งานค้าง (ไม่ระบุทีม)
                                               </h3>
                                           </div>
-                                          <div className="relative h-64 md:h-80 w-full">
+                                          <div className="relative h-72 md:h-80 w-full">
                                               {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={unassignedChartData} options={unassignedChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
                                           </div>
                                       </div>
@@ -2381,7 +2403,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                               <i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานและสถานะแยกตามทีม
                                           </h3>
                                       </div>
-                                      <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
+                                      <div className="relative h-72 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
                                           <div className="min-w-[500px] h-full">
                                               {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
                                           </div>
