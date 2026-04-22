@@ -301,6 +301,7 @@
         // ==========================================
         // 2. Reusable UI Components
         // ==========================================
+        // --- แก้ไข Dropdown UI v2.5.1 (Fixed Syntax) ---
         const MultiSelect = ({ options = [], selected = [], onChange, placeholder = "ทั้งหมด" }) => {
             const [isOpen, setIsOpen] = useState(false);
             const dropdownRef = useRef(null);
@@ -310,19 +311,14 @@
                 return () => document.removeEventListener("mousedown", handleClickOutside);
             }, []);
             const toggleOption = (opt) => { if (selected.includes(opt)) onChange(selected.filter(x => x !== opt)); else onChange([...selected, opt]); };
-            
             return (
                 <div className="relative inline-block text-left w-full md:w-auto" ref={dropdownRef}>
-                    <button 
-                        type="button" 
-                        onClick={() => setIsOpen(!isOpen)} 
-                        className={`group border ${isOpen ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-200'} rounded-xl px-4 py-2 text-xs md:text-sm bg-white flex items-center justify-between w-full md:min-w-[160px] shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-200 h-[42px]`}
-                    >
+                    <button type="button" onClick={() => setIsOpen(!isOpen)} className={`group border ${isOpen ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-200'} rounded-xl px-4 py-2 text-xs md:text-sm bg-white flex items-center justify-between w-full md:min-w-[160px] shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-200 h-[42px]`}>
                         <span className="truncate pr-2 text-slate-700 font-bold">{selected?.length === 0 ? `${placeholder} (${options?.length || 0})` : `เลือกแล้ว ${selected?.length || 0}`}</span>
                         <i className={`fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-blue-500' : ''}`}></i>
                     </button>
                     {isOpen && (
-                        <div className="origin-top-left sm:origin-top-right absolute left-0 sm:left-auto sm:right-0 mt-2 w-64 max-w-[90vw] rounded-2xl shadow-2xl bg-white ring-1 ring-black ring-opacity-5 z-[100] overflow-hidden animate-fade-in border border-slate-100">
+                        <div className="origin-top-left sm:origin-top-right absolute left-0 sm:left-auto sm:right-0 mt-2 w-64 max-w-[90vw] rounded-2xl shadow-2xl bg-white ring-1 ring-black ring-opacity-5 z-[100] overflow-hidden border border-slate-100">
                             <div className="max-h-[50vh] sm:max-h-64 overflow-y-auto py-2 custom-scrollbar">
                                 <label className="flex items-center px-4 py-2.5 hover:bg-blue-50 cursor-pointer transition-colors group">
                                     <input type="checkbox" checked={selected?.length === 0} onChange={() => onChange([])} className="mr-3 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
@@ -351,14 +347,9 @@
                 return () => document.removeEventListener("mousedown", handleClickOutside);
             }, []);
             const toggleColumn = (col) => { if (hiddenColumns.includes(col)) setHiddenColumns(hiddenColumns.filter(c => c !== col)); else setHiddenColumns([...hiddenColumns, col]); };
-            
             return (
                 <div className="relative inline-block text-left" ref={dropdownRef}>
-                    <button 
-                        type="button" 
-                        onClick={() => setIsOpen(!isOpen)} 
-                        className={`flex items-center gap-2 text-xs md:text-sm font-bold ${isOpen ? 'bg-slate-800 text-white' : 'bg-white text-slate-700'} hover:shadow-md px-4 py-2 rounded-xl border border-slate-200 shadow-sm transition-all duration-200 h-[42px]`}
-                    >
+                    <button type="button" onClick={() => setIsOpen(!isOpen)} className={`flex items-center gap-2 text-xs md:text-sm font-bold ${isOpen ? 'bg-slate-800 text-white' : 'bg-white text-slate-700'} hover:shadow-md px-4 py-2 rounded-xl border border-slate-200 shadow-sm transition-all duration-200 h-[42px]`}>
                         <i className={`fa-regular fa-eye ${isOpen ? 'text-blue-400' : 'text-slate-500'}`}></i> <span className="hidden sm:inline">คอลัมน์</span>
                         <i className={`fa-solid fa-chevron-down text-[10px] ml-1 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}></i>
                     </button>
@@ -2128,9 +2119,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           }
 
           // ==========================================
-          // CONDITIONAL CHART LOGIC v2.5.0 (Floating Summary Box)
+          // CONDITIONAL CHART LOGIC v2.5.1 (Fixed Syntax & Floating Box)
           // ==========================================
-          let teamChartData, unassignedChartData, teamChartOptions, unassignedChartOptions;
+          let teamChartData = { labels: [], datasets: [] };
+          let unassignedChartData = { labels: [], datasets: [] };
+          let teamChartOptions = {};
+          let unassignedChartOptions = {};
+          
           const allActiveTeams = [...new Set(chartFilteredTasks.map(t => getCleanTeam(t[d_teamCol])))].sort();
           
           const largeDlStyle = { 
@@ -2147,11 +2142,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const mainTeams = allActiveTeams.filter(t => t !== 'ไม่ระบุทีม');
               const unassignedLabel = 'ไม่ระบุทีม';
 
-              // 1. กราฟทีมหลัก: เพิ่ม Dataset พิเศษเพื่อทำ Summary Box ที่ปลายยอด
               teamChartData = { 
                   labels: mainTeams, 
                   datasets: [
-                      { label: 'Completed', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(16, 185, 129, 0.85)', borderRadius: 6, datalabels: { anchor: 'center', align: 'center' } },
+                      { 
+                          label: 'Completed', 
+                          data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), 
+                          backgroundColor: 'rgba(16, 185, 129, 0.85)', 
+                          borderRadius: 6, 
+                          datalabels: { anchor: 'center', align: 'center' } 
+                      },
                       { 
                           label: 'On Process', 
                           data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), 
@@ -2160,24 +2160,22 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           datalabels: {
                               anchor: 'end',
                               align: 'top',
-                              offset: 8,
-                              backgroundColor: 'rgba(30, 41, 59, 0.9)', // กล่องสีเข้ม
+                              offset: 10,
+                              backgroundColor: 'rgba(30, 41, 59, 0.9)',
                               color: '#fff',
                               borderRadius: 6,
                               padding: { left: 8, right: 8, top: 4, bottom: 4 },
                               font: { size: 11, weight: 'bold' },
                               formatter: (val, ctx) => {
-                                  const team = mainTeams[ctx.dataIndex];
-                                  const c = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
-                                  const p = val;
-                                  return `C:${c} | P:${p}`;
+                                  const teamName = mainTeams[ctx.dataIndex];
+                                  const c = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === teamName && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
+                                  return `C:${c} | P:${val}`;
                               }
                           }
                       }
                   ] 
               };
 
-              // 2. กราฟไม่ระบุทีม: กลับไปเป็นแบบเดิม (แยก Status)
               const unassignedTasks = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === unassignedLabel);
               const unassignedStatuses = [...new Set(unassignedTasks.map(t => getCleanStatus(t[d_statusCol])))].sort();
 
@@ -2216,9 +2214,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       y: { beginAtZero: true, grid: { display: false } } 
                   }
               };
-
           } else {
-              // --- LOGIC สำหรับ SUBCONTRACT ---
               const activeStatusesForTeam = [...new Set(chartFilteredTasks.map(t => getCleanStatus(t[d_statusCol])))];
               teamChartData = { 
                   labels: allActiveTeams, 
@@ -2239,7 +2235,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   }, 
                   scales: { x: { stacked: false }, y: { beginAtZero: true } } 
               };
-              unassignedChartData = null;
           }
 
           // กราฟเกินกำหนด (Overdue)
@@ -2464,11 +2459,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <h3 className="text-base md:text-lg font-bold mb-4 flex items-center gap-2"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
                               <div className="relative h-60 md:h-72 w-full"><ChartComponent type="bar" data={barChartData} options={barChartOptions} /></div>
                           </div>
-                          {/* ปรับปรุงการแสดงผลกราฟแยกทีม v2.5.0 (Floating Summary Box) */}
+                          {/* ปรับปรุงการแสดงผลกราฟแยกทีม v2.5.1 (Fixed UI) */}
                           <div className={`${dashboardView === 'ns' ? 'lg:col-span-3 grid grid-cols-1 lg:grid-cols-4 gap-6' : 'lg:col-span-2'}`}>
                               {dashboardView === 'ns' ? (
                                   <>
-                                      {/* กราฟทีมหลัก (3 ส่วน) */}
                                       <div className="lg:col-span-3 bg-white p-5 md:p-7 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100">
                                           <div className="flex justify-between items-center mb-6">
                                               <h3 className="text-base md:text-xl font-bold flex items-center gap-3 text-slate-800">
@@ -2486,8 +2480,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                               </div>
                                           </div>
                                       </div>
-
-                                      {/* กราฟไม่ระบุทีม (1 ส่วน) */}
                                       <div className="lg:col-span-1 bg-white p-5 md:p-7 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100">
                                           <div className="flex justify-between items-center mb-6">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2 text-amber-700">
@@ -2501,7 +2493,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       </div>
                                   </>
                               ) : (
-                                  /* มุมมอง Subcontract ปกติ */
                                   <div className="bg-white p-5 md:p-7 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 h-full">
                                       <div className="flex justify-between items-center mb-6">
                                           <h3 className="text-base md:text-xl font-bold flex items-center gap-3 text-slate-800">
