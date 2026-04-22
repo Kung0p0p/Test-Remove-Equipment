@@ -2377,7 +2377,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <h3 className="text-base md:text-lg font-bold mb-4 flex items-center gap-2"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
                               <div className="relative h-60 md:h-72 w-full"><ChartComponent type="bar" data={barChartData} options={barChartOptions} /></div>
                           </div>
-                          {/* ปรับปรุงการแสดงผลกราฟแยกทีม v2.3.0 (แยกสถานะงานค้าง) */}
+                          {/* ปรับปรุงการแสดงผลกราฟแยกทีม v2.4.0 (Dynamic Width) */}
                           <div className={`${dashboardView === 'ns' ? 'lg:col-span-3 grid grid-cols-1 lg:grid-cols-4 gap-6' : 'lg:col-span-2'}`}>
                               {dashboardView === 'ns' ? (
                                   <>
@@ -2385,38 +2385,39 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       <div className="lg:col-span-3 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                                           <div className="flex justify-between items-center mb-4">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
-                                                  <i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานแยกตามทีม (Completed vs On Process)
+                                                  <i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานแยกตามทีม
                                               </h3>
                                           </div>
-                                          <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
-                                              <div className="min-w-[500px] h-full">
+                                          <div className="relative h-72 md:h-96 w-full overflow-x-auto custom-scrollbar pb-4">
+                                              {/* 🔥 คำนวณความกว้างตามจำนวนทีม (ทีมละ 70px) เพื่อไม่ให้ชื่อเบียดกัน */}
+                                              <div style={{ minWidth: `${Math.max(500, (allActiveTeams.filter(t => t !== 'ไม่ระบุทีม').length * 70))}px`, height: '100%' }}>
                                                   {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
                                               </div>
                                           </div>
                                       </div>
 
-                                      {/* กราฟไม่ระบุทีม (1 ส่วน) - แยกตาม Status จริง */}
+                                      {/* กราฟไม่ระบุทีม (1 ส่วน) */}
                                       <div className="lg:col-span-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                                           <div className="flex justify-between items-center mb-4">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2 text-amber-600">
-                                                  <i className="fa-solid fa-layer-group"></i> สถานะงานค้าง (ไม่ระบุทีม)
+                                                  <i className="fa-solid fa-layer-group"></i> งานค้าง (ไม่ระบุทีม)
                                               </h3>
                                           </div>
-                                          <div className="relative h-64 md:h-80 w-full">
+                                          <div className="relative h-72 md:h-96 w-full">
                                               {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={unassignedChartData} options={unassignedChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
                                           </div>
                                       </div>
                                   </>
                               ) : (
-                                  /* มุมมอง Subcontract ปกติ */
+                                  /* มุมมอง Subcontract */
                                   <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 h-full">
                                       <div className="flex justify-between items-center mb-4">
                                           <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
                                               <i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานและสถานะแยกตามทีม
                                           </h3>
                                       </div>
-                                      <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
-                                          <div className="min-w-[500px] h-full">
+                                      <div className="relative h-72 md:h-96 w-full overflow-x-auto custom-scrollbar pb-4">
+                                          <div style={{ minWidth: `${Math.max(500, (allActiveTeams.length * 70))}px`, height: '100%' }}>
                                               {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
                                           </div>
                                       </div>
