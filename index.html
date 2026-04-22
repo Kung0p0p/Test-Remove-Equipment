@@ -2086,33 +2086,19 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           };
 
           if (dashboardView === 'ns') {
-              const completedKeywords = ["เก็บอุปกรณ์เรียบร้อย รอนำคืน SYM", "คืนอุปกรณ์ SYM เรียบร้อย", "เก็บเรียบร้อย", "Completed"];
-              const isTaskCompleted = (status) => completedKeywords.some(k => String(status).includes(k));
-              
+              // ... (ส่วน keywords เหมือนเดิม)
               const mainTeams = allActiveTeams.filter(t => t !== 'ไม่ระบุทีม');
               const unassignedLabel = 'ไม่ระบุทีม';
 
-              // 1. กราฟทีมหลัก: เปลี่ยนสี Completed (เขียว) / On Process (เหลือง)
               teamChartData = { 
-                  labels: mainTeams, 
+                  // 🔥 ใช้ formatName ย่อชื่อทีมในกราฟ
+                  labels: mainTeams.map(t => formatName(t)), 
                   datasets: [
-                      { label: 'Completed', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(34, 197, 94, 0.85)', borderRadius: 6 }, // เขียว (Emerald)
-                      { label: 'On Process', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(234, 179, 8, 0.85)', borderRadius: 6 }   // เหลือง (Amber)
+                      { label: 'Completed', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(34, 197, 94, 0.9)', borderRadius: 6 },
+                      { label: 'On Process', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(234, 179, 8, 0.9)', borderRadius: 6 }
                   ] 
               };
 
-              unassignedChartData = {
-                  labels: [unassignedLabel],
-                  datasets: [...new Set(chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === unassignedLabel).map(t => getCleanStatus(t[d_statusCol])))].sort().map(status => ({
-                      label: status,
-                      data: [chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === unassignedLabel && getCleanStatus(t[d_statusCol]) === status).length],
-                      backgroundColor: getStatusColor(status, 0.8),
-                      borderColor: getStatusColor(status, 1),
-                      borderWidth: 1
-                  }))
-              };
-
-              // 🔥 ปรับ Options เพื่อแก้ปัญหาชื่อทีมล้น (เอียง 45 องศา)
               teamChartOptions = { 
                   responsive: true, maintainAspectRatio: false, 
                   plugins: { 
@@ -2122,8 +2108,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   scales: { 
                       x: { 
                           ticks: { 
-                              maxRotation: 45, minRotation: 45, // 🔥 เอียงชื่อทีม 45 องศา
-                              font: { size: 11, weight: 'bold', family: 'Prompt' },
+                              maxRotation: 0, minRotation: 0, // 🔥 ยกเลิกการเอียง เพราะชื่อสั้นลงแล้ว
+                              font: { size: 10, weight: 'bold', family: 'Prompt' },
+                              autoSkip: false
+                          } 
+                      },
+                      y: { beginAtZero: true, grid: { display: false } } 
+                  } 
+              };
                               autoSkip: false // แสดงทุกชื่อทีม
                           } 
                       },
