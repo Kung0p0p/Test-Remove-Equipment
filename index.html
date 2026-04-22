@@ -391,6 +391,46 @@
                 return () => document.removeEventListener("mousedown", handleClickOutside);
             }, []);
             const toggleColumn = (col) => { if (hiddenColumns.includes(col)) setHiddenColumns(hiddenColumns.filter(c => c !== col)); else setHiddenColumns([...hiddenColumns, col]); };
+            
+            return (
+                <div className="relative inline-block text-left" ref={dropdownRef}>
+                    <button 
+                        type="button" 
+                        onClick={() => setIsOpen(!isOpen)} 
+                        className={`flex items-center gap-2 text-xs md:text-sm font-bold ${isOpen ? 'bg-slate-800 text-white' : 'bg-white text-slate-700'} hover:shadow-md px-4 py-2 rounded-xl border border-slate-200 shadow-sm transition-all duration-200 h-[42px]`}
+                    >
+                        <i className={`fa-regular fa-eye ${isOpen ? 'text-blue-400' : 'text-slate-500'}`}></i> <span className="hidden sm:inline">คอลัมน์</span>
+                        <i className={`fa-solid fa-chevron-down text-[10px] ml-1 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}></i>
+                    </button>
+                    {isOpen && (
+                        <div className="origin-top-left sm:origin-top-right absolute left-0 sm:left-auto sm:right-0 mt-2 w-64 max-w-[90vw] rounded-2xl shadow-2xl bg-white ring-1 ring-black ring-opacity-5 z-[100] overflow-hidden border border-slate-100">
+                            <div className="max-h-[50vh] sm:max-h-80 overflow-y-auto py-2 custom-scrollbar">
+                                <label className="flex items-center px-4 py-2.5 hover:bg-blue-50 cursor-pointer transition-colors border-b border-slate-50">
+                                    <input type="checkbox" checked={hiddenColumns?.length === 0} onChange={() => setHiddenColumns([])} className="mr-3 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+                                    <span className="text-sm font-bold text-slate-800">แสดงทั้งหมด</span>
+                                </label>
+                                {columns?.map(col => (
+                                    <label key={col} className="flex items-center px-4 py-2 hover:bg-slate-50 cursor-pointer transition-colors group">
+                                        <input type="checkbox" checked={!hiddenColumns?.includes(col)} onChange={() => toggleColumn(col)} className="mr-3 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+                                        <span className="text-sm text-slate-600 group-hover:text-slate-900 truncate" title={col}>{col}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const ColumnToggle = ({ columns = [], hiddenColumns = [], setHiddenColumns }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const dropdownRef = useRef(null);
+            useEffect(() => {
+                const handleClickOutside = (event) => { if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false); };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
+            const toggleColumn = (col) => { if (hiddenColumns.includes(col)) setHiddenColumns(hiddenColumns.filter(c => c !== col)); else setHiddenColumns([...hiddenColumns, col]); };
             const toggleAll = () => { if (hiddenColumns?.length > 0) setHiddenColumns([]); else setHiddenColumns(columns); };
             return (
                 <div className="relative inline-block text-left" ref={dropdownRef}>
