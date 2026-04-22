@@ -301,42 +301,74 @@
         // ==========================================
         // 2. Reusable UI Components
         // ==========================================
-        // --- แก้ไข Dropdown UI v2.5.1 (Fixed Syntax) ---
-        const MultiSelect = ({ options = [], selected = [], onChange, placeholder = "ทั้งหมด" }) => {
-            const [isOpen, setIsOpen] = useState(false);
-            const dropdownRef = useRef(null);
-            useEffect(() => {
-                const handleClickOutside = (event) => { if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false); };
-                document.addEventListener("mousedown", handleClickOutside);
-                return () => document.removeEventListener("mousedown", handleClickOutside);
-            }, []);
-            const toggleOption = (opt) => { if (selected.includes(opt)) onChange(selected.filter(x => x !== opt)); else onChange([...selected, opt]); };
-            return (
-                <div className="relative inline-block text-left w-full md:w-auto" ref={dropdownRef}>
-                    <button type="button" onClick={() => setIsOpen(!isOpen)} className={`group border ${isOpen ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-200'} rounded-xl px-4 py-2 text-xs md:text-sm bg-white flex items-center justify-between w-full md:min-w-[160px] shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-200 h-[42px]`}>
-                        <span className="truncate pr-2 text-slate-700 font-bold">{selected?.length === 0 ? `${placeholder} (${options?.length || 0})` : `เลือกแล้ว ${selected?.length || 0}`}</span>
-                        <i className={`fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-blue-500' : ''}`}></i>
-                    </button>
-                    {isOpen && (
-                        <div className="origin-top-left sm:origin-top-right absolute left-0 sm:left-auto sm:right-0 mt-2 w-64 max-w-[90vw] rounded-2xl shadow-2xl bg-white ring-1 ring-black ring-opacity-5 z-[100] overflow-hidden border border-slate-100">
-                            <div className="max-h-[50vh] sm:max-h-64 overflow-y-auto py-2 custom-scrollbar">
-                                <label className="flex items-center px-4 py-2.5 hover:bg-blue-50 cursor-pointer transition-colors group">
-                                    <input type="checkbox" checked={selected?.length === 0} onChange={() => onChange([])} className="mr-3 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
-                                    <span className="text-sm font-bold text-slate-800 group-hover:text-blue-700">เลือกทั้งหมด</span>
-                                </label>
-                                <div className="h-px bg-slate-100 my-1 mx-2"></div>
-                                {options?.map(opt => (
-                                    <label key={opt} className="flex items-center px-4 py-2 hover:bg-slate-50 cursor-pointer transition-colors group">
-                                        <input type="checkbox" checked={selected?.includes(opt)} onChange={() => toggleOption(opt)} className="mr-3 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
-                                        <span className="text-sm text-slate-600 group-hover:text-slate-900 truncate" title={opt}>{opt}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
+        // ==========================================
+          // FINAL CHART LOGIC v2.5.2 (Fixed White Screen)
+          // ==========================================
+          const allActiveTeams = [...new Set(chartFilteredTasks.map(t => getCleanTeam(t[d_teamCol])))].sort();
+          const largeDlStyle = { 
+              color: '#fff', font: { weight: 'bold', size: 14, family: 'Prompt' },
+              formatter: (val) => val > 0 ? val : '',
+              textStrokeColor: 'rgba(0,0,0,0.5)', textStrokeWidth: 2
+          };
+
+          let teamChartData = { labels: [], datasets: [] };
+          let unassignedChartData = { labels: [], datasets: [] };
+          let teamChartOptions = {};
+          let unassignedChartOptions = {};
+
+          if (dashboardView === 'ns') {
+              const completedKeywords = ["เก็บอุปกรณ์เรียบร้อย รอนำคืน SYM", "คืนอุปกรณ์ SYM เรียบร้อย", "เก็บเรียบร้อย", "Completed"];
+              const isTaskCompleted = (status) => completedKeywords.some(k => String(status).includes(k));
+              const mainTeams = allActiveTeams.filter(t => t !== 'ไม่ระบุทีม');
+              const unassignedLabel = 'ไม่ระบุทีม';
+
+              teamChartData = { 
+                  labels: mainTeams, 
+                  datasets: [
+                      { label: 'Completed', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(16, 185, 129, 0.85)', borderRadius: 6, datalabels: { anchor: 'center', align: 'center' } },
+                      { 
+                          label: 'On Process', 
+                          data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), 
+                          backgroundColor: 'rgba(59, 130, 246, 0.85)', borderRadius: 6,
+                          datalabels: {
+                              anchor: 'end', align: 'top', offset: 10, backgroundColor: 'rgba(30, 41, 59, 0.9)', color: '#fff', borderRadius: 6, padding: { left: 8, right: 8, top: 4, bottom: 4 }, font: { size: 11, weight: 'bold' },
+                              formatter: (val, ctx) => {
+                                  const tName = mainTeams[ctx.dataIndex];
+                                  const c = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === tName && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
+                                  return `C:${c} | P:${val}`;
+                              }
+                          }
+                      }
+                  ] 
+              };
+
+              const unassignedTasks = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === unassignedLabel);
+              const unassignedStatuses = [...new Set(unassignedTasks.map(t => getCleanStatus(t[d_statusCol])))].sort();
+              unassignedChartData = {
+                  labels: [unassignedLabel],
+                  datasets: unassignedStatuses.map(status => ({
+                      label: status, data: [unassignedTasks.filter(t => getCleanStatus(t[d_statusCol]) === status).length], backgroundColor: getStatusColor(status, 0.85), borderColor: getStatusColor(status, 1), borderWidth: 1, datalabels: { anchor: 'center', align: 'center' }
+                  }))
+              };
+
+              teamChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12, family: 'Prompt', weight: 'bold' } } }, datalabels: largeDlStyle }, scales: { x: { ticks: { font: { size: 12, weight: 'bold' } }, grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#f1f5f9' }, border: { display: false } } } };
+              unassignedChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10, family: 'Prompt' } } }, datalabels: largeDlStyle }, scales: { x: { ticks: { font: { size: 12, weight: 'bold' } }, grid: { display: false } }, y: { beginAtZero: true, grid: { display: false } } } };
+          } else {
+              const activeStatusesForTeam = [...new Set(chartFilteredTasks.map(t => getCleanStatus(t[d_statusCol])))];
+              teamChartData = { labels: allActiveTeams, datasets: activeStatusesForTeam.map(status => ({ label: status, data: allActiveTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && getCleanStatus(t[d_statusCol]) === status).length), backgroundColor: getStatusColor(status, 0.8), borderColor: getStatusColor(status, 1), borderWidth: 1, datalabels: { anchor: 'center', align: 'center' } })) };
+              teamChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { family: 'Prompt', size: 11 } } }, datalabels: largeDlStyle }, scales: { x: { stacked: false }, y: { beginAtZero: true } } };
+          }
+
+          const overdueByTeamCounts = {}; allActiveTeams.forEach(t => overdueByTeamCounts[t] = 0);
+          chartFilteredTasks.forEach(t => {
+              const val = d_overDueCol ? getCleanStatus(t[d_overDueCol]) : '';
+              if (val && val !== 'ไม่ระบุสถานะ') {
+                  const m = val.match(/-?\d+/); const num = m ? parseInt(m[0], 10) : NaN;
+                  if (val.includes('เกิน') || val.includes('over') || num < 0) overdueByTeamCounts[getCleanTeam(t[d_teamCol])]++;
+              }
+          });
+          const overdueChartData = { labels: allActiveTeams, datasets: [{ label: 'เกินกำหนดนัดหมาย (CIDs)', data: allActiveTeams.map(t => overdueByTeamCounts[t]), backgroundColor: 'rgba(239, 68, 68, 0.8)', borderColor: 'rgba(220, 38, 38, 1)', borderWidth: 1 }] };
+          const overdueChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { ...largeDlStyle, anchor: 'end', align: 'top' } }, scales: { y: { beginAtZero: true } } };
 
         const ColumnToggle = ({ columns = [], hiddenColumns = [], setHiddenColumns }) => {
             const [isOpen, setIsOpen] = useState(false);
@@ -2459,7 +2491,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <h3 className="text-base md:text-lg font-bold mb-4 flex items-center gap-2"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
                               <div className="relative h-60 md:h-72 w-full"><ChartComponent type="bar" data={barChartData} options={barChartOptions} /></div>
                           </div>
-                          {/* ปรับปรุงการแสดงผลกราฟแยกทีม v2.5.1 (Fixed UI) */}
+                          {/* ปรับปรุงการแสดงผลกราฟแยกทีม v2.5.2 (Fixed UI) */}
                           <div className={`${dashboardView === 'ns' ? 'lg:col-span-3 grid grid-cols-1 lg:grid-cols-4 gap-6' : 'lg:col-span-2'}`}>
                               {dashboardView === 'ns' ? (
                                   <>
