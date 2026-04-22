@@ -227,15 +227,6 @@
         const getCleanStatus = (raw) => (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : 'ไม่ระบุสถานะ';
         const getCleanTeam = (raw) => (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : 'ไม่ระบุทีม';
 
-        // 🔥 ฟังก์ชันย่อชื่อสำหรับกราฟ (v2.5.0)
-        const formatName = (name) => {
-            if (!name || typeof name !== 'string' || name === 'ไม่ระบุทีม') return name;
-            const parts = name.trim().split(/\s+/);
-            if (parts.length < 2) return parts[0];
-            // คืนค่าเป็น ชื่อ.นามสกุลตัวแรก (เช่น Tongchai.J)
-            return `${parts[0]}.${parts[1].charAt(0).toUpperCase()}`;
-        };
-
         function isValidTaskHelper(taskObj) {
             if (!taskObj) return false;
             
@@ -319,44 +310,24 @@
                 return () => document.removeEventListener("mousedown", handleClickOutside);
             }, []);
             const toggleOption = (opt) => { if (selected.includes(opt)) onChange(selected.filter(x => x !== opt)); else onChange([...selected, opt]); };
-            
             return (
                 <div className="relative inline-block text-left w-full md:w-auto" ref={dropdownRef}>
-                    <button 
-                        type="button" 
-                        onClick={() => setIsOpen(!isOpen)} 
-                        className={`group border ${isOpen ? 'border-blue-500 ring-4 ring-blue-100' : 'border-slate-200'} rounded-xl px-4 py-2 text-xs md:text-sm bg-white/80 backdrop-blur-md flex items-center justify-between w-full md:min-w-[160px] shadow-sm hover:shadow-md hover:border-blue-400 transition-all duration-500 h-[42px]`}
-                    >
-                        <span className={`truncate pr-2 font-bold ${selected?.length > 0 ? 'text-blue-600' : 'text-slate-600'}`}>
-                            {selected?.length === 0 ? `${placeholder}` : `เลือกแล้ว ${selected?.length}`}
-                        </span>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${isOpen ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                            <i className={`fa-solid fa-chevron-down text-[8px] transition-transform duration-500 ${isOpen ? 'rotate-180' : ''}`}></i>
-                        </div>
+                    <button type="button" onClick={() => setIsOpen(!isOpen)} className="border border-slate-300 rounded-lg px-3 py-1.5 text-xs md:text-sm bg-white flex items-center justify-between w-full md:min-w-[140px] shadow-sm hover:bg-slate-50 transition-colors h-[38px]">
+                        <span className="truncate pr-2 text-slate-700 font-medium">{selected?.length === 0 ? `${placeholder} (${options?.length || 0})` : `เลือกแล้ว ${selected?.length || 0} รายการ`}</span>
+                        <i className={`fa-solid fa-chevron-down text-[10px] md:text-xs text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}></i>
                     </button>
-                    
                     {isOpen && (
-                        <div className="origin-top-right absolute right-0 mt-2 w-64 max-w-[90vw] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] bg-white/95 backdrop-blur-xl ring-1 ring-black/5 z-[100] overflow-hidden animate-slide-in-down border border-white/20">
-                            <div className="p-2 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
-                                <span className="text-[10px] font-black text-slate-400 uppercase px-2">Options</span>
-                                {selected.length > 0 && (
-                                    <button onClick={() => onChange([])} className="text-[10px] font-bold text-red-500 hover:text-red-700 px-2 transition-colors">ล้างทั้งหมด</button>
-                                )}
-                            </div>
-                            <div className="max-h-60 overflow-y-auto py-1 custom-scrollbar">
-                                <label className="flex items-center px-4 py-2.5 hover:bg-blue-50 cursor-pointer transition-all group">
-                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center mr-3 transition-all ${selected?.length === 0 ? 'bg-blue-500 border-blue-500' : 'border-slate-300 group-hover:border-blue-400'}`}>
-                                        {selected?.length === 0 && <i className="fa-solid fa-check text-white text-[10px]"></i>}
-                                    </div>
-                                    <span className={`text-sm ${selected?.length === 0 ? 'font-bold text-blue-700' : 'text-slate-600'}`}>เลือกทั้งหมด</span>
+                        <div className="origin-top-left sm:origin-top-right absolute left-0 sm:left-auto sm:right-0 mt-2 w-56 max-w-[90vw] rounded-xl shadow-xl bg-white ring-1 ring-black ring-opacity-5 z-[100] overflow-hidden">
+                            <div className="max-h-[50vh] sm:max-h-60 overflow-y-auto py-2 custom-scrollbar">
+                                <label className="flex items-center px-4 py-2 hover:bg-blue-50 cursor-pointer transition-colors">
+                                    <input type="checkbox" checked={selected?.length === 0} onChange={() => onChange([])} className="mr-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+                                    <span className="text-sm font-bold text-slate-800">เลือกทั้งหมด</span>
                                 </label>
-                                <div className="h-px bg-slate-100 my-1 mx-2"></div>
+                                <div className="h-px bg-slate-100 my-1"></div>
                                 {options?.map(opt => (
-                                    <label key={opt} className="flex items-center px-4 py-2.5 hover:bg-slate-50 cursor-pointer transition-all group">
-                                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center mr-3 transition-all ${selected?.includes(opt) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 group-hover:border-blue-400'}`}>
-                                            {selected?.includes(opt) && <i className="fa-solid fa-check text-white text-[10px]"></i>}
-                                        </div>
-                                        <span className={`text-sm transition-colors ${selected?.includes(opt) ? 'font-bold text-blue-700' : 'text-slate-600 group-hover:text-slate-900'}`}>{opt}</span>
+                                    <label key={opt} className="flex items-center px-4 py-2 hover:bg-slate-50 cursor-pointer transition-colors">
+                                        <input type="checkbox" checked={selected?.includes(opt)} onChange={() => toggleOption(opt)} className="mr-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
+                                        <span className="text-sm text-slate-600 truncate" title={opt}>{opt}</span>
                                     </label>
                                 ))}
                             </div>
@@ -2064,7 +2035,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               barChartData = { 
                   labels: yearLabelsWithPercent, 
                   datasets: [ 
-                      { label: 'Collected (CIDs)', data: sortedYears.map(y => yearlyData[y].collected), backgroundColor: 'rgba(8, 231, 38, 0.8)', borderRadius: 4 }, 
+                      { label: 'Collected (CIDs)', data: sortedYears.map(y => yearlyData[y].collected), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }, 
                       { label: 'Ongoing (CIDs)', data: sortedYears.map(y => yearlyData[y].ongoing), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } 
                   ] 
               };
@@ -2072,68 +2043,65 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           }
 
           // ==========================================
-          // CONDITIONAL CHART LOGIC v2.4.0 (Final Polish)
+          // CONDITIONAL CHART LOGIC v2.3.0 (Enhanced NS View)
           // ==========================================
           let teamChartData, unassignedChartData, teamChartOptions, unassignedChartOptions;
           const allActiveTeams = [...new Set(chartFilteredTasks.map(t => getCleanTeam(t[d_teamCol])))].sort();
-          
-          // 🔥 ปรับขนาด Data Label ให้ใหญ่ขึ้น
-          const largeDlStyle = { 
-              ...dlStyle, 
-              font: { weight: 'black', size: 15, family: 'Prompt' }, // ขยายเป็น 15px และหนาพิเศษ
-              color: '#ffffff',
-              textStrokeWidth: 3
-          };
 
           if (dashboardView === 'ns') {
-              // ... (ส่วน keywords เหมือนเดิม)
+              // --- LOGIC สำหรับ REGION TASKS (NS) ---
+              const completedKeywords = ["เก็บอุปกรณ์เรียบร้อย รอนำคืน SYM", "คืนอุปกรณ์ SYM เรียบร้อย", "เก็บเรียบร้อย", "Completed"];
+              const isTaskCompleted = (status) => completedKeywords.some(k => String(status).includes(k));
+              
               const mainTeams = allActiveTeams.filter(t => t !== 'ไม่ระบุทีม');
               const unassignedLabel = 'ไม่ระบุทีม';
 
+              // 1. กราฟทีมหลัก: แสดง 2 แท่ง (Completed vs On Process)
               teamChartData = { 
-                  // 🔥 ใช้ formatName ย่อชื่อทีมในกราฟ
-                  labels: mainTeams.map(t => formatName(t)), 
+                  labels: mainTeams, 
                   datasets: [
-                      { label: 'Completed', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(34, 197, 94, 0.9)', borderRadius: 6 },
-                      { label: 'On Process', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(234, 179, 8, 0.9)', borderRadius: 6 }
+                      { label: 'Completed', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 },
+                      { label: 'On Process', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(59, 130, 246, 0.8)', borderRadius: 4 }
                   ] 
               };
 
+              // 2. กราฟไม่ระบุทีม: แยกตาม Status จริง (ของใครของมัน)
+              const unassignedTasks = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === unassignedLabel);
+              const unassignedStatuses = [...new Set(unassignedTasks.map(t => getCleanStatus(t[d_statusCol])))].sort();
+
+              unassignedChartData = {
+                  labels: [unassignedLabel],
+                  datasets: unassignedStatuses.map(status => ({
+                      label: status,
+                      data: [unassignedTasks.filter(t => getCleanStatus(t[d_statusCol]) === status).length],
+                      backgroundColor: getStatusColor(status, 0.8),
+                      borderColor: getStatusColor(status, 1),
+                      borderWidth: 1
+                  }))
+              };
+
+              // 3. Options สำหรับทีมหลัก (ตัวเลขอยู่กึ่งกลาง)
               teamChartOptions = { 
                   responsive: true, maintainAspectRatio: false, 
                   plugins: { 
-                      legend: { position: 'top', labels: { boxWidth: 15, font: { size: 12, weight: 'bold', family: 'Prompt' } } }, 
-                      datalabels: { ...largeDlStyle, anchor: 'center', align: 'center' } 
+                      legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, family: 'Prompt' } } }, 
+                      datalabels: { ...dlStyle, anchor: 'center', align: 'center', offset: 0 } // 🔥 ตัวเลขอยู่กึ่งกลาง
                   }, 
-                  scales: { 
-                      x: { 
-                          ticks: { 
-                              maxRotation: 0, minRotation: 0, // 🔥 ยกเลิกการเอียง เพราะชื่อสั้นลงแล้ว
-                              font: { size: 10, weight: 'bold', family: 'Prompt' },
-                              autoSkip: false
-                          } 
-                      },
-                      y: { beginAtZero: true, grid: { display: false } } 
-                  } 
-              };
-                              autoSkip: false // แสดงทุกชื่อทีม
-                          } 
-                      },
-                      y: { beginAtZero: true, grid: { display: false } } 
-                  } 
+                  scales: { y: { beginAtZero: true, grid: { display: false } } } 
               };
 
+              // 4. Options สำหรับไม่ระบุทีม (Legend อยู่ด้านล่างเหมือน Subcontract)
               unassignedChartOptions = {
                   responsive: true, maintainAspectRatio: false,
                   plugins: {
-                      legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10, family: 'Prompt' } } },
-                      datalabels: { ...largeDlStyle, anchor: 'center', align: 'center' }
+                      legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9, family: 'Prompt' } } },
+                      datalabels: { ...dlStyle, anchor: 'center', align: 'center' }
                   },
                   scales: { y: { beginAtZero: true, grid: { display: false } } }
               };
 
           } else {
-              // --- SUBCONTRACT VIEW ---
+              // --- LOGIC เดิมสำหรับ SUBCONTRACT ---
               const activeStatusesForTeam = [...new Set(chartFilteredTasks.map(t => getCleanStatus(t[d_statusCol])))];
               teamChartData = { 
                   labels: allActiveTeams, 
@@ -2147,15 +2115,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               };
               teamChartOptions = { 
                   responsive: true, maintainAspectRatio: false, 
-                  plugins: { 
-                      legend: { position: 'bottom', labels: { font: { family: 'Prompt', size: 10 } } }, 
-                      datalabels: { ...largeDlStyle, anchor: 'center', align: 'center' } 
-                  }, 
-                  scales: { 
-                      x: { ticks: { maxRotation: 45, minRotation: 45, font: { size: 11, family: 'Prompt' } } },
-                      y: { beginAtZero: true } 
-                  } 
+                  plugins: { legend: { position: 'bottom', labels: { font: { family: 'Prompt', size: 10 } } }, datalabels: { ...dlStyle, anchor: 'center', align: 'center' } }, 
+                  scales: { x: { stacked: false }, y: { beginAtZero: true } } 
               };
+              unassignedChartData = null;
           }
 
           // กราฟเกินกำหนด (Overdue)
@@ -2380,7 +2343,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <h3 className="text-base md:text-lg font-bold mb-4 flex items-center gap-2"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
                               <div className="relative h-60 md:h-72 w-full"><ChartComponent type="bar" data={barChartData} options={barChartOptions} /></div>
                           </div>
-                          {/* ปรับปรุงการแสดงผลกราฟแยกทีม v2.4.0 (Dynamic Width) */}
+                          {/* ปรับปรุงการแสดงผลกราฟแยกทีม v2.3.0 (แยกสถานะงานค้าง) */}
                           <div className={`${dashboardView === 'ns' ? 'lg:col-span-3 grid grid-cols-1 lg:grid-cols-4 gap-6' : 'lg:col-span-2'}`}>
                               {dashboardView === 'ns' ? (
                                   <>
@@ -2388,39 +2351,38 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       <div className="lg:col-span-3 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                                           <div className="flex justify-between items-center mb-4">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
-                                                  <i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานแยกตามทีม
+                                                  <i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานแยกตามทีม (Completed vs On Process)
                                               </h3>
                                           </div>
-                                          <div className="relative h-72 md:h-96 w-full overflow-x-auto custom-scrollbar pb-4">
-                                              {/* 🔥 คำนวณความกว้างตามจำนวนทีม (ทีมละ 70px) เพื่อไม่ให้ชื่อเบียดกัน */}
-                                              <div style={{ minWidth: `${Math.max(500, (allActiveTeams.filter(t => t !== 'ไม่ระบุทีม').length * 70))}px`, height: '100%' }}>
+                                          <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
+                                              <div className="min-w-[500px] h-full">
                                                   {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
                                               </div>
                                           </div>
                                       </div>
 
-                                      {/* กราฟไม่ระบุทีม (1 ส่วน) */}
+                                      {/* กราฟไม่ระบุทีม (1 ส่วน) - แยกตาม Status จริง */}
                                       <div className="lg:col-span-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                                           <div className="flex justify-between items-center mb-4">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2 text-amber-600">
-                                                  <i className="fa-solid fa-layer-group"></i> งานค้าง (ไม่ระบุทีม)
+                                                  <i className="fa-solid fa-layer-group"></i> สถานะงานค้าง (ไม่ระบุทีม)
                                               </h3>
                                           </div>
-                                          <div className="relative h-72 md:h-96 w-full">
+                                          <div className="relative h-64 md:h-80 w-full">
                                               {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={unassignedChartData} options={unassignedChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
                                           </div>
                                       </div>
                                   </>
                               ) : (
-                                  /* มุมมอง Subcontract */
+                                  /* มุมมอง Subcontract ปกติ */
                                   <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 h-full">
                                       <div className="flex justify-between items-center mb-4">
                                           <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
                                               <i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานและสถานะแยกตามทีม
                                           </h3>
                                       </div>
-                                      <div className="relative h-72 md:h-96 w-full overflow-x-auto custom-scrollbar pb-4">
-                                          <div style={{ minWidth: `${Math.max(500, (allActiveTeams.length * 70))}px`, height: '100%' }}>
+                                      <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
+                                          <div className="min-w-[500px] h-full">
                                               {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
                                           </div>
                                       </div>
@@ -2632,14 +2594,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                     // 🔥 เพิ่ม z-10 และขยายความกว้าง w-8 เพื่อให้กดติดง่ายขึ้น
                                                     <div className="relative w-8 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5 z-10">
                                                         <select 
-                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
                                                             value="" 
                                                             onChange={e => handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns))}
                                                         >
-                                                            {/* 🔥 ตัวเลือกสำหรับลบข้อมูล (v2.5.0) */}
-                                                            <option value="">🗑️ ลบข้อมูล (Clear Data)</option>
-                                                            <option value="" disabled>-------------------</option>
-                                                            
+                                                            <option value="" disabled></option>
+                                                            {/* 🔥 บังคับสีตัวเลือกเป็นสีดำพื้นขาวเพื่อให้มองง่าย */}
                                                             {(isStatus ? (tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses) : (tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams)).map(opt => {
                                                                 const name = typeof opt === 'string' ? opt : opt.name;
                                                                 return <option key={name} value={name} className="text-black bg-white">{name}</option>
