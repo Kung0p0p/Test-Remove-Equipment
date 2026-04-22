@@ -227,6 +227,15 @@
         const getCleanStatus = (raw) => (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : 'ไม่ระบุสถานะ';
         const getCleanTeam = (raw) => (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : 'ไม่ระบุทีม';
 
+        // 🔥 ฟังก์ชันย่อชื่อสำหรับกราฟ (v2.5.0)
+        const formatName = (name) => {
+            if (!name || typeof name !== 'string' || name === 'ไม่ระบุทีม') return name;
+            const parts = name.trim().split(/\s+/);
+            if (parts.length < 2) return parts[0];
+            // คืนค่าเป็น ชื่อ.นามสกุลตัวแรก (เช่น Tongchai.J)
+            return `${parts[0]}.${parts[1].charAt(0).toUpperCase()}`;
+        };
+
         function isValidTaskHelper(taskObj) {
             if (!taskObj) return false;
             
@@ -316,16 +325,18 @@
                     <button 
                         type="button" 
                         onClick={() => setIsOpen(!isOpen)} 
-                        className={`group border ${isOpen ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-300'} rounded-xl px-4 py-2 text-xs md:text-sm bg-white flex items-center justify-between w-full md:min-w-[160px] shadow-sm hover:border-blue-400 transition-all duration-300 h-[42px]`}
+                        className={`group border ${isOpen ? 'border-blue-500 ring-4 ring-blue-100' : 'border-slate-200'} rounded-xl px-4 py-2 text-xs md:text-sm bg-white/80 backdrop-blur-md flex items-center justify-between w-full md:min-w-[160px] shadow-sm hover:shadow-md hover:border-blue-400 transition-all duration-500 h-[42px]`}
                     >
-                        <span className={`truncate pr-2 font-bold ${selected?.length > 0 ? 'text-blue-600' : 'text-slate-700'}`}>
-                            {selected?.length === 0 ? `${placeholder} (${options?.length || 0})` : `เลือกแล้ว ${selected?.length} รายการ`}
+                        <span className={`truncate pr-2 font-bold ${selected?.length > 0 ? 'text-blue-600' : 'text-slate-600'}`}>
+                            {selected?.length === 0 ? `${placeholder}` : `เลือกแล้ว ${selected?.length}`}
                         </span>
-                        <i className={`fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform duration-500 ${isOpen ? 'rotate-180 text-blue-500' : 'group-hover:translate-y-0.5'}`}></i>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${isOpen ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                            <i className={`fa-solid fa-chevron-down text-[8px] transition-transform duration-500 ${isOpen ? 'rotate-180' : ''}`}></i>
+                        </div>
                     </button>
                     
                     {isOpen && (
-                        <div className="origin-top-right absolute right-0 mt-2 w-64 max-w-[90vw] rounded-2xl shadow-2xl bg-white ring-1 ring-black ring-opacity-5 z-[100] overflow-hidden animate-slide-in-down border border-slate-100">
+                        <div className="origin-top-right absolute right-0 mt-2 w-64 max-w-[90vw] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] bg-white/95 backdrop-blur-xl ring-1 ring-black/5 z-[100] overflow-hidden animate-slide-in-down border border-white/20">
                             <div className="p-2 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
                                 <span className="text-[10px] font-black text-slate-400 uppercase px-2">Options</span>
                                 {selected.length > 0 && (
@@ -2629,12 +2640,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                     // 🔥 เพิ่ม z-10 และขยายความกว้าง w-8 เพื่อให้กดติดง่ายขึ้น
                                                     <div className="relative w-8 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5 z-10">
                                                         <select 
-                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
                                                             value="" 
                                                             onChange={e => handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns))}
                                                         >
-                                                            <option value="" disabled></option>
-                                                            {/* 🔥 บังคับสีตัวเลือกเป็นสีดำพื้นขาวเพื่อให้มองง่าย */}
+                                                            {/* 🔥 ตัวเลือกสำหรับลบข้อมูล (v2.5.0) */}
+                                                            <option value="">🗑️ ลบข้อมูล (Clear Data)</option>
+                                                            <option value="" disabled>-------------------</option>
+                                                            
                                                             {(isStatus ? (tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses) : (tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams)).map(opt => {
                                                                 const name = typeof opt === 'string' ? opt : opt.name;
                                                                 return <option key={name} value={name} className="text-black bg-white">{name}</option>
