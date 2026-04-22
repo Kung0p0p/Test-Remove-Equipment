@@ -132,7 +132,7 @@
             }
         }
 
-        // ==========================================
+        / ==========================================
         // 1. Global Setup & Firebase Config
         // ==========================================
         const firebaseConfig = {
@@ -145,7 +145,7 @@
             measurementId: "G-VB3VDMQ9D1"
         };
         
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbye-_6F3rztyJpCh4PvmKVNS3Y0cjDGeZ4y4KMDzUQHn0Sx1XyTTrVGxXdgcngG3-4U/exec"; 
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbye-_6F3rztyJpCh4PvmKVNS3Y0cjDGeZ4y4KMDzUQHn0Sx1XyTTrVGxXdgcngG3-4U/exec";  
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -229,12 +229,30 @@
 
         function isValidTaskHelper(taskObj) {
             if (!taskObj) return false;
+            
+            // 🔥 ปลดล็อคให้งานใหม่ (ที่เพิ่ง Assign จากเว็บ) โชว์ได้ทันที
             if (taskObj._rowIndex === 0) return true;
-            // เช็คแค่ว่ามีข้อมูลอย่างน้อย 1 ช่องที่ไม่ใช่ ID และเลขแถว ก็ให้ผ่านเลย
-            return Object.keys(taskObj).some(k => {
-                if (k === 'id' || k === '_rowIndex') return false;
-                return String(taskObj[k]).trim() !== '';
+
+            let hasRealData = false;
+            Object.keys(taskObj).forEach(k => {
+                if (k === 'id' || k === '_rowIndex') return;
+                
+                const lk = String(k).toLowerCase().replace(/[\s_]+/g, '');
+                // ยกเว้นคอลัมน์สูตรหรือวันที่ ไม่นำมาคิดเป็นข้อมูลหลัก
+                if (lk.includes('นัดหมาย') || lk.includes('over') || lk.includes('เกินกำหนด') || 
+                    lk.includes('สถานะ') || lk.includes('status') || lk.includes('วันที่') || 
+                    lk.includes('เวลา') || lk.includes('date') || lk.includes('time') || 
+                    lk.includes('timestamp')) {
+                    return;
+                }
+                
+                const val = String(taskObj[k]).trim();
+                // ถ้ามีข้อมูลอื่นๆ ถือว่าเป็นแถวข้อมูลจริง
+                if (val !== '' && val !== '-' && val !== 'ไม่ระบุสถานะ' && val !== 'ไม่ระบุทีม') {
+                    hasRealData = true;
+                }
             });
+            return hasRealData;
         }
 
         const fallbackTeamColors = [ { bg: '#f3e8ff', text: '#7e22ce', border: '#e9d5ff' }, { bg: '#ccfbf1', text: '#0f766e', border: '#99f6e4' }, { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa' }, { bg: '#e0e7ff', text: '#4338ca', border: '#c7d2fe' }, { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0' }, { bg: '#ffe4e6', text: '#be123c', border: '#fecdd3' } ];
@@ -256,17 +274,22 @@
             return fallbackTeamColors[Math.abs(hash) % fallbackTeamColors.length];
         };
 
+        const yearColors = [
+            { bg: '#e0f2fe', text: '#0369a1', border: '#bae6fd' },
+            { bg: '#fce7f3', text: '#be185d', border: '#fbcfe8' },
+            { bg: '#fef9c3', text: '#a16207', border: '#fef08a' },
+            { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0' },
+            { bg: '#f3e8ff', text: '#7e22ce', border: '#e9d5ff' },
+            { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa' },
+            { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' } 
+        ];
+
         const getYearColorStyle = (yearStr) => {
-            if (!yearStr || String(yearStr).trim() === '') return { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
-            const colors = [
-                { bg: '#e0f2fe', text: '#0369a1', border: '#bae6fd' },
-                { bg: '#fce7f3', text: '#be185d', border: '#fbcfe8' },
-                { bg: '#fef9c3', text: '#a16207', border: '#fef08a' },
-                { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0' }
-            ];
+            if (!yearStr || String(yearStr).trim() === '') return yearColors[yearColors.length - 1];
             let hash = 0; for (let i = 0; i < String(yearStr).length; i++) hash = String(yearStr).charCodeAt(i) + ((hash << 5) - hash);
-            return colors[Math.abs(hash) % colors.length];
+            return yearColors[Math.abs(hash) % (yearColors.length - 1)];
         };
+
         const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
         const getFirstDayOfMonth = (y, m) => new Date(y, m, 1).getDay();
         const isSameDate = (dateStr, dateObj) => {
@@ -1347,24 +1370,20 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
                   if (data.subcontract) {
                       setColumns(data.subcontract.columns);
+                      localStorage.setItem('equip_tracker_columns', JSON.stringify(data.subcontract.columns));
                       const validTasks = data.subcontract.tasks.filter(isValidTaskHelper);
-                      setTasks(prev => validTasks.map(nt => {
-                          const local = prev.find(p => p.id === nt.id);
-                          // ถ้าเพิ่งแก้ในเว็บไม่เกิน 15 วิ ให้ใช้ค่าในเว็บไปก่อน กันข้อมูลเก่าจาก Sheet มาทับ
-                          if (local && local._lastLocalUpdate && (Date.now() - local._lastLocalUpdate < 15000)) return local;
-                          return nt;
-                      }));
-                  }
-                  if (data.ns) {
-                      setNsColumns(data.ns.columns);
-                      const validNsTasks = data.ns.tasks.filter(isValidTaskHelper);
-                      setNsTasks(prev => validNsTasks.map(nt => {
-                          const local = prev.find(p => p.id === nt.id);
-                          if (local && local._lastLocalUpdate && (Date.now() - local._lastLocalUpdate < 15000)) return local;
-                          return nt;
-                      }));
+                      setTasks(validTasks);
+                      localStorage.setItem('equip_tracker_tasks', JSON.stringify(validTasks));
                   }
                   
+                  if (data.ns) {
+                      setNsColumns(data.ns.columns);
+                      localStorage.setItem('equip_tracker_ns_columns', JSON.stringify(data.ns.columns));
+                      const validNsTasks = data.ns.tasks.filter(isValidTaskHelper);
+                      setNsTasks(validNsTasks);
+                      localStorage.setItem('equip_tracker_ns_tasks', JSON.stringify(validNsTasks));
+                  }
+
               } catch (error) {
                   console.error("Fetch Error:", error);
                   if (!isBackground) setFirebaseError('ไม่สามารถโหลดข้อมูลจากระบบได้ (โปรดตรวจสอบอินเทอร์เน็ต)');
@@ -1521,12 +1540,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
                   const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
-                  // 🔥 อัปเดตหน้าจอทันที (Optimistic Update)
-              if (tasksSubTab === 'subcontract') {
-                  setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value, _lastLocalUpdate: Date.now() } : t));
-              } else {
-                  setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value, _lastLocalUpdate: Date.now() } : t));
-              }
+                  if (tasksSubTab === 'subcontract') {
+                      setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
+                  } else {
+                      setNsTasks(prev => prev.filter(t => !docIds.includes(t.id)));
+                  }
 
                   try {
                       if (GAS_WEB_APP_URL) {
@@ -2024,10 +2042,47 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               barChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true }, x: { stacked: false } } };
           }
 
-          const activeStatusesForTeam = [...new Set(chartFilteredTasks.map(t => getCleanStatus(t[d_statusCol])))];
-          const activeTeams = [...new Set(chartFilteredTasks.map(t => getCleanTeam(t[d_teamCol])))].sort();
-          const teamChartData = { labels: activeTeams, datasets: activeStatusesForTeam.map(status => ({ label: status, data: activeTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && getCleanStatus(t[d_statusCol]) === status).length), backgroundColor: getStatusColor(status, 0.8), borderColor: getStatusColor(status, 1), borderWidth: 1 })) };
-          const teamChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, datalabels: dlStyle }, scales: { x: { stacked: false }, y: { beginAtZero: true } } };
+          // --- Logic ใหม่สำหรับกราฟแยกทีม (v2.1.0) ---
+          const completedStatusList = ["เก็บอุปกรณ์เรียบร้อย รอนำคืน SYM", "คืนอุปกรณ์ SYM เรียบร้อย", "เก็บเรียบร้อย", "Completed"];
+          
+          const getGroupedStatus = (s) => completedStatusList.includes(s) ? 'Completed' : 'On Process';
+          const groupedColors = { 'Completed': 'rgba(16, 185, 129, 0.8)', 'On Process': 'rgba(59, 130, 246, 0.8)' };
+
+          let teamChartData, teamChartOptions, unspecifiedChartData;
+
+          if (dashboardView === 'ns') {
+              // แยกทีมที่มีชื่อ และ ไม่ระบุทีม
+              const allTeams = [...new Set(chartFilteredTasks.map(t => getCleanTeam(t[d_teamCol])))];
+              const namedTeams = allTeams.filter(t => t !== 'ไม่ระบุทีม').sort();
+              const hasUnspecified = allTeams.includes('ไม่ระบุทีม');
+
+              // ข้อมูลสำหรับกราฟทีมที่มีชื่อ
+              teamChartData = {
+                  labels: namedTeams,
+                  datasets: [
+                      { label: 'Completed', data: namedTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && getGroupedStatus(getCleanStatus(t[d_statusCol])) === 'Completed').length), backgroundColor: groupedColors['Completed'] },
+                      { label: 'On Process', data: namedTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && getGroupedStatus(getCleanStatus(t[d_statusCol])) === 'On Process').length), backgroundColor: groupedColors['On Process'] }
+                  ]
+              };
+
+              // ข้อมูลสำหรับกราฟไม่ระบุทีม
+              if (hasUnspecified) {
+                  unspecifiedChartData = {
+                      labels: ['ไม่ระบุทีม'],
+                      datasets: [
+                          { label: 'Completed', data: [chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === 'ไม่ระบุทีม' && getGroupedStatus(getCleanStatus(t[d_statusCol])) === 'Completed').length], backgroundColor: groupedColors['Completed'] },
+                          { label: 'On Process', data: [chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === 'ไม่ระบุทีม' && getGroupedStatus(getCleanStatus(t[d_statusCol])) === 'On Process').length], backgroundColor: groupedColors['On Process'] }
+                      ]
+                  };
+              }
+          } else {
+              // ใช้ Logic เดิมสำหรับ Subcontract
+              const activeStatusesForTeam = [...new Set(chartFilteredTasks.map(t => getCleanStatus(t[d_statusCol])))];
+              const activeTeams = [...new Set(chartFilteredTasks.map(t => getCleanTeam(t[d_teamCol])))].sort();
+              teamChartData = { labels: activeTeams, datasets: activeStatusesForTeam.map(status => ({ label: status, data: activeTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && getCleanStatus(t[d_statusCol]) === status).length), backgroundColor: getStatusColor(status, 0.8), borderColor: getStatusColor(status, 1), borderWidth: 1 })) };
+          }
+
+          teamChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, datalabels: dlStyle }, scales: { x: { stacked: false }, y: { beginAtZero: true } } };
 
           const overdueByTeamCounts = {}; activeTeams.forEach(t => overdueByTeamCounts[t] = 0);
           chartFilteredTasks.forEach(t => {
@@ -2112,7 +2167,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 <div className="p-6 h-auto min-h-[80px] flex items-center border-b border-slate-100 shrink-0">
                   <h1 className="text-base md:text-lg font-bold flex items-center gap-3 leading-snug whitespace-normal">
                       <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-truck-fast text-xl"></i></div>
-                      <span>[TEST] Equipment Tracking</span>
+                      <span>Remove Equipment Tracking</span>
                   </h1>
                 </div>
                 
@@ -2257,10 +2312,35 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           
                           {/* กราฟเกินกำหนดนัดหมาย (แสดงเฉพาะหน้า Subcontract) */}
                           {dashboardView === 'subcontract' && (
-                              <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
-                                  <div className="flex justify-between items-center mb-4"><h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> เกินกำหนดนัดหมาย</h3></div>
-                                  <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2"><div className="min-w-[300px] h-full">{chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={overdueChartData} options={overdueChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}</div></div>
+                              {/* ปรับปรุงการแสดงผลกราฟแยกทีม v2.1.0 */}
+                          <div className={`lg:col-span-3 grid grid-cols-1 ${dashboardView === 'ns' && unspecifiedChartData ? 'xl:grid-cols-4' : 'xl:grid-cols-1'} gap-6`}>
+                              <div className={`bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 ${dashboardView === 'ns' && unspecifiedChartData ? 'xl:col-span-3' : ''}`}>
+                                  <div className="flex justify-between items-center mb-4">
+                                      <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
+                                          <i className="fa-solid fa-users text-blue-600"></i> 
+                                          {dashboardView === 'ns' ? 'ปริมาณงานแยกตามทีม (ระบุชื่อ)' : 'ปริมาณงานและสถานะแยกตามทีม'}
+                                      </h3>
+                                  </div>
+                                  <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
+                                      <div className="min-w-[500px] md:min-w-[600px] h-full">
+                                          {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
+                                      </div>
+                                  </div>
                               </div>
+
+                              {dashboardView === 'ns' && unspecifiedChartData && (
+                                  <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 xl:col-span-1">
+                                      <div className="flex justify-between items-center mb-4">
+                                          <h3 className="text-base md:text-lg font-bold flex items-center gap-2 text-amber-600">
+                                              <i className="fa-solid fa-question-circle"></i> ไม่ระบุทีม
+                                          </h3>
+                                      </div>
+                                      <div className="relative h-64 md:h-80 w-full">
+                                          <ChartComponent type="bar" data={unspecifiedChartData} options={teamChartOptions} />
+                                      </div>
+                                  </div>
+                              )}
+                          </div>
                           )}
                       </div>
                     </div>
@@ -2345,18 +2425,34 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                   const isAuto = colConfig.mode === 'auto';
                                   const isPinned = (pinnedColumns || []).includes(col);
                                   const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
+                                  
                                   let finalWidth = colWidths[col] || (isAuto ? 'max-content' : `${colConfig.width}px`);
                                   if (typeof finalWidth === 'number') finalWidth = `${finalWidth}px`;
 
+                                  let thStyle = { 
+                                      whiteSpace: isAuto ? 'nowrap' : 'normal', 
+                                      wordBreak: isAuto ? 'normal' : 'break-word',
+                                      width: finalWidth, minWidth: finalWidth, maxWidth: isAuto ? 'none' : finalWidth
+                                  };
+
+                                  if (isPinned) {
+                                      thStyle.position = 'sticky';
+                                      thStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
+                                      thStyle.zIndex = 50;
+                                  }
+
                                   return (
-                                      <th key={idx} className={`p-0 align-middle relative group transition-colors select-none sortable-header bg-slate-800 border-r border-slate-700 hover:bg-slate-700 ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.3)] border-r-slate-500' : ''}`} style={{ whiteSpace: isAuto ? 'nowrap' : 'normal', wordBreak: 'break-word', width: finalWidth, minWidth: finalWidth, maxWidth: isAuto ? 'none' : finalWidth, position: isPinned ? 'sticky' : 'relative', left: isPinned ? getPinnedLeftPos(col, orderedVisibleColumnsTable) : 'auto', zIndex: isPinned ? 50 : 1 }}>
+                                      <th key={idx} className={`p-0 align-middle relative group transition-colors select-none sortable-header bg-slate-800 border-r border-slate-700 hover:bg-slate-700 ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.3)] border-r-slate-500' : ''}`} style={thStyle}>
                                           <div className="flex items-center justify-center px-4 py-3 w-full h-full cursor-pointer relative" onClick={() => handleSort(col)}>
-                                            <div className="flex items-center justify-center gap-2 overflow-hidden w-full pr-10 text-center">
-                                                <div className="th-content text-xs md:text-sm font-semibold text-white truncate text-center w-full">{col}</div>
+                                            {/* 🔥 จัดข้อความให้อยู่กึ่งกลาง */}
+                                            <div className="flex items-center justify-center gap-2 overflow-hidden w-full px-6 text-center">
+                                                <div className="th-content text-xs md:text-sm font-semibold text-white truncate">{col}</div>
                                             </div>
-                                            {/* 🔥 ย้ายปุ่ม Pin/Sort หลบตัวลากคอลัมน์ */}
-                                            <div className="absolute right-6 flex items-center gap-1.5 opacity-60">
-                                                <button onClick={(e) => { e.stopPropagation(); handlePinToggle(e, col); }} className={`hover:scale-125 transition-transform ${isPinned ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}><i className="fa-solid fa-thumbtack text-[10px]"></i></button>
+                                            {/* 🔥 ย้ายปุ่ม Pin/Sort ไปไว้ด้านขวา */}
+                                            <div className="absolute right-2 flex items-center gap-1 opacity-60">
+                                                <button onClick={(e) => { e.stopPropagation(); handlePinToggle(e, col); }} className={`hover:scale-125 transition-transform ${isPinned ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}>
+                                                    <i className="fa-solid fa-thumbtack text-[10px]"></i>
+                                                </button>
                                                 <div className="text-white shrink-0 text-[10px]">{sortConfig.key === col ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</div>
                                             </div>
                                           </div>
@@ -2364,6 +2460,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       </th>
                                   );
                               })}
+                              {/* 🔥 แก้ไขให้ปรับขนาดได้โดยใช้ ID '__manage__' */}
                               <th className="bg-slate-800 border-l border-slate-700 p-0 align-middle sticky right-0 z-40 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.2)] text-white text-xs font-bold text-center group" style={{ width: colWidths['__manage__'] || '100px', minWidth: colWidths['__manage__'] || '100px' }}>
                                   จัดการ
                                   <div onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e, '__manage__'); }} className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -2374,50 +2471,84 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                             {paginatedTasks.map((task) => (
                               <tr key={task.id} className="hover:bg-slate-50 transition-colors" style={{ height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto' }}>
                                 {(orderedVisibleColumnsTable || []).map((col, idx) => {
+                                    // --- Logic ภายในก้อนเดียวเพื่อป้องกันจอขาว ---
                                     const val = task[col] || '';
                                     const cleanVal = String(val).trim();
                                     const cellId = `${task.id}-${col}`;
                                     const isEditing = editingCell === cellId;
                                     
-                                    // 🔥 ประกาศตัวแปรภายในลูป (ป้องกันจอขาว)
+                                    // หาชื่อคอลัมน์แบบ Dynamic
                                     const isStatus = col === t_statusCol;
                                     const isTeam = col === t_teamCol;
-                                    const isEquipYear = (col === t_equipYearCol || col.toLowerCase().includes('year') || col.includes('ปี'));
-                                    const isCid = (col === t_cidCol || col === 'CID Customer' || col === 'Circuit No');
-                                    const isOverdue = (col === t_overDueCol || col.includes('นัดหมายลูกค้า'));
-                                    const isStatusChange = (col === statusChangeColMatch || col === 'Status_change');
+                                    const isCid = (col === t_cidCol || col.toLowerCase().includes('cid') || col.toLowerCase().includes('circuit'));
+                                    const isOverdue = (col === t_overDueCol || col.includes('นัดหมาย'));
+                                    const isStatusChange = col.toLowerCase().includes('status_change');
+                                    const isContact = col === contactJobColMatch;
+                                    const isEquip = col === 'รายการอุปกรณ์';
 
                                     const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
                                     const isPinned = (pinnedColumns || []).includes(col);
                                     const isLastPinned = isPinned && col === pinnedColsListTable?.[(pinnedColsListTable?.length || 1) - 1];
                                     const finalWidth = colWidths[col] || (colConfig.mode === 'auto' ? 'max-content' : `${colConfig.width}px`);
 
+                                    // ตั้งค่าสี
                                     let styleObj = { backgroundColor: 'transparent', color: 'inherit', fontWeight: 'normal' };
-                                    if (isStatus) { styleObj = { backgroundColor: getStatusColor(cleanVal, 0.15), color: getStatusColor(cleanVal, 1), fontWeight: 'bold' }; }
-                                    else if (isTeam) { const tColor = getTeamColorStyle(val, masterData); styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold' }; }
-                                    else if (isEquipYear && cleanVal) { const yColor = getYearColorStyle(val); styleObj = { backgroundColor: yColor.bg, color: yColor.text, border: `1px solid ${yColor.border}`, fontWeight: 'bold' }; }
-                                    else if (isCid && cleanVal) { const s = getCleanStatus(task[t_statusCol]); styleObj = { backgroundColor: getStatusColor(s, 0.1), color: getStatusColor(s, 1), fontWeight: 'bold', border: `1px solid ${getStatusColor(s, 0.2)}` }; }
-                                    else if (isOverdue && cleanVal && cleanVal !== 'ไม่ระบุสถานะ') {
+                                    if (isStatus) {
+                                        styleObj = { backgroundColor: getStatusColor(cleanVal, 0.15), color: getStatusColor(cleanVal, 1), fontWeight: 'bold' };
+                                    } else if (isTeam) {
+                                        const tColor = getTeamColorStyle(val, masterData);
+                                        styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold' };
+                                    } else if (isCid && cleanVal) {
+                                        const s = getCleanStatus(task[t_statusCol]);
+                                        styleObj = { backgroundColor: getStatusColor(s, 0.1), color: getStatusColor(s, 1), fontWeight: 'bold', border: `1px solid ${getStatusColor(s, 0.2)}` };
+                                    } else if (isOverdue && cleanVal && cleanVal !== 'ไม่ระบุสถานะ') {
                                         let num = NaN; const m = cleanVal.match(/-?\d+/); if(m) num = parseInt(m[0], 10);
                                         if (cleanVal.includes('เกิน') || num < 0) styleObj = { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' };
                                         else if (num === 0 || cleanVal.includes('ครบ')) styleObj = { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold' };
                                         else styleObj = { backgroundColor: '#dcfce7', color: '#14532d', fontWeight: 'bold' };
-                                    } else if (isStatusChange && cleanVal) { styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', border: '1px solid #fef08a' }; }
+                                    } else if (isStatusChange && cleanVal) {
+                                        styleObj = { backgroundColor: '#fff7ed', color: '#b45309', fontWeight: '600', border: '1px solid #fef08a' };
+                                    }
 
-                                    let options = [];
-                                    if (isStatus) options = tasksSubTab === 'ns' ? (masterData.nsStatuses || []).map(s => s.name) : (masterData.subconStatuses || []).map(s => s.name);
-                                    else if (isTeam) options = tasksSubTab === 'ns' ? (masterData.nsTeams || []).map(t => t.name) : (masterData.teams || []);
-                                    else if (isEquipYear) options = [...new Set(currentTasksTable.map(t => t[col]).filter(Boolean))].sort();
+                                    let tdStyle = { verticalAlign: 'top', width: finalWidth, minWidth: finalWidth, maxWidth: finalWidth };
+                                    if (isPinned) {
+                                        tdStyle.position = 'sticky';
+                                        tdStyle.left = getPinnedLeftPos(col, orderedVisibleColumnsTable);
+                                        tdStyle.zIndex = 20;
+                                    }
 
                                     return (
-                                        <td key={idx} className={`p-1 md:p-1.5 align-middle border-r border-slate-100 bg-white ${isPinned ? 'sticky-col-cell' : ''} ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`} style={{ verticalAlign: 'top', width: finalWidth, minWidth: finalWidth, maxWidth: finalWidth, position: isPinned ? 'sticky' : 'relative', left: isPinned ? getPinnedLeftPos(col, orderedVisibleColumnsTable) : 'auto', zIndex: isPinned ? 20 : 1 }}>
+                                        <td key={idx} className={`p-1 md:p-1.5 align-middle border-r border-slate-100 bg-white ${isPinned ? 'sticky-col-cell' : ''} ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`} style={tdStyle}>
                                             <div className="flex items-stretch w-full mx-auto relative" style={{ backgroundColor: styleObj.backgroundColor, border: styleObj.border || 'none', borderRadius: '6px', overflow: 'hidden', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
-                                                <div contentEditable={isEditing} suppressContentEditableWarning={true} className={`px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} style={{ color: styleObj.color, fontWeight: styleObj.fontWeight, display: 'block', width: '100%', minWidth: 0, boxSizing: 'border-box', minHeight: '28px', height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto', whiteSpace: (col === contactJobColMatch || col === 'รายการอุปกรณ์' || isStatusChange || (task._groupDocs && task._groupDocs.length > 1)) ? 'pre-wrap' : (colConfig.mode === 'auto' ? 'nowrap' : 'normal'), wordBreak: 'break-word', lineHeight: '1.5', overflow: 'visible', textAlign: (isStatus || isTeam || isCid || isOverdue || isEquipYear) ? 'center' : 'left' }} onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} onBlur={e => { task._lastLocalUpdate = Date.now(); handleCellChangeTable(task, col, e.target.innerText, (tasksSubTab === 'subcontract' ? columns : nsColumns)); setEditingCell(null); }}>{val}</div>
-                                                {(options.length > 0 || isStatus || isTeam || isEquipYear) && (
+                                                <div 
+                                                    contentEditable={isEditing} 
+                                                    suppressContentEditableWarning={true} 
+                                                    className={`px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} 
+                                                    style={{ 
+                                                        color: styleObj.color, fontWeight: styleObj.fontWeight, display: 'block', width: '100%', minWidth: 0, boxSizing: 'border-box', minHeight: '28px', 
+                                                        height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto',
+                                                        whiteSpace: (isContact || isEquip || isStatusChange || (task._groupDocs && task._groupDocs.length > 1)) ? 'pre-wrap' : (colConfig.mode === 'auto' ? 'nowrap' : 'normal'), 
+                                                        wordBreak: 'break-word', lineHeight: '1.5', overflow: 'visible', textAlign: (isStatus || isTeam || isCid || isOverdue) ? 'center' : 'left'
+                                                    }} 
+                                                    onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} 
+                                                    onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, (tasksSubTab === 'subcontract' ? columns : nsColumns)); setEditingCell(null); }}
+                                                >
+                                                    {val}
+                                                </div>
+                                                {(isStatus || isTeam) && (
+                                                    // 🔥 เพิ่ม z-10 และขยายความกว้าง w-8 เพื่อให้กดติดง่ายขึ้น
                                                     <div className="relative w-8 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5 z-10">
-                                                        <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="" onChange={e => { task._lastLocalUpdate = Date.now(); handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns)); }}>
-                                                            <option value="">-- ว่างเปล่า --</option>
-                                                            {options.map(opt => <option key={opt} value={opt} className="text-black bg-white">{opt}</option>)}
+                                                        <select 
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                                            value="" 
+                                                            onChange={e => handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns))}
+                                                        >
+                                                            <option value="" disabled></option>
+                                                            {/* 🔥 บังคับสีตัวเลือกเป็นสีดำพื้นขาวเพื่อให้มองง่าย */}
+                                                            {(isStatus ? (tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses) : (tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams)).map(opt => {
+                                                                const name = typeof opt === 'string' ? opt : opt.name;
+                                                                return <option key={name} value={name} className="text-black bg-white">{name}</option>
+                                                            })}
                                                         </select>
                                                         <i className="fa-solid fa-chevron-down text-[8px] opacity-40"></i>
                                                     </div>
@@ -2426,7 +2557,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                         </td>
                                     );
                                 })}
-                                <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-30 text-center group relative" style={{ width: colWidths['__manage__'] || '100px' }}>
+                                <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-30 text-center group relative">
                                     <div className="flex flex-col gap-2 px-1 py-1">
                                         {tasksSubTab === 'ns' ? (
                                             <button onClick={() => handleDirectAssign(task[t_cidCol], task[siteTypeColMatch])} className="py-2 bg-indigo-50 border border-indigo-300 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-black flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95">
@@ -2651,66 +2782,99 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     {(dayTasks || []).map(t => {
                                         const bgColor = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 1);
                                         const softBg = getStatusColor(t._calStatusCol ? t[t._calStatusCol] : '', 0.1);
+                                        
                                         const cidVal = t._calCidCol ? t[t._calCidCol] : '';
                                         const companyVal = t._calCompCol ? t[t._calCompCol] : '-';
+                                        
                                         const contactVal = (t._calContactCol && t[t._calContactCol]) ? t[t._calContactCol] : 'ไม่ระบุ';
                                         const phoneVal = (t._calPhoneCol && t[t._calPhoneCol]) ? t[t._calPhoneCol] : '';
+                                        
                                         const collectionDateVal = t._calDateCol ? t[t._calDateCol] : '-';
                                         const collectionTimeVal = t._calTimeCol ? t[t._calTimeCol] : '-';
                                         
                                         return (
                                           <div key={t.id} className="flex bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer relative" onMouseMove={(e) => handleMouseMove(e, t)} onMouseLeave={handleMouseLeave}>
                                             <div style={{backgroundColor: bgColor}} className="w-2 md:w-3 shrink-0"></div>
+                                            
                                             <div className="p-3 md:p-4 flex-1 flex flex-col text-xs md:text-sm min-w-0">
                                                 <div className="flex flex-col lg:flex-row gap-3 md:gap-4 lg:items-center w-full min-w-0">
+                                                    
+                                                    {/* กลุ่มข้อมูลด้านซ้าย */}
                                                     <div className="flex-1 flex flex-col lg:flex-row gap-3 lg:gap-4 lg:items-center min-w-0">
+                                                        
+                                                        {/* 1. ทีมงาน */}
                                                         <div className="flex flex-col justify-center items-start shrink-0 lg:pr-4 lg:border-r border-slate-200">
                                                             <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">ทีมงาน</p>
-                                                            <div className="px-2 py-1 md:py-1.5 rounded-md text-sm md:text-base font-bold border w-24 md:w-32 text-center truncate shadow-sm" style={{ backgroundColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').bg, color: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').text, borderColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').border }}>
+                                                            <div className="px-2 py-1 md:py-1.5 rounded-md text-sm md:text-base font-bold border w-24 md:w-32 text-center truncate shadow-sm" style={{ backgroundColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').bg, color: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').text, borderColor: getTeamColorStyle(t._calTeamCol ? t[t._calTeamCol] : '').border }} title={t._calTeamCol ? t[t._calTeamCol] : 'ไม่ระบุทีม'}>
                                                                 {t._calTeamCol ? t[t._calTeamCol] : 'ไม่ระบุทีม'}
                                                             </div>
                                                         </div>
+
+                                                        {/* 2. บริษัทลูกค้า + CID */}
                                                         <div className="flex-1 flex flex-col justify-center overflow-hidden min-w-0 lg:pr-2">
                                                             <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider">CID / บริษัทลูกค้า</p>
-                                                            <p className="font-bold text-slate-800 text-sm md:text-base leading-tight truncate mt-0.5">
+                                                            <p className="font-bold text-slate-800 text-sm md:text-base leading-tight truncate mt-0.5" title={`${cidVal ? '['+cidVal+'] ' : ''}${companyVal}`}>
                                                                 {cidVal && <span className="text-blue-600 mr-1">[{cidVal}]</span>}
                                                                 <span>{companyVal}</span>
                                                             </p>
                                                         </div>
+
+                                                        {/* 3 & 4. ผู้ประสานงาน และ เข้าเก็บ */}
                                                         <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 shrink-0 lg:pl-2">
+                                                            {/* 3. ผู้ประสานงาน */}
                                                             <div className="flex flex-col justify-center sm:w-40 lg:w-56">
                                                                 <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider">ผู้ประสานงาน / เบอร์โทร</p>
                                                                 <p className="text-slate-700 break-words font-medium mt-0.5">{contactVal}</p>
-                                                                {phoneVal && <p className="text-slate-500 text-xs mt-0.5"><i className="fa-solid fa-phone text-[10px]"></i> {phoneVal}</p>}
+                                                                {phoneVal && contactVal !== phoneVal && <p className="text-slate-500 text-xs mt-0.5 break-words"><i className="fa-solid fa-phone text-[10px]"></i> {phoneVal}</p>}
                                                             </div>
+
+                                                            {/* 4. วันและเวลาที่เข้าเก็บ */}
                                                             <div className="flex flex-col justify-center shrink-0">
                                                                 <p className="text-[10px] md:text-xs text-slate-400 font-semibold uppercase tracking-wider">เข้าเก็บ (วัน-เวลา)</p>
                                                                 <div className="flex items-center gap-2 mt-0.5 text-sm md:text-base font-bold text-slate-700">
                                                                     <p>{collectionDateVal}</p>
-                                                                    {collectionTimeVal !== '-' && <p><i className="fa-regular fa-clock mr-1 text-slate-500 text-sm"></i>{collectionTimeVal}</p>}
+                                                                    {collectionTimeVal !== '-' && (
+                                                                        <p><i className="fa-regular fa-clock mr-1 text-slate-500 text-sm"></i>{collectionTimeVal}</p>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                        
                                                     </div>
+
+                                                    {/* 5. Status (อัปเดตจากปฏิทินได้) */}
                                                     <div className="flex justify-start lg:justify-end mt-2 lg:mt-0 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 pt-3 lg:pt-0 lg:pl-4 relative">
                                                         <div style={{backgroundColor: softBg, color: bgColor, borderColor: bgColor}} className="font-bold px-4 md:px-6 py-1.5 md:py-2 rounded-lg md:rounded-xl border-2 text-center min-w-[120px] md:min-w-[140px] shadow-sm relative flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity">
                                                             <span className="flex-1 text-center">{t._calStatusCol ? t[t._calStatusCol] : 'ไม่มีสถานะ'}</span>
                                                             <i className="fa-solid fa-chevron-down text-[10px] ml-2"></i>
-                                                            <select className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" value="" onChange={async (e) => { 
-                                                                const newVal = e.target.value;
-                                                                await handleCellChangeTable(t, t._calStatusCol, newVal, columns);
-                                                                const cid = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
-                                                                const nsStatusCol = getStatusColumnName(nsColumns);
-                                                                const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
-                                                                if (cid && nsStatusCol && nsCidCol) {
-                                                                    const matchedNsTask = nsTasks.find(nt => String(nt[nsCidCol]).trim() === cid);
-                                                                    if (matchedNsTask) {
-                                                                        handleCellChangeTable(matchedNsTask, nsStatusCol, newVal, nsColumns);
-                                                                        customAlert(`ซิงค์สถานะ "${newVal || 'ว่างเปล่า'}" ไปยังหน้า Region สำเร็จ`, "success");
+                                                            <select 
+                                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
+                                                                value="" 
+                                                                onChange={async (e) => { 
+                                                                    if (!e.target.value) return;
+                                                                    const newVal = e.target.value;
+                                                                    // 1. อัปเดตฝั่ง Subcontract (ตารางหลักของปฏิทิน)
+                                                                    await handleCellChangeTable(t, t._calStatusCol, newVal, columns);
+                                                                    
+                                                                    // 2. 🔥 ถ้าเป็น "เก็บเรียบร้อย" หรือ "Complete" ให้หาและอัปเดตฝั่ง Region ด้วย
+                                                                    const isDone = newVal.match(/(เก็บเรียบร้อย|complete|สำเร็จ|100%)/i);
+                                                                    if (isDone) {
+                                                                        const cidVal = t[t_cidCol] ? String(t[t_cidCol]).trim() : '';
+                                                                        const nsStatusCol = getStatusColumnName(nsColumns);
+                                                                        const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+                                                                        
+                                                                        if (cidVal && nsStatusCol && nsCidCol) {
+                                                                            const matchedNsTask = nsTasks.find(nt => String(nt[nsCidCol]).trim() === cidVal);
+                                                                            if (matchedNsTask) {
+                                                                                handleCellChangeTable(matchedNsTask, nsStatusCol, 'Complete', nsColumns);
+                                                                                customAlert("อัปเดตสถานะสำเร็จทั้ง 2 ระบบ", "success");
+                                                                            }
+                                                                        }
                                                                     }
-                                                                }
-                                                            }}>
-                                                                <option value="">-- ว่างเปล่า --</option>
+                                                                }}
+                                                            >
+                                                                <option value="" disabled></option>
+                                                                {/* 🔥 ใช้สีขาวดำ และอิงตาม subcontractStatuses */}
                                                                 {(subcontractStatuses && subcontractStatuses.length > 0 ? subcontractStatuses : tableUniqueStatuses || []).map(s => (
                                                                     <option key={s} value={s} className="text-black bg-white">{s}</option>
                                                                 ))}
@@ -2718,6 +2882,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                         </div>
                                                     </div>
                                                 </div>
+
+                                                {/* 6. หมายเหตุเพิ่มเติม */}
                                                 {t._calNoteCol && t[t._calNoteCol] && (
                                                     <div className="mt-3 pt-3 border-t border-slate-100 w-full">
                                                         <p className="text-[10px] md:text-xs text-amber-600 font-semibold uppercase tracking-wider">หมายเหตุเพิ่มเติม</p>
@@ -2865,4 +3031,4 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
     </script>
 </body>
 </html>
-Error
+```
