@@ -2053,7 +2053,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               barChartData = { 
                   labels: yearLabelsWithPercent, 
                   datasets: [ 
-                      { label: 'Collected (CIDs)', data: sortedYears.map(y => yearlyData[y].collected), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }, 
+                      { label: 'Collected (CIDs)', data: sortedYears.map(y => yearlyData[y].collected), backgroundColor: 'rgba(8, 231, 38, 0.8)', borderRadius: 4 }, 
                       { label: 'Ongoing (CIDs)', data: sortedYears.map(y => yearlyData[y].ongoing), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } 
                   ] 
               };
