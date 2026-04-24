@@ -92,48 +92,12 @@
         // APP VERSION: v2.0.0 (Unlimited Free Tier Mode)
         // ==========================================
         const APP_VERSION = "2.0.0";
-        // 🔥 กำหนดชื่อ Sheet ให้เป็นค่ากลางที่ใช้ร่วมกันทั้งไฟล์ (v2.8.1)
-        const SHEET_SUBCON_NAME = "Subcontract Database";
-        const SHEET_REGION_NAME = "Region Database";
 
         if (typeof ChartDataLabels !== 'undefined') {
             Chart.register(ChartDataLabels);
         }
 
         const { useState, useEffect, useRef, useMemo, useTransition } = React;
-
-        // --- 1. คำนวณหาปีที่มีในข้อมูลทั้งหมด (วางไว้ก่อนส่วน Filter) ---
-          const yearsInData = useMemo(() => {
-              const allTasks = [...tasks, ...nsTasks];
-              const years = [...new Set(allTasks.map(t => {
-                  const yVal = t[d_equipYearCol] || t[t_equipYearCol] || '';
-                  const match = String(yVal).match(/\d{4}/);
-                  return match ? parseInt(match[0]) : null;
-              }))].filter(y => y && y >= 2018).sort((a, b) => b - a);
-              return years.length > 0 ? years : [new Date().getFullYear()];
-          }, [tasks, nsTasks, d_equipYearCol, t_equipYearCol]);
-
-          const maxYear = yearsInData[0];
-          const secondYear = maxYear - 1;
-
-          // --- 2. ส่วนการกรองข้อมูล Dashboard ---
-          const dashboardFilteredTasks = useMemo(() => {
-              let dashboardFilteredTasks = (dashboardTasks || []).filter(t => {
-                  let matchMonth = true, matchTeam = true, matchYearView = true;
-                  // ... (ส่วนการหา m และ y เหมือนเดิม) ...
-
-                  if (dashboardView === 'subcontract') {
-                      if (dashboardYear === 'overview') {
-                          matchYearView = true;
-                      } else if (dashboardYear === 'history') {
-                          if (y >= secondYear) matchYearView = false;
-                      } else {
-                          if (y !== parseInt(dashboardYear)) matchYearView = false;
-                      }
-                  }
-                  return matchMonth && matchTeam && matchYearView;
-              });
-              // ... (ส่วนที่เหลือของ Filter) ...
 
         // Error Boundary เพื่อป้องกันหน้าจอขาว
         class ErrorBoundary extends React.Component {
@@ -1228,7 +1192,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const [currentDate, setCurrentDate] = useState(new Date());
           const [calendarView, setCalendarView] = useState('month');
           const [dashboardView, setDashboardView] = useState('subcontract'); 
-          const [dashboardYear, setDashboardYear] = useState('overview'); 
           const [tasksSubTab, setTasksSubTab] = useState('subcontract'); 
 
           const [visibleRows, setVisibleRows] = useState(100); // ใช้ตัวนี้จัดการ Infinite Scroll ทั้งสองหน้า
@@ -1574,9 +1537,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
 
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
-                  // 🔥 อัปเดตชื่อ Sheet ให้ตรงกับฐานข้อมูลใหม่ (v2.7.0)
-              // 🔥 ใช้ค่าคงที่ที่ประกาศไว้บนสุด เพื่อความแม่นยำ
-const targetSheetName = tasksSubTab === 'subcontract' ? SHEET_SUBCON_NAME : SHEET_REGION_NAME;
+                  const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract Database' : 'Region Database';
 
                   if (tasksSubTab === 'subcontract') {
                       setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
@@ -1656,8 +1617,7 @@ const targetSheetName = tasksSubTab === 'subcontract' ? SHEET_SUBCON_NAME : SHEE
                   return false; 
               }
 
-              // 🔥 ตรวจสอบชื่อให้ตรงกับ SHEET_SUBCON และ SHEET_NS ใน Code.gs (v2.8.0)
-            const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract Database' : 'Region Database';
+              const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract Database' : 'Region Database';
 
               if (tasksSubTab === 'subcontract') {
                   setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
@@ -1922,25 +1882,65 @@ const targetSheetName = tasksSubTab === 'subcontract' ? SHEET_SUBCON_NAME : SHEE
               if (!y && dateObjYear) { y = dateObjYear; if (y > 2500) y -= 543; }
               if (!y) { y = new Date().getFullYear(); }
 
-              // 1. หาปีทั้งหมดที่มีในข้อมูลก่อน
-              const yearsInData = [...new Set(tasks.map(t => {
-                  const yVal = t[d_equipYearCol] ? String(t[d_equipYearCol]).trim() : '';
-                  const match = yVal.match(/\d{4}/);
-                  return match ? parseInt(match[0]) : null;
-              }))].filter(y => y && y >= 2018).sort((a, b) => b - a);
+              // 🔥 เปลี่ยนค่าเริ่มต้นเป็น 'latest' (v2.7.0)
+          const [dashboardYear, setDashboardYear] = useState('latest'); 
 
-              const maxYear = yearsInData.length > 0 ? yearsInData[0] : new Date().getFullYear();
+          // 🔥 ฟังก์ชันคำนวณหาปีทั้งหมดที่มีในระบบ (สแกนทุกคอลัมน์วันที่)
+          const dynamicYears = useMemo(() => {
+              const yearSet = new Set();
+              const targetTasks = dashboardView === 'subcontract' ? tasks : nsTasks;
+              const dateCols = [d_collectionDateCol, d_equipYearCol, d_getCol(['ยกเลิกใช้งาน', 'duejob', 'canceldate'])].filter(Boolean);
 
-              if (dashboardView === 'subcontract') {
-                  if (dashboardYear === 'overview') {
-                      matchYearView = true;
-                  } else if (dashboardYear === 'history') {
-                      // ประวัติย้อนหลัง คือปีที่น้อยกว่า (ปีล่าสุด - 1)
-                      if (y >= maxYear - 1) matchYearView = false;
-                  } else {
-                      // ปีล่าสุด หรือ ปีรองล่าสุด
-                      if (y !== parseInt(dashboardYear)) matchYearView = false;
+              targetTasks.forEach(t => {
+                  dateCols.forEach(col => {
+                      const d = parseDateHelper(t[col]);
+                      if (d) {
+                          let y = d.getFullYear();
+                          if (y > 2500) y -= 543; // แปลง พ.ศ. เป็น ค.ศ.
+                          if (y > 2010 && y < 2100) yearSet.add(y);
+                      }
+                  });
+                  // เช็คจากคอลัมน์ปีโดยตรงด้วย
+                  if (d_equipYearCol && t[d_equipYearCol]) {
+                      const yMatch = String(t[d_equipYearCol]).match(/\d{4}/);
+                      if (yMatch) {
+                          let y = parseInt(yMatch[0]);
+                          if (y > 2500) y -= 543;
+                          if (y > 2010 && y < 2100) yearSet.add(y);
+                      }
                   }
+              });
+
+              const sortedYears = Array.from(yearSet).sort((a, b) => b - a);
+              return {
+                  latest: sortedYears[0] || new Date().getFullYear(),
+                  previous: sortedYears[1] || null,
+                  history: sortedYears.slice(2),
+                  all: sortedYears
+              };
+          }, [tasks, nsTasks, dashboardView]);
+
+          // 🔥 ปรับปรุงการกรองข้อมูลตามปีแบบ Dynamic
+          let dashboardFilteredTasks = (dashboardTasks || []).filter(t => {
+              let matchMonth = true, matchTeam = true, matchYearView = true;
+              const parsedD = parseDateHelper(getDashboardTaskEffectiveDateStr(t));
+              let dateObjYear = parsedD ? parsedD.getFullYear() : null;
+              if (dateObjYear && dateObjYear > 2500) dateObjYear -= 543;
+
+              const eqYearStr = d_equipYearCol && t[d_equipYearCol] ? String(t[d_equipYearCol]).trim() : '';
+              let y = null;
+              if (eqYearStr) {
+                  const yMatch = eqYearStr.match(/\d{4}/);
+                  y = yMatch ? parseInt(yMatch[0]) : parseInt(eqYearStr);
+                  if (y > 2500) y -= 543;
+              }
+              if (!y) y = dateObjYear || new Date().getFullYear();
+
+              // Logic การกรอง 3 เมนู
+              if (dashboardView === 'subcontract') {
+                  if (dashboardYear === 'latest') { if (y !== dynamicYears.latest) matchYearView = false; }
+                  else if (dashboardYear === 'previous') { if (y !== dynamicYears.previous) matchYearView = false; }
+                  else if (dashboardYear === 'history') { if (y >= dynamicYears.previous) matchYearView = false; }
               }
 
               if (filterMonth !== 'All' && m !== parseInt(filterMonth)) matchMonth = false;
@@ -2276,23 +2276,22 @@ const targetSheetName = tasksSubTab === 'subcontract' ? SHEET_SUBCON_NAME : SHEE
                                 <button onClick={() => { startTransition(() => setDashboardView('subcontract')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${dashboardView === 'subcontract' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-medium'}`}>
                                     <i className="fa-solid fa-chart-simple w-4"></i> Subcontract
                                 </button>
-                                {dashboardView === 'subcontract' && (
+                                {dashboardView === 'sub
+                                    contract' && (
                                     <div className="pl-6 mt-1 space-y-1 border-l-2 border-blue-100 ml-2">
-                                        <button onClick={() => { startTransition(() => setDashboardYear('overview')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'overview' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ภาพรวมทั้งหมด</button>
+                                        <button onClick={() => setDashboardYear('overview')} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'overview' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ภาพรวมทั้งหมด</button>
                                         
-                                        {/* 1. ปีล่าสุด */}
-                                        <button onClick={() => { startTransition(() => setDashboardYear(String(maxYear))); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === String(maxYear) ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {maxYear} (ล่าสุด)</button>
+                                        {/* เมนูปีล่าสุด */}
+                                        <button onClick={() => setDashboardYear('latest')} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'latest' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {dynamicYears.latest} (ล่าสุด)</button>
                                         
-                                        {/* 2. ปีรองล่าสุด (ถ้ามีข้อมูล) */}
-                                        {yearsInData.includes(secondYear) && (
-                                            <button onClick={() => { startTransition(() => setDashboardYear(String(secondYear))); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === String(secondYear) ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {secondYear}</button>
+                                        {/* เมนูปีรองล่าสุด (ถ้ามี) */}
+                                        {dynamicYears.previous && (
+                                            <button onClick={() => setDashboardYear('previous')} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'previous' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {dynamicYears.previous}</button>
                                         )}
 
-                                        {/* 3. ประวัติย้อนหลัง (ระบุช่วงปีอัตโนมัติ) */}
-                                        {yearsInData.some(y => y < secondYear) && (
-                                            <button onClick={() => { startTransition(() => setDashboardYear('history')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'history' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>
-                                                - ปี 2018 - {secondYear - 1}
-                                            </button>
+                                        {/* เมนูประวัติ (ถ้ามีปีที่ 3 เป็นต้นไป) */}
+                                        {dynamicYears.history.length > 0 && (
+                                            <button onClick={() => setDashboardYear('history')} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'history' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {dynamicYears.history[dynamicYears.history.length-1]} - {dynamicYears.history[0]}</button>
                                         )}
                                     </div>
                                 )}
