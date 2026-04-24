@@ -1619,7 +1619,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   return false; 
               }
 
-              const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
+              // 🔥 ตรวจสอบชื่อให้ตรงกับ SHEET_SUBCON และ SHEET_NS ใน Code.gs (v2.8.0)
+            const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract Database' : 'Region Database';
 
               if (tasksSubTab === 'subcontract') {
                   setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
@@ -1884,17 +1885,23 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (!y && dateObjYear) { y = dateObjYear; if (y > 2500) y -= 543; }
               if (!y) { y = new Date().getFullYear(); }
 
-              if (dashboardView === 'subcontract') {
-                  const cYear = new Date().getFullYear();
-                  const pYear = cYear - 1;
+              // 1. หาปีทั้งหมดที่มีในข้อมูลก่อน
+              const yearsInData = [...new Set(tasks.map(t => {
+                  const yVal = t[d_equipYearCol] ? String(t[d_equipYearCol]).trim() : '';
+                  const match = yVal.match(/\d{4}/);
+                  return match ? parseInt(match[0]) : null;
+              }))].filter(y => y && y >= 2018).sort((a, b) => b - a);
 
+              const maxYear = yearsInData.length > 0 ? yearsInData[0] : new Date().getFullYear();
+
+              if (dashboardView === 'subcontract') {
                   if (dashboardYear === 'overview') {
                       matchYearView = true;
                   } else if (dashboardYear === 'history') {
-                      // ถ้าเลือก History ให้แสดงปีที่เก่ากว่าปีที่แล้วลงไป
-                      if (y >= pYear) matchYearView = false;
+                      // ประวัติย้อนหลัง คือปีที่น้อยกว่า (ปีล่าสุด - 1)
+                      if (y >= maxYear - 1) matchYearView = false;
                   } else {
-                      // ถ้าเลือกปีระบุเจาะจง (เช่น 2026, 2027)
+                      // ปีล่าสุด หรือ ปีรองล่าสุด
                       if (y !== parseInt(dashboardYear)) matchYearView = false;
                   }
               }
@@ -2233,32 +2240,27 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     <i className="fa-solid fa-chart-simple w-4"></i> Subcontract
                                 </button>
                                 {dashboardView === 'subcontract' && (() => {
-                                    const cYear = new Date().getFullYear();
-                                    const pYear = cYear - 1;
-                                    
-                                    // ตรวจสอบว่าในข้อมูลมีปีอะไรบ้าง
-                                    const yearsInData = [...new Set(tasks.map(t => {
-                                        const yVal = t[d_equipYearCol] ? String(t[d_equipYearCol]).trim() : '';
-                                        return yVal.match(/\d{4}/) ? parseInt(yVal.match(/\d{4}/)[0]) : null;
-                                    }))].filter(Boolean);
+                                    // ใช้ maxYear จากที่คำนวณไว้ด้านบน
+                                    const secondYear = maxYear - 1;
+                                    const hasHistory = yearsInData.some(y => y < secondYear);
 
                                     return (
                                         <div className="pl-6 mt-1 space-y-1 border-l-2 border-blue-100 ml-2">
                                             <button onClick={() => { startTransition(() => setDashboardYear('overview')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'overview' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ภาพรวมทั้งหมด</button>
                                             
-                                            {/* ปีปัจจุบัน */}
-                                            {yearsInData.includes(cYear) && (
-                                                <button onClick={() => { startTransition(() => setDashboardYear(String(cYear))); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === String(cYear) ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {cYear} (ปัจจุบัน)</button>
-                                            )}
+                                            {/* 1. ปีล่าสุด */}
+                                            <button onClick={() => { startTransition(() => setDashboardYear(String(maxYear))); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === String(maxYear) ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {maxYear} (ล่าสุด)</button>
                                             
-                                            {/* ปีที่แล้ว */}
-                                            {yearsInData.includes(pYear) && (
-                                                <button onClick={() => { startTransition(() => setDashboardYear(String(pYear))); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === String(pYear) ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {pYear}</button>
+                                            {/* 2. ปีรองล่าสุด (ถ้ามีข้อมูล) */}
+                                            {yearsInData.includes(secondYear) && (
+                                                <button onClick={() => { startTransition(() => setDashboardYear(String(secondYear))); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === String(secondYear) ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {secondYear}</button>
                                             )}
 
-                                            {/* ประวัติย้อนหลัง (ทุกปีที่เก่ากว่าปีที่แล้ว) */}
-                                            {yearsInData.some(y => y < pYear) && (
-                                                <button onClick={() => { startTransition(() => setDashboardYear('history')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'history' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ประวัติย้อนหลัง</button>
+                                            {/* 3. ประวัติย้อนหลัง (ระบุช่วงปีอัตโนมัติ) */}
+                                            {hasHistory && (
+                                                <button onClick={() => { startTransition(() => setDashboardYear('history')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'history' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>
+                                                    - ปี 2018 - {secondYear - 1}
+                                                </button>
                                             )}
                                         </div>
                                     );
