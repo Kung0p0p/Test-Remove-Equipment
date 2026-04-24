@@ -1193,6 +1193,32 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const [calendarView, setCalendarView] = useState('month');
           const [dashboardView, setDashboardView] = useState('subcontract'); 
           const [dashboardYear, setDashboardYear] = useState('overview'); 
+
+          // 🔥 Logic คำนวณปีอัตโนมัติจากข้อมูลจริง (v2.7.0)
+          const dynamicYearMenus = useMemo(() => {
+              const allYears = new Set();
+              // ระบุคอลัมน์ที่อาจมีวันที่ เพื่อใช้หาปีทั้งหมดในระบบ
+              const dateCols = ['วันที่ยกเลิกใช้งาน', 'วันที่เข้าเก็บ', 'วันที่แจ้ง Subcontract', 'duejob', 'getbackdate', 'วันที่ลงข้อมูล'];
+              
+              tasks.forEach(t => {
+                  dateCols.forEach(col => {
+                      const d = parseDateHelper(t[col]);
+                      if (d) {
+                          let y = d.getFullYear();
+                          if (y > 2500) y -= 543; // รองรับ พ.ศ.
+                          if (y > 2010 && y < 2100) allYears.add(y);
+                      }
+                  });
+              });
+
+              const sortedYears = Array.from(allYears).sort((a, b) => b - a); // เรียงจากปีใหม่ไปเก่า
+              
+              return {
+                  latest: sortedYears[0] || null,           // ปีล่าสุด (เช่น 2027)
+                  prev: sortedYears[1] || null,             // ปีรองล่าสุด (เช่น 2026)
+                  history: sortedYears.slice(2) || []       // ปีที่เหลือทั้งหมด (2025, 2024...)
+              };
+          }, [tasks]); 
           const [tasksSubTab, setTasksSubTab] = useState('subcontract'); 
 
           const [visibleRows, setVisibleRows] = useState(100); // ใช้ตัวนี้จัดการ Infinite Scroll ทั้งสองหน้า
@@ -1538,7 +1564,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
 
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
-                  const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
+                  // 🔥 เปลี่ยนชื่อ Sheet ให้ตรงกับฐานข้อมูลใหม่ (v2.7.0)
+const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract Database' : 'Region Database';
 
                   if (tasksSubTab === 'subcontract') {
                       setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
@@ -1618,7 +1645,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   return false; 
               }
 
-              const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
+              // 🔥 เปลี่ยนชื่อ Sheet ให้ตรงกับฐานข้อมูลใหม่ (v2.7.0)
+const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract Database' : 'Region Database';
 
               if (tasksSubTab === 'subcontract') {
                   setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
@@ -1884,8 +1912,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (!y) { y = new Date().getFullYear(); }
 
               if (dashboardView === 'subcontract') {
-                  if (dashboardYear === '2026') { if (y !== 2026) matchYearView = false; } 
-                  else if (dashboardYear === 'history') { if (y >= 2026) matchYearView = false; }
+                  if (dashboardYear === 'history') {
+                      // กรองเอาเฉพาะปีที่อยู่ในกลุ่ม History
+                      if (!dynamicYearMenus.history.includes(y)) matchYearView = false;
+                  } else if (dashboardYear !== 'overview') {
+                      // กรองตามปีที่เลือก (Latest หรือ Prev)
+                      if (y !== parseInt(dashboardYear)) matchYearView = false;
+                  }
               }
 
               if (filterMonth !== 'All' && m !== parseInt(filterMonth)) matchMonth = false;
@@ -2224,8 +2257,23 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                 {dashboardView === 'subcontract' && (
                                     <div className="pl-6 mt-1 space-y-1 border-l-2 border-blue-100 ml-2">
                                         <button onClick={() => { startTransition(() => setDashboardYear('overview')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'overview' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ภาพรวมทั้งหมด</button>
-                                        <button onClick={() => { startTransition(() => setDashboardYear('2026')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === '2026' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี 2026 (ปัจจุบัน)</button>
-                                        <button onClick={() => { startTransition(() => setDashboardYear('history')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'history' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี 2018 - 2025</button>
+                                        
+                                        {/* 1. ปีล่าสุด */}
+                                        {dynamicYearMenus.latest && (
+                                            <button onClick={() => { startTransition(() => setDashboardYear(String(dynamicYearMenus.latest))); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === String(dynamicYearMenus.latest) ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {dynamicYearMenus.latest} (ล่าสุด)</button>
+                                        )}
+
+                                        {/* 2. ปีรองล่าสุด */}
+                                        {dynamicYearMenus.prev && (
+                                            <button onClick={() => { startTransition(() => setDashboardYear(String(dynamicYearMenus.prev))); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === String(dynamicYearMenus.prev) ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {dynamicYearMenus.prev}</button>
+                                        )}
+
+                                        {/* 3. ประวัติย้อนหลัง (รวมปีที่เหลือทั้งหมด) */}
+                                        {dynamicYearMenus.history && dynamicYearMenus.history.length > 0 && (
+                                            <button onClick={() => { startTransition(() => setDashboardYear('history')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'history' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>
+                                                - ปี {dynamicYearMenus.history[dynamicYearMenus.history.length - 1]} - {dynamicYearMenus.history[0]}
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
