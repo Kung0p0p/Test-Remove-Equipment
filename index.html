@@ -1885,19 +1885,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (!y) { y = new Date().getFullYear(); }
 
               if (dashboardView === 'subcontract') {
-                  const cYear = new Date().getFullYear();
-                  const pYear = cYear - 1;
-
-                  if (dashboardYear === 'overview') {
-                      matchYearView = true;
-                  } else if (dashboardYear === 'history') {
-                      // ถ้าเลือก History ให้แสดงปีที่เก่ากว่าปีที่แล้วลงไป
-                      if (y >= pYear) matchYearView = false;
-                  } else {
-                      // ถ้าเลือกปีระบุเจาะจง (เช่น 2026, 2027)
-                      if (y !== parseInt(dashboardYear)) matchYearView = false;
-                  }
-              }
+                  if (dashboardYear === '2026') { if (y !== 2026) matchYearView = false; } 
+                  else if (dashboardYear === 'history') { if (y >= 2026) matchYearView = false; }
               }
 
               if (filterMonth !== 'All' && m !== parseInt(filterMonth)) matchMonth = false;
