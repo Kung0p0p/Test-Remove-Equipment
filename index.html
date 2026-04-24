@@ -132,7 +132,7 @@
             }
         }
 
-        // ==========================================
+         // ==========================================
         // 1. Global Setup & Firebase Config
         // ==========================================
         const firebaseConfig = {
@@ -145,7 +145,7 @@
             measurementId: "G-VB3VDMQ9D1"
         };
         
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbye-_6F3rztyJpCh4PvmKVNS3Y0cjDGeZ4y4KMDzUQHn0Sx1XyTTrVGxXdgcngG3-4U/exec"; 
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbye-_6F3rztyJpCh4PvmKVNS3Y0cjDGeZ4y4KMDzUQHn0Sx1XyTTrVGxXdgcngG3-4U/exec";  
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -1538,7 +1538,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
 
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
-                  const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
+                  // 🔥 อัปเดตชื่อ Sheet ให้ตรงกับฐานข้อมูลใหม่ (v2.7.0)
+              const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract Database' : 'Region Database';
 
                   if (tasksSubTab === 'subcontract') {
                       setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
@@ -1982,31 +1983,20 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
           let barChartData, barChartOptions, barChartTitle;
           if (dashboardView === 'subcontract') {
-              barChartTitle = "สรุปจัดเก็บรายเดือน (Performance View)";
+              barChartTitle = "สรุปจัดเก็บรายเดือน";
               const monthlyData = {}; for (let i = 1; i <= 12; i++) monthlyData[i] = { collected: 0, ongoing: 0, percent: 0 };
-              
-              const now = new Date();
-              const currentMonth = now.getMonth() + 1;
-              const d_cancelDateCol = d_getCol(['ยกเลิกใช้งาน', 'duejob', 'canceldate']); // คอลัมน์วันที่ยกเลิก
-
               chartFilteredTasks.forEach(t => {
-                  const status = getCleanStatus(t[d_statusCol]).toLowerCase();
-                  const isDone = status.match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/);
-
-                  if (isDone) {
-                      // ✅ ถ้างานเสร็จ: นับเข้าเดือนที่ "เข้าเก็บอุปกรณ์"
-                      const d = parseDateHelper(t[d_collectionDateCol]);
-                      const m = d ? d.getMonth() + 1 : currentMonth;
-                      if (m >= 1 && m <= 12) monthlyData[m].collected++;
-                  } else {
-                      // ⏳ ถ้างานยังไม่เสร็จ (On Going): นับเข้าเดือนที่ "ยกเลิกใช้งาน"
-                      const d = parseDateHelper(t[d_cancelDateCol]);
-                      const m = d ? d.getMonth() + 1 : currentMonth; // ถ้าไม่มีวันที่ ให้ลงเดือนปัจจุบัน
-                      if (m >= 1 && m <= 12) monthlyData[m].ongoing++;
+                  const d = parseDateHelper(getDashboardTaskEffectiveDateStr(t));
+                  if (d) {
+                      let m = d.getMonth() + 1;
+                      if (m >= 1 && m <= 12) {
+                          const isCollected = getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/);
+                          if (isCollected) monthlyData[m].collected++; else monthlyData[m].ongoing++;
+                      }
                   }
               });
               
-              // 🟢 คำนวณ % Success Rate ของแต่ละเดือน (เทียบงานที่ปิดได้ vs งานที่ค้างในเดือนนั้น)
+              // 🟢 คำนวณ % Complete ของแต่ละเดือน
               for (let i = 1; i <= 12; i++) {
                   const totalMonth = monthlyData[i].collected + monthlyData[i].ongoing;
                   monthlyData[i].percent = totalMonth > 0 ? Math.round((monthlyData[i].collected / totalMonth) * 100) : 0;
@@ -2015,23 +2005,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               // 🟢 เพิ่ม % ลงใน Labels แกน X
               const monthLabelsWithPercent = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].map((m, i) => [m, `${monthlyData[i+1].percent}%`]);
 
-              barChartData = { 
-                  labels: monthLabelsWithPercent, 
-                  datasets: [ 
-                      { 
-                          label: 'Collected (CIDs)', 
-                          data: Object.values(monthlyData).map(d => d.collected), 
-                          backgroundColor: 'rgba(34, 197, 94, 0.9)', // เขียวสด
-                          borderRadius: 4 
-                      }, 
-                      { 
-                          label: 'Ongoing (CIDs)', 
-                          data: Object.values(monthlyData).map(d => d.ongoing), 
-                          backgroundColor: 'rgba(234, 179, 8, 0.9)', // เหลืองทอง
-                          borderRadius: 4 
-                      } 
-                  ] 
-              };
+              barChartData = { labels: monthLabelsWithPercent, datasets: [ { label: 'Collected (CIDs)', data: Object.values(monthlyData).map(d => d.collected), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }, { label: 'Ongoing (CIDs)', data: Object.values(monthlyData).map(d => d.ongoing), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } ] };
               barChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true } } };
           } else {
               barChartTitle = "สรุปจัดเก็บตาม Job Year";
@@ -2248,13 +2222,37 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                 <button onClick={() => { startTransition(() => setDashboardView('subcontract')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${dashboardView === 'subcontract' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-medium'}`}>
                                     <i className="fa-solid fa-chart-simple w-4"></i> Subcontract
                                 </button>
-                                {dashboardView === 'subcontract' && (
-                                    <div className="pl-6 mt-1 space-y-1 border-l-2 border-blue-100 ml-2">
-                                        <button onClick={() => { startTransition(() => setDashboardYear('overview')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'overview' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ภาพรวมทั้งหมด</button>
-                                        <button onClick={() => { startTransition(() => setDashboardYear('2026')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === '2026' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี 2026 (ปัจจุบัน)</button>
-                                        <button onClick={() => { startTransition(() => setDashboardYear('history')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'history' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี 2018 - 2025</button>
-                                    </div>
-                                )}
+                                {dashboardView === 'subcontract' && (() => {
+                                    const cYear = new Date().getFullYear();
+                                    const pYear = cYear - 1;
+                                    
+                                    // ตรวจสอบว่าในข้อมูลมีปีอะไรบ้าง
+                                    const yearsInData = [...new Set(tasks.map(t => {
+                                        const yVal = t[d_equipYearCol] ? String(t[d_equipYearCol]).trim() : '';
+                                        return yVal.match(/\d{4}/) ? parseInt(yVal.match(/\d{4}/)[0]) : null;
+                                    }))].filter(Boolean);
+
+                                    return (
+                                        <div className="pl-6 mt-1 space-y-1 border-l-2 border-blue-100 ml-2">
+                                            <button onClick={() => { startTransition(() => setDashboardYear('overview')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'overview' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ภาพรวมทั้งหมด</button>
+                                            
+                                            {/* ปีปัจจุบัน */}
+                                            {yearsInData.includes(cYear) && (
+                                                <button onClick={() => { startTransition(() => setDashboardYear(String(cYear))); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === String(cYear) ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {cYear} (ปัจจุบัน)</button>
+                                            )}
+                                            
+                                            {/* ปีที่แล้ว */}
+                                            {yearsInData.includes(pYear) && (
+                                                <button onClick={() => { startTransition(() => setDashboardYear(String(pYear))); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === String(pYear) ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ปี {pYear}</button>
+                                            )}
+
+                                            {/* ประวัติย้อนหลัง (ทุกปีที่เก่ากว่าปีที่แล้ว) */}
+                                            {yearsInData.some(y => y < pYear) && (
+                                                <button onClick={() => { startTransition(() => setDashboardYear('history')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${dashboardYear === 'history' ? 'text-blue-700 font-bold bg-blue-50/50' : 'text-slate-500 hover:text-slate-800'}`}>- ประวัติย้อนหลัง</button>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                             <div>
                                 <button onClick={() => { startTransition(() => setDashboardView('ns')); if(window.innerWidth <= 1024) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${dashboardView === 'ns' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-medium'}`}>
