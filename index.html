@@ -227,6 +227,16 @@
         const getCleanStatus = (raw) => (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : 'ไม่ระบุสถานะ';
         const getCleanTeam = (raw) => (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : 'ไม่ระบุทีม';
 
+        // ฟังก์ชันย่อชื่อ: "Firstname Lastname" -> "Firstname.L"
+        const shortenName = (name) => {
+            if (!name || typeof name !== 'string') return name;
+            const parts = name.trim().split(/\s+/);
+            if (parts.length > 1) {
+                return `${parts[0]}.${parts[1].charAt(0).toUpperCase()}`;
+            }
+            return name;
+        };
+
         function isValidTaskHelper(taskObj) {
             if (!taskObj) return false;
             
@@ -2056,16 +2066,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const mainTeams = allActiveTeams.filter(t => t !== 'ไม่ระบุทีม');
               const unassignedLabel = 'ไม่ระบุทีม';
 
-              // 1. กราฟทีมหลัก: แสดง 2 แท่ง (Completed vs On Process)
+              // 1. กราฟทีมหลัก: ย่อชื่อ และ เปลี่ยนสี On Process เป็นสีส้ม
               teamChartData = { 
-                  labels: mainTeams, 
+                  labels: mainTeams.map(shortenName), // 🔥 ย่อชื่อทีม
                   datasets: [
                       { label: 'Completed', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 },
-                      { label: 'On Process', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(59, 130, 246, 0.8)', borderRadius: 4 }
+                      { label: 'On Process', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } // 🔥 เปลี่ยนเป็นสีส้ม
                   ] 
               };
 
-              // 2. กราฟไม่ระบุทีม: แยกตาม Status จริง (ของใครของมัน)
+              // 2. กราฟไม่ระบุทีม: แยกตาม Status
               const unassignedTasks = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === unassignedLabel);
               const unassignedStatuses = [...new Set(unassignedTasks.map(t => getCleanStatus(t[d_statusCol])))].sort();
 
@@ -2080,22 +2090,22 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   }))
               };
 
-              // 3. Options สำหรับทีมหลัก (ตัวเลขอยู่กึ่งกลาง)
+              // 3. Options สำหรับทีมหลัก
               teamChartOptions = { 
                   responsive: true, maintainAspectRatio: false, 
                   plugins: { 
                       legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, family: 'Prompt' } } }, 
-                      datalabels: { ...dlStyle, anchor: 'center', align: 'center', offset: 0 } // 🔥 ตัวเลขอยู่กึ่งกลาง
+                      datalabels: { ...dlStyle, anchor: 'center', align: 'center', offset: 0 }
                   }, 
                   scales: { y: { beginAtZero: true, grid: { display: false } } } 
               };
 
-              // 4. Options สำหรับไม่ระบุทีม (Legend อยู่ด้านล่างเหมือน Subcontract)
+              // 4. Options สำหรับไม่ระบุทีม: ปิด Legend และ DataLabels เพื่อความสะอาด
               unassignedChartOptions = {
                   responsive: true, maintainAspectRatio: false,
                   plugins: {
-                      legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9, family: 'Prompt' } } },
-                      datalabels: { ...dlStyle, anchor: 'center', align: 'center' }
+                      legend: { display: false }, // 🔥 ปิดชื่อสถานะที่รกๆ ออก
+                      datalabels: { display: false } // 🔥 ปิดตัวเลขบนกราฟ
                   },
                   scales: { y: { beginAtZero: true, grid: { display: false } } }
               };
