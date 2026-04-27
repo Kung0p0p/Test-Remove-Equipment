@@ -2001,8 +2001,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const overallPercentComplete = totalTasksCount > 0 ? Math.round((totalCompletedCount / totalTasksCount) * 100) : 0;
 
           let barChartData, barChartOptions, barChartTitle;
+          let totalBarCollected = 0; // 🔥 เก็บผลรวม Collected
+          let totalBarOngoing = 0;   // 🔥 เก็บผลรวม Ongoing
+
           if (dashboardView === 'subcontract') {
-              barChartTitle = "สรุปจัดเก็บรายเดือน";
+              barChartTitle = "Monthly Collection Summary";
               const monthlyData = {}; for (let i = 1; i <= 12; i++) monthlyData[i] = { collected: 0, ongoing: 0, percent: 0 };
               chartFilteredTasks.forEach(t => {
                   const d = parseDateHelper(getDashboardTaskEffectiveDateStr(t));
@@ -2010,7 +2013,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       let m = d.getMonth() + 1;
                       if (m >= 1 && m <= 12) {
                           const isCollected = getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/);
-                          if (isCollected) monthlyData[m].collected++; else monthlyData[m].ongoing++;
+                          if (isCollected) { monthlyData[m].collected++; totalBarCollected++; } 
+                          else { monthlyData[m].ongoing++; totalBarOngoing++; }
                       }
                   }
               });
@@ -2027,7 +2031,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               barChartData = { labels: monthLabelsWithPercent, datasets: [ { label: 'Collected (CIDs)', data: Object.values(monthlyData).map(d => d.collected), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }, { label: 'Ongoing (CIDs)', data: Object.values(monthlyData).map(d => d.ongoing), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } ] };
               barChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true } } };
           } else {
-              barChartTitle = "สรุปจัดเก็บตาม Job Year";
+              barChartTitle = "Collection by Job Year";
               const yearlyData = {};
               chartFilteredTasks.forEach(t => {
                   let yStr = d_equipYearCol && t[d_equipYearCol] ? String(t[d_equipYearCol]).trim() : '';
@@ -2036,7 +2040,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   if (!yearlyData[yStr]) yearlyData[yStr] = { collected: 0, ongoing: 0 };
                   
                   const isCollected = getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/);
-                  if (isCollected) yearlyData[yStr].collected++; else yearlyData[yStr].ongoing++;
+                  if (isCollected) { yearlyData[yStr].collected++; totalBarCollected++; } 
+                  else { yearlyData[yStr].ongoing++; totalBarOngoing++; }
               });
               
               const sortedYears = Object.keys(yearlyData).sort((a, b) => {
@@ -2066,7 +2071,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           // CONDITIONAL CHART LOGIC v2.3.0 (Enhanced NS View)
           // ==========================================
           let teamChartData, unassignedChartData, teamChartOptions, unassignedChartOptions;
-          let totalPendingCount = 0; // 🔥 เพิ่มตัวแปรเก็บผลรวมงานค้าง
+          let totalPendingCount = 0; 
+          let totalTeamCompleted = 0; // 🔥 ผลรวม Completed ของทีม
+          let totalTeamOnProcess = 0; // 🔥 ผลรวม On Process ของทีม
+          let totalSubconTeamTasks = 0; // 🔥 ผลรวมงานของ Subcontract
           const allActiveTeams = [...new Set(chartFilteredTasks.map(t => getCleanTeam(t[d_teamCol])))].sort();
 
           if (dashboardView === 'ns') {
@@ -2076,6 +2084,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               
               const mainTeams = allActiveTeams.filter(t => t !== 'ไม่ระบุทีม');
               const unassignedLabel = 'ไม่ระบุทีม';
+
+              // คำนวณผลรวมของทีมหลัก
+              mainTeams.forEach(team => {
+                  const teamTasks = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team);
+                  totalTeamCompleted += teamTasks.filter(t => isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
+                  totalTeamOnProcess += teamTasks.filter(t => !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
+              });
 
               // 1. กราฟทีมหลัก: ย่อชื่อ และ เปลี่ยนสี On Process เป็นสีส้ม
               teamChartData = { 
@@ -2088,7 +2103,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
               // 2. กราฟไม่ระบุทีม: แยกตาม Status
               const unassignedTasks = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === unassignedLabel);
-              totalPendingCount = unassignedTasks.length; // 🔥 เก็บค่าผลรวม
+              totalPendingCount = unassignedTasks.length; 
               const unassignedStatuses = [...new Set(unassignedTasks.map(t => getCleanStatus(t[d_statusCol])))].sort();
 
               unassignedChartData = {
@@ -2117,25 +2132,23 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   responsive: true, maintainAspectRatio: false,
                   layout: { padding: { top: 30 } }, 
                   plugins: {
-                      legend: { display: false }, // 🔥 ปิด Legend ตามสั่ง
+                      legend: { display: false }, 
                       tooltip: {
                           backgroundColor: 'rgba(15, 23, 42, 0.9)',
                           padding: 12,
                           cornerRadius: 8,
                           callbacks: {
-                              // 🔥 Custom Tooltip ให้โชว์ชื่อสถานะและจำนวนเมื่อเอาเมาส์ชี้
                               label: function(context) {
                                   return ` ${context.dataset.label}: ${context.raw} CIDs`;
                               }
                           }
                       },
                       datalabels: { 
-                          ...dlStyle, 
+                          ...dlStyle, // 🔥 ใช้สีขาวขอบดำตามต้นฉบับ
                           display: true, 
                           anchor: 'end', 
                           align: 'top',
-                          offset: 4,
-                          color: '#1e293b' // 🔥 เปลี่ยนสีตัวเลขกลับเป็นสีดำ (เทาเข้ม)
+                          offset: 4
                       }
                   },
                   scales: { 
@@ -2146,6 +2159,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
           } else {
               // --- LOGIC เดิมสำหรับ SUBCONTRACT ---
+              totalSubconTeamTasks = chartFilteredTasks.filter(t => allActiveTeams.includes(getCleanTeam(t[d_teamCol]))).length;
               const activeStatusesForTeam = [...new Set(chartFilteredTasks.map(t => getCleanStatus(t[d_statusCol])))];
               teamChartData = { 
                   labels: allActiveTeams, 
@@ -2166,12 +2180,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           }
 
           // กราฟเกินกำหนด (Overdue)
+          let totalOverdue = 0; // 🔥 ผลรวมงานเกินกำหนด
           const overdueByTeamCounts = {}; allActiveTeams.forEach(t => overdueByTeamCounts[t] = 0);
           chartFilteredTasks.forEach(t => {
               const val = d_overDueCol ? getCleanStatus(t[d_overDueCol]) : '';
               if (val && val !== 'ไม่ระบุสถานะ') {
                   const m = val.match(/-?\d+/); const num = m ? parseInt(m[0], 10) : NaN;
-                  if (val.includes('เกิน') || val.includes('over') || num < 0) overdueByTeamCounts[getCleanTeam(t[d_teamCol])]++;
+                  if (val.includes('เกิน') || val.includes('over') || num < 0) {
+                      overdueByTeamCounts[getCleanTeam(t[d_teamCol])]++;
+                      totalOverdue++;
+                  }
               }
           });
           const overdueChartData = { labels: allActiveTeams, datasets: [{ label: 'เกินกำหนดนัดหมาย (CIDs)', data: allActiveTeams.map(t => overdueByTeamCounts[t]), backgroundColor: 'rgba(239, 68, 68, 0.8)', borderColor: 'rgba(220, 38, 38, 1)', borderWidth: 1 }] };
@@ -2192,7 +2210,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
               return (tasks || []).filter(t => {
                   const sameDate = isSameDate(calDateCol ? t[calDateCol] : null, dateObj);
-                  // 🔥 กรองตามทีมที่เลือกในปฏิทิน
                   const teamMatch = calendarFilterTeams.length === 0 || calendarFilterTeams.includes(getCleanTeam(t[calTeamCol]));
                   return sameDate && teamMatch;
               }).sort((a, b) => {
@@ -2304,7 +2321,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         onClick={() => { 
                             if (!isAdmin) {
                                 const pass = prompt("กรุณาใส่รหัสผ่านเพื่อเข้าถึงฐานข้อมูล:");
-                                if (pass === "Kung0p@p") { // 🔥 ตั้งรหัสผ่านตรงนี้
+                                if (pass === "Kung0p@p") { 
                                     setIsAdmin(true);
                                     startTransition(() => { setActiveTab('master_data'); });
                                 } else {
@@ -2385,7 +2402,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <div className="relative flex-1 w-full flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 min-h-[250px] md:min-h-[300px]">
                                   {chartFilteredTasks?.length > 0 ? (
                                       <>
-                                          {/* กราฟโดนัท (อยู่ด้านซ้าย) 🔥 ปรับขนาดให้ใหญ่ขึ้น */}
+                                          {/* กราฟโดนัท (อยู่ด้านซ้าย) */}
                                           <div className="relative flex items-center justify-center w-56 h-56 md:w-64 md:h-64 shrink-0">
                                               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
                                                   <span className="text-5xl md:text-6xl font-black text-slate-800 leading-none">{chartFilteredTasks?.length || 0}</span>
@@ -2408,8 +2425,25 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                   ) : <p className="text-slate-400 flex h-full items-center justify-center">ไม่มีข้อมูล</p>}
                               </div>
                           </div>
+                          
+                          {/* กราฟแท่ง (Monthly / Yearly) */}
                           <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
-                              <h3 className="text-base md:text-lg font-bold mb-4 flex items-center gap-2"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
+                              <div className="flex justify-between items-start mb-4">
+                                  <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
+                                      <i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}
+                                  </h3>
+                                  {/* 🔥 กล่องผลรวมแบบแยก 2 ค่า */}
+                                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2">
+                                      <div className="bg-emerald-50 px-3 py-1.5 flex flex-col items-center border-r border-slate-200">
+                                          <span className="text-lg font-black text-emerald-700 leading-none">{totalBarCollected}</span>
+                                          <span className="text-[10px] font-bold text-emerald-600 uppercase">Collected</span>
+                                      </div>
+                                      <div className="bg-amber-50 px-3 py-1.5 flex flex-col items-center">
+                                          <span className="text-lg font-black text-amber-700 leading-none">{totalBarOngoing}</span>
+                                          <span className="text-[10px] font-bold text-amber-600 uppercase">Ongoing</span>
+                                      </div>
+                                  </div>
+                              </div>
                               <div className="relative h-60 md:h-72 w-full"><ChartComponent type="bar" data={barChartData} options={barChartOptions} /></div>
                           </div>
                           
@@ -2418,10 +2452,21 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                   <>
                                       {/* กราฟทีมหลัก (3 ส่วน) */}
                                       <div className="lg:col-span-3 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
-                                          <div className="flex justify-between items-center mb-4">
+                                          <div className="flex justify-between items-start mb-4">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
-                                                  <i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานแยกตามทีม (Completed vs On Process)
+                                                  <i className="fa-solid fa-users text-blue-600"></i> Tasks by Team (Completed vs On Process)
                                               </h3>
+                                              {/* 🔥 กล่องผลรวมแบบแยก 2 ค่า */}
+                                              <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2">
+                                                  <div className="bg-emerald-50 px-3 py-1.5 flex flex-col items-center border-r border-slate-200">
+                                                      <span className="text-lg font-black text-emerald-700 leading-none">{totalTeamCompleted}</span>
+                                                      <span className="text-[10px] font-bold text-emerald-600 uppercase">Completed</span>
+                                                  </div>
+                                                  <div className="bg-blue-50 px-3 py-1.5 flex flex-col items-center">
+                                                      <span className="text-lg font-black text-blue-700 leading-none">{totalTeamOnProcess}</span>
+                                                      <span className="text-[10px] font-bold text-blue-600 uppercase">On Process</span>
+                                                  </div>
+                                              </div>
                                           </div>
                                           <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
                                               <div className="min-w-[500px] h-full">
@@ -2450,10 +2495,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               ) : (
                                   /* มุมมอง Subcontract ปกติ */
                                   <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 h-full">
-                                      <div className="flex justify-between items-center mb-4">
+                                      <div className="flex justify-between items-start mb-4">
                                           <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
-                                              <i className="fa-solid fa-users text-blue-600"></i> ปริมาณงานและสถานะแยกตามทีม
+                                              <i className="fa-solid fa-users text-blue-600"></i> Tasks & Status by Team
                                           </h3>
+                                          {/* 🔥 กล่องแสดงผลรวม (Total Subcontract Tasks) */}
+                                          <div className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2">
+                                              <span className="text-lg font-black text-blue-700 leading-none">{totalSubconTeamTasks}</span>
+                                              <span className="text-[10px] font-bold text-blue-600 uppercase">Total CIDs</span>
+                                          </div>
                                       </div>
                                       <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
                                           <div className="min-w-[500px] h-full">
@@ -2467,7 +2517,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           {/* กราฟเกินกำหนดนัดหมาย (แสดงเฉพาะหน้า Subcontract) */}
                           {dashboardView === 'subcontract' && (
                               <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
-                                  <div className="flex justify-between items-center mb-4"><h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> เกินกำหนดนัดหมาย</h3></div>
+                                  <div className="flex justify-between items-start mb-4">
+                                      <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
+                                          <i className="fa-solid fa-triangle-exclamation text-red-600"></i> Overdue Appointments
+                                      </h3>
+                                      {/* 🔥 กล่องแสดงผลรวม (Total Overdue) */}
+                                      <div className="bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2">
+                                          <span className="text-lg font-black text-red-700 leading-none">{totalOverdue}</span>
+                                          <span className="text-[10px] font-bold text-red-600 uppercase">CIDs</span>
+                                      </div>
+                                  </div>
                                   <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2"><div className="min-w-[300px] h-full">{chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={overdueChartData} options={overdueChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}</div></div>
                               </div>
                           )}
@@ -2475,8 +2534,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     </div>
                   </div>
                 )}
-
-                {/* --- 2. หน้าตารางงาน --- */}
 
                 {/* --- 2. หน้าตารางงาน --- */}
                 {activeTab === 'tasks' && (
