@@ -1734,21 +1734,49 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           // 🔥 DRILL-DOWN LOGIC (คลิกกราฟแล้วไปหน้าตาราง)
           // ==========================================
           const handleChartDrillDown = (filters) => {
+              // 1. ล้างตัวกรองเก่าทั้งหมด
               setFilterMonth('All'); setFilterTeams([]); setSearchTerm(''); 
               setTableFilterTeams([]); setTableFilterDate([]); setTableFilterYear([]); 
               setTableFilterStatus([]); setTableFilterOverdue([]); setTableFilterRegionRespon([]);
               setVisibleRows(100); setShowDuplicatesOnly(false);
 
+              // 2. รับค่าจากกราฟที่คลิก
               if (filters.status) setTableFilterStatus(filters.status);
-              if (filters.month) setTableFilterDate(filters.month);
-              if (filters.team) setTableFilterTeams(filters.team);
-              
-              if (filters.year) {
-                  setTableFilterYear(filters.year);
-              } else if (dashboardView === 'subcontract' && dashboardYear === '2026') {
-                  setTableFilterYear(['2026']);
+              if (filters.overdue) setTableFilterOverdue(filters.overdue); // 🔥 รองรับการกดกล่อง Overdue
+
+              // 3. สืบทอดค่า "เดือน" จาก Dashboard (ถ้าไม่ได้คลิกแท่งเดือนโดยตรง)
+              if (filters.month) {
+                  setTableFilterDate(filters.month);
+              } else if (filterMonth !== 'All') {
+                  setTableFilterDate([monthNames[parseInt(filterMonth) - 1]]);
               }
 
+              // 4. สืบทอดค่า "ทีม" จาก Dashboard
+              if (filters.team) {
+                  setTableFilterTeams(filters.team);
+              } else if (filterTeams.length > 0) {
+                  setTableFilterTeams(filterTeams);
+              }
+              
+              // 5. สืบทอดค่า "ปี" จาก Dashboard (สำคัญมาก ทำให้ตัวเลขตรงกัน)
+              if (filters.year) {
+                  setTableFilterYear(filters.year);
+              } else if (dashboardView === 'subcontract') {
+                  if (dashboardYear === '2026') {
+                      setTableFilterYear(['2026']);
+                  } else if (dashboardYear === 'history') {
+                      // 🔥 ถ้าดู History ให้ดึงปีทั้งหมดที่น้อยกว่า 2026 ไปกรองในตาราง
+                      const historyYears = tableUniqueYears.filter(y => {
+                          if (!y || String(y).trim() === '') return true; // นับพวกไม่ระบุปีด้วย
+                          const match = String(y).match(/\d{4}/);
+                          const num = match ? parseInt(match[0], 10) : parseInt(y, 10);
+                          return num < 2026;
+                      });
+                      setTableFilterYear(historyYears.length > 0 ? historyYears : ['']);
+                  }
+              }
+
+              // 6. สลับไปหน้าตาราง
               startTransition(() => {
                   setTasksSubTab(dashboardView);
                   setActiveTab('tasks');
@@ -1756,12 +1784,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (window.innerWidth <= 1024) setIsSidebarOpen(false);
           };
 
+          // 🔥 ดึง Status จากข้อมูลที่แสดงบน Dashboard จริงๆ เพื่อความแม่นยำ 100%
           const getStatusesForDrillDown = (isCollected) => {
-              const allStatuses = dashboardView === 'subcontract' ? tableUniqueStatuses : [...new Set(nsTasks.map(t => getCleanStatus(t[d_statusCol])))];
+              const availableStatuses = Object.keys(statusCounts); // ใช้สถานะที่มีอยู่จริงบนหน้าจอตอนนั้น
               if (isCollected) {
-                  return allStatuses.filter(s => s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
+                  return availableStatuses.filter(s => s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
               } else {
-                  return allStatuses.filter(s => !s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
+                  return availableStatuses.filter(s => !s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
               }
           };
 
@@ -2516,7 +2545,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                               const monthName = monthNames[index]; 
                                               handleChartDrillDown({ month: [monthName], status: targetStatuses });
                                           } else {
-                                              const yearStr = barChartData.labels[index][0]; 
+                                              let yearStr = barChartData.labels[index][0]; 
+                                              if (yearStr === 'ไม่ระบุปี') yearStr = ''; // 🔥 แปลงกลับเป็นค่าว่างให้ตรงกับตาราง
                                               handleChartDrillDown({ year: [yearStr], status: targetStatuses });
                                           }
                                       }}
@@ -2636,8 +2666,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                   options={overdueChartOptions} 
                                                   onClick={({ index }) => {
                                                       const fullTeamName = overdueChartData.labels[index];
-                                                      handleChartDrillDown({ team: [fullTeamName] });
-                                                      setTimeout(() => setTableFilterOverdue(['เกินกำหนด']), 50);
+                                                      // 🔥 ส่งค่า Overdue ไปพร้อมกับทีมเลย ไม่ต้องใช้ setTimeout แล้ว
+                                                      handleChartDrillDown({ team: [fullTeamName], overdue: ['เกินกำหนด'] });
                                                   }}
                                               />
                                           ) : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
