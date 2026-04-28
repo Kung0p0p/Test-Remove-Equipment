@@ -383,15 +383,29 @@
             );
         };
 
-        const ChartComponent = ({ type, data, options }) => {
+        const ChartComponent = ({ type, data, options, onClick }) => {
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
             useEffect(() => {
                 if (chartInstance.current) chartInstance.current.destroy();
                 const ctx = chartRef.current.getContext('2d');
-                chartInstance.current = new Chart(ctx, { type, data, options });
+                
+                const enhancedOptions = {
+                    ...options,
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0 && onClick) {
+                            const element = elements[0];
+                            onClick({ datasetIndex: element.datasetIndex, index: element.index });
+                        }
+                    }
+                };
+
+                chartInstance.current = new Chart(ctx, { type, data, options: enhancedOptions });
                 return () => { if (chartInstance.current) chartInstance.current.destroy(); };
-            }, [type, data, options]);
+            }, [type, data, options, onClick]);
             return <canvas ref={chartRef} style={{ width: '100%', height: '100%' }} />;
         };
 
@@ -1716,6 +1730,41 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               }
           };
 
+          // ==========================================
+          // 🔥 DRILL-DOWN LOGIC (คลิกกราฟแล้วไปหน้าตาราง)
+          // ==========================================
+          const handleChartDrillDown = (filters) => {
+              setFilterMonth('All'); setFilterTeams([]); setSearchTerm(''); 
+              setTableFilterTeams([]); setTableFilterDate([]); setTableFilterYear([]); 
+              setTableFilterStatus([]); setTableFilterOverdue([]); setTableFilterRegionRespon([]);
+              setVisibleRows(100); setShowDuplicatesOnly(false);
+
+              if (filters.status) setTableFilterStatus(filters.status);
+              if (filters.month) setTableFilterDate(filters.month);
+              if (filters.team) setTableFilterTeams(filters.team);
+              
+              if (filters.year) {
+                  setTableFilterYear(filters.year);
+              } else if (dashboardView === 'subcontract' && dashboardYear === '2026') {
+                  setTableFilterYear(['2026']);
+              }
+
+              startTransition(() => {
+                  setTasksSubTab(dashboardView);
+                  setActiveTab('tasks');
+              });
+              if (window.innerWidth <= 1024) setIsSidebarOpen(false);
+          };
+
+          const getStatusesForDrillDown = (isCollected) => {
+              const allStatuses = dashboardView === 'subcontract' ? tableUniqueStatuses : [...new Set(nsTasks.map(t => getCleanStatus(t[d_statusCol])))];
+              if (isCollected) {
+                  return allStatuses.filter(s => s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
+              } else {
+                  return allStatuses.filter(s => !s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
+              }
+          };
+
           // ================== DATA PROCESSING & TABLE ==================
           const finalTableTasks = useMemo(() => {
               let tableTasks = [...(currentTasksTable || [])]; 
@@ -1892,27 +1941,27 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
           let dashboardFilteredTasks = (dashboardTasks || []).filter(t => {
               let matchMonth = true, matchTeam = true, matchYearView = true;
-              
-              // 🔥 1. ดึงวันที่ Effective Date (Priority: วันเข้าเก็บ -> วันยกเลิก)
               const parsedD = parseDateHelper(getDashboardTaskEffectiveDateStr(t));
               let m = parsedD ? parsedD.getMonth() + 1 : null;
               let dateObjYear = parsedD ? parsedD.getFullYear() : null;
 
-              // 🔥 2. กำหนดปี (y) ให้ยึดตาม Effective Date เป็นหลัก 100% (ไม่สน Equipment Year)
-              let y = dateObjYear;
-              if (y > 2500) y -= 543; // แปลง พ.ศ. เป็น ค.ศ.
-              if (!y) y = new Date().getFullYear(); // ถ้าไม่มีวันที่เลย ให้ใชัปีปัจจุบันเป็นค่าเริ่มต้น
-
-              // 🔥 3. กรองตาม Tab ปีของ Dashboard (2026 หรือ History)
-              if (dashboardView === 'subcontract') {
-                  if (dashboardYear === '2026') { 
-                      if (y !== 2026) matchYearView = false; 
-                  } else if (dashboardYear === 'history') { 
-                      if (y >= 2026) matchYearView = false; 
-                  }
+              const eqYearStr = d_equipYearCol && t[d_equipYearCol] ? String(t[d_equipYearCol]).trim() : '';
+              let y = null;
+              if (eqYearStr) {
+                  const yMatch = eqYearStr.match(/\d{4}/);
+                  if (yMatch) y = parseInt(yMatch[0], 10); else y = parseInt(eqYearStr, 10);
+                  if (y < 100) y += 2000; 
+                  if (y > 2500) y -= 543; 
               }
 
-              // 🔥 4. กรองตามเดือนและทีมงานที่เลือกใน Dropdown
+              if (!y && dateObjYear) { y = dateObjYear; if (y > 2500) y -= 543; }
+              if (!y) { y = new Date().getFullYear(); }
+
+              if (dashboardView === 'subcontract') {
+                  if (dashboardYear === '2026') { if (y !== 2026) matchYearView = false; } 
+                  else if (dashboardYear === 'history') { if (y >= 2026) matchYearView = false; }
+              }
+
               if (filterMonth !== 'All' && m !== parseInt(filterMonth)) matchMonth = false;
               if (filterTeams?.length > 0 && d_teamCol && !filterTeams.includes(getCleanTeam(t[d_teamCol]))) matchTeam = false;
               
@@ -2405,26 +2454,30 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                   <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
                                       <i className="fa-solid fa-chart-pie text-blue-600"></i> Overall Progress
                                   </h3>
+                                  <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md"><i className="fa-solid fa-hand-pointer"></i> คลิกกราฟได้</span>
                               </div>
 
                               <div className="relative flex-1 w-full flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 min-h-[250px] md:min-h-[300px]">
                                   {chartFilteredTasks?.length > 0 ? (
                                       <>
-                                          {/* กราฟโดนัท (อยู่ด้านซ้าย) */}
                                           <div className="relative flex items-center justify-center w-56 h-56 md:w-64 md:h-64 shrink-0">
                                               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
                                                   <span className="text-5xl md:text-6xl font-black text-slate-800 leading-none">{chartFilteredTasks?.length || 0}</span>
                                                   <span className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">CIDs</span>
                                               </div>
-                                              <ChartComponent type="doughnut" data={statusChartData} options={statusChartOptions} />
+                                              <ChartComponent 
+                                                  type="doughnut" 
+                                                  data={statusChartData} 
+                                                  options={statusChartOptions} 
+                                                  onClick={({ index }) => {
+                                                      handleChartDrillDown({ status: [chartSortedStatuses[index]] });
+                                                  }}
+                                              />
                                           </div>
 
-                                          {/* ตัวเลข Complete % แบบโดดเด่น (อยู่ด้านขวา) */}
-                                          <div className="flex flex-col items-center md:items-start justify-center relative">
+                                          <div className="flex flex-col items-center md:items-start justify-center relative cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })} title="คลิกเพื่อดูงานที่เสร็จแล้วทั้งหมด">
                                               <div className="absolute inset-0 bg-emerald-400 blur-3xl opacity-20 rounded-full w-32 h-32 -z-10 transform -translate-x-4"></div>
-                                              <span className="text-sm md:text-base font-black text-slate-400 uppercase tracking-widest mb-1">
-                                                  Complete
-                                              </span>
+                                              <span className="text-sm md:text-base font-black text-slate-400 uppercase tracking-widest mb-1">Complete</span>
                                               <div className="text-6xl md:text-7xl lg:text-8xl font-black bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 text-transparent bg-clip-text drop-shadow-xl transform hover:scale-105 transition-transform duration-300">
                                                   {overallPercentComplete}<span className="text-3xl md:text-4xl lg:text-5xl">%</span>
                                               </div>
@@ -2434,37 +2487,52 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               </div>
                           </div>
                           
-                          {/* กราฟแท่ง (Monthly / Yearly) */}
                           <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
                               <div className="flex justify-between items-start mb-4">
-                                  <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
-                                      <i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}
-                                  </h3>
-                                  {/* 🔥 กล่องผลรวมแบบแยก 2 ค่า */}
-                                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2">
-                                      <div className="bg-emerald-50 px-3 py-1.5 flex flex-col items-center border-r border-slate-200">
+                                  <div className="flex items-center gap-2">
+                                      <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
+                                      <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md hidden sm:inline-block"><i className="fa-solid fa-hand-pointer"></i> คลิกแท่งกราฟ</span>
+                                  </div>
+                                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2 cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })}>
+                                      <div className="bg-emerald-50 hover:bg-emerald-100 transition-colors px-3 py-1.5 flex flex-col items-center border-r border-slate-200">
                                           <span className="text-lg font-black text-emerald-700 leading-none">{totalBarCollected}</span>
                                           <span className="text-[10px] font-bold text-emerald-600 uppercase">Collected</span>
                                       </div>
-                                      <div className="bg-amber-50 px-3 py-1.5 flex flex-col items-center">
+                                      <div className="bg-amber-50 hover:bg-amber-100 transition-colors px-3 py-1.5 flex flex-col items-center" onClick={(e) => { e.stopPropagation(); handleChartDrillDown({ status: getStatusesForDrillDown(false) }); }}>
                                           <span className="text-lg font-black text-amber-700 leading-none">{totalBarOngoing}</span>
                                           <span className="text-[10px] font-bold text-amber-600 uppercase">Ongoing</span>
                                       </div>
                                   </div>
                               </div>
-                              <div className="relative h-60 md:h-72 w-full"><ChartComponent type="bar" data={barChartData} options={barChartOptions} /></div>
+                              <div className="relative h-60 md:h-72 w-full">
+                                  <ChartComponent 
+                                      type="bar" 
+                                      data={barChartData} 
+                                      options={barChartOptions} 
+                                      onClick={({ datasetIndex, index }) => {
+                                          const isCollected = datasetIndex === 0;
+                                          const targetStatuses = getStatusesForDrillDown(isCollected);
+                                          if (dashboardView === 'subcontract') {
+                                              const monthName = monthNames[index]; 
+                                              handleChartDrillDown({ month: [monthName], status: targetStatuses });
+                                          } else {
+                                              const yearStr = barChartData.labels[index][0]; 
+                                              handleChartDrillDown({ year: [yearStr], status: targetStatuses });
+                                          }
+                                      }}
+                                  />
+                              </div>
                           </div>
                           
                           <div className={`${dashboardView === 'ns' ? 'lg:col-span-3 grid grid-cols-1 lg:grid-cols-4 gap-6' : 'lg:col-span-2'}`}>
                               {dashboardView === 'ns' ? (
                                   <>
-                                      {/* กราฟทีมหลัก (3 ส่วน) */}
                                       <div className="lg:col-span-3 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                                           <div className="flex justify-between items-start mb-4">
-                                              <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
-                                                  <i className="fa-solid fa-users text-blue-600"></i> Tasks by Regions
-                                              </h3>
-                                              {/* 🔥 กล่องผลรวมแบบแยก 2 ค่า */}
+                                              <div className="flex items-center gap-2">
+                                                  <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-users text-blue-600"></i> Tasks by Team</h3>
+                                                  <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md hidden sm:inline-block"><i className="fa-solid fa-hand-pointer"></i> คลิกแท่งกราฟ</span>
+                                              </div>
                                               <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2">
                                                   <div className="bg-emerald-50 px-3 py-1.5 flex flex-col items-center border-r border-slate-200">
                                                       <span className="text-lg font-black text-emerald-700 leading-none">{totalTeamCompleted}</span>
@@ -2478,36 +2546,53 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                           </div>
                                           <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
                                               <div className="min-w-[500px] h-full">
-                                                  {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
+                                                  {chartFilteredTasks?.length > 0 ? (
+                                                      <ChartComponent 
+                                                          type="bar" 
+                                                          data={teamChartData} 
+                                                          options={teamChartOptions} 
+                                                          onClick={({ datasetIndex, index }) => {
+                                                              const isCollected = datasetIndex === 0;
+                                                              const shortTeamName = teamChartData.labels[index];
+                                                              const fullTeamName = allActiveTeams.find(t => shortenName(t) === shortTeamName);
+                                                              handleChartDrillDown({ team: [fullTeamName], status: getStatusesForDrillDown(isCollected) });
+                                                          }}
+                                                      />
+                                                  ) : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
                                               </div>
                                           </div>
                                       </div>
 
-                                      {/* กราฟไม่ระบุทีม (1 ส่วน) */}
                                       <div className="lg:col-span-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 relative">
                                           <div className="flex justify-between items-start mb-4">
-                                              <h3 className="text-base md:text-lg font-bold flex items-center gap-2 text-amber-600">
-                                                  <i className="fa-solid fa-layer-group"></i> Pending Tasks Status
-                                              </h3>
-                                              {/* 🔥 กล่องแสดงผลรวม (Total Pending) */}
-                                              <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2">
+                                              <h3 className="text-base md:text-lg font-bold flex items-center gap-2 text-amber-600"><i className="fa-solid fa-layer-group"></i> Pending Tasks Status</h3>
+                                              <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => handleChartDrillDown({ team: ['ไม่ระบุทีม'] })}>
                                                   <span className="text-lg font-black text-amber-700 leading-none">{totalPendingCount}</span>
                                                   <span className="text-[10px] font-bold text-amber-600 uppercase">CIDs</span>
                                               </div>
                                           </div>
                                           <div className="relative h-64 md:h-80 w-full">
-                                              {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={unassignedChartData} options={unassignedChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
+                                              {chartFilteredTasks?.length > 0 ? (
+                                                  <ChartComponent 
+                                                      type="bar" 
+                                                      data={unassignedChartData} 
+                                                      options={unassignedChartOptions} 
+                                                      onClick={({ datasetIndex }) => {
+                                                          const clickedStatus = unassignedChartData.datasets[datasetIndex].label;
+                                                          handleChartDrillDown({ team: ['ไม่ระบุทีม'], status: [clickedStatus] });
+                                                      }}
+                                                  />
+                                              ) : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
                                           </div>
                                       </div>
                                   </>
                               ) : (
-                                  /* มุมมอง Subcontract ปกติ */
                                   <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 h-full">
                                       <div className="flex justify-between items-start mb-4">
-                                          <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
-                                              <i className="fa-solid fa-users text-blue-600"></i> Tasks & Status by Subcontract
-                                          </h3>
-                                          {/* 🔥 กล่องแสดงผลรวม (Total Subcontract Tasks) */}
+                                          <div className="flex items-center gap-2">
+                                              <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-users text-blue-600"></i> Tasks & Status by Team</h3>
+                                              <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md hidden sm:inline-block"><i className="fa-solid fa-hand-pointer"></i> คลิกแท่งกราฟ</span>
+                                          </div>
                                           <div className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2">
                                               <span className="text-lg font-black text-blue-700 leading-none">{totalSubconTeamTasks}</span>
                                               <span className="text-[10px] font-bold text-blue-600 uppercase">Total CIDs</span>
@@ -2515,27 +2600,49 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       </div>
                                       <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
                                           <div className="min-w-[500px] h-full">
-                                              {chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={teamChartData} options={teamChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
+                                              {chartFilteredTasks?.length > 0 ? (
+                                                  <ChartComponent 
+                                                      type="bar" 
+                                                      data={teamChartData} 
+                                                      options={teamChartOptions} 
+                                                      onClick={({ datasetIndex, index }) => {
+                                                          const clickedStatus = teamChartData.datasets[datasetIndex].label;
+                                                          const fullTeamName = teamChartData.labels[index];
+                                                          handleChartDrillDown({ team: [fullTeamName], status: [clickedStatus] });
+                                                      }}
+                                                  />
+                                              ) : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
                                           </div>
                                       </div>
                                   </div>
                               )}
                           </div>
                           
-                          {/* กราฟเกินกำหนดนัดหมาย (แสดงเฉพาะหน้า Subcontract) */}
                           {dashboardView === 'subcontract' && (
                               <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                                   <div className="flex justify-between items-start mb-4">
-                                      <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
-                                          <i className="fa-solid fa-triangle-exclamation text-red-600"></i> Overdue Appointments
-                                      </h3>
-                                      {/* 🔥 กล่องแสดงผลรวม (Total Overdue) */}
-                                      <div className="bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2">
+                                      <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> Overdue Appointments</h3>
+                                      <div className="bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2 cursor-pointer hover:bg-red-100 transition-colors" onClick={() => handleChartDrillDown({ overdue: ['เกินกำหนด'] })}>
                                           <span className="text-lg font-black text-red-700 leading-none">{totalOverdue}</span>
                                           <span className="text-[10px] font-bold text-red-600 uppercase">CIDs</span>
                                       </div>
                                   </div>
-                                  <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2"><div className="min-w-[300px] h-full">{chartFilteredTasks?.length > 0 ? <ChartComponent type="bar" data={overdueChartData} options={overdueChartOptions} /> : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}</div></div>
+                                  <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
+                                      <div className="min-w-[300px] h-full">
+                                          {chartFilteredTasks?.length > 0 ? (
+                                              <ChartComponent 
+                                                  type="bar" 
+                                                  data={overdueChartData} 
+                                                  options={overdueChartOptions} 
+                                                  onClick={({ index }) => {
+                                                      const fullTeamName = overdueChartData.labels[index];
+                                                      handleChartDrillDown({ team: [fullTeamName] });
+                                                      setTimeout(() => setTableFilterOverdue(['เกินกำหนด']), 50);
+                                                  }}
+                                              />
+                                          ) : <p className="text-slate-400 text-center mt-20">ไม่มีข้อมูล</p>}
+                                      </div>
+                                  </div>
                               </div>
                           )}
                       </div>
