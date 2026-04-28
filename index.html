@@ -1865,10 +1865,25 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const d_overDueCol = (dashboardColumns || []).find(c => { const lc = c ? String(c).toLowerCase().replace(/[\s_]+/g, '') : ''; return lc.includes('นัดหมายลูกค้า') || lc.includes('over3') || lc.includes('เกินกำหนด'); }) || '';
           const d_collectionDateCol = (dashboardColumns || []).find(c => c ? String(c).replace(/[\s_]+/g, '').includes('วันที่เข้าเก็บ') : false) || d_getCol(['วันที่', 'date']) || dashboardColumns?.[0] || '';
           const d_siteTypeCol = d_getCol(['sitetype', 'site']) || '';
+          
+          // 🔥 1. เพิ่มการหาคอลัมน์ "วันที่ยกเลิกใช้งาน"
+          const d_cancelDateCol = d_getCol(['ยกเลิก', 'duejob', 'cancel']) || '';
 
+          // 🔥 2. แก้ไข Logic การดึงวันที่ตาม Lifecycle ของงาน (Priority: วันเข้าเก็บ -> วันยกเลิก)
           const getDashboardTaskEffectiveDateStr = (t) => {
-              const targetCol = d_collectionDateCol; let dateStr = targetCol ? t[targetCol] : null;
-              if (!dateStr || String(dateStr).trim() === '') { const today = new Date(); dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`; }
+              // Priority 1: วันที่เข้าเก็บ (Collection Date)
+              let dateStr = d_collectionDateCol ? t[d_collectionDateCol] : null;
+              
+              // Priority 2: ถ้ายังไม่มีวันเข้าเก็บ ให้ใช้วันที่ยกเลิกใช้งาน (Cancel Date)
+              if (!dateStr || String(dateStr).trim() === '' || String(dateStr).trim() === '-') { 
+                  dateStr = d_cancelDateCol ? t[d_cancelDateCol] : null; 
+              }
+              
+              // Fallback: ถ้าไม่มีข้อมูลทั้งคู่ ให้ใช้วันนี้เป็นค่าเริ่มต้น
+              if (!dateStr || String(dateStr).trim() === '' || String(dateStr).trim() === '-') { 
+                  const today = new Date(); 
+                  dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`; 
+              }
               return dateStr;
           };
 
@@ -1922,7 +1937,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
           const getStatusColor = (status, opacity = 1) => {
               const s = status ? String(status).trim() : '';
-              // เช็คสีจากฝั่ง Region (NS) ก่อน
               if (masterData.nsStatuses) {
                   const nsStatusMatch = masterData.nsStatuses.find(st => st.name === s);
                   if (nsStatusMatch && nsStatusMatch.bg) {
@@ -1930,7 +1944,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       return hexToRgbA(nsStatusMatch.bg, opacity);
                   }
               }
-              // เช็คสีจากฝั่ง Subcontract
               if (masterData.subconStatuses) {
                   const subconStatusMatch = masterData.subconStatuses.find(st => st.name === s);
                   if (subconStatusMatch && subconStatusMatch.bg) {
@@ -1964,12 +1977,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               return 99; 
           };
           const sortedStatuses = Object.keys(statusCounts).sort((a, b) => {
-              // 1. เช็คการเลือก (Selected มาก่อน)
               const isSelA = selectedStatuses.includes(a);
               const isSelB = selectedStatuses.includes(b);
               if (isSelA !== isSelB) return isSelA ? -1 : 1;
-
-              // 2. ถ้าสถานะเหมือนกัน (เลือกทั้งคู่ หรือไม่เลือกทั้งคู่) ให้เรียงตามตัวอักษร A-Z
               return a.localeCompare(b, 'en');
           });
           
@@ -1979,10 +1989,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const statusChartOptions = { 
               responsive: true, 
               maintainAspectRatio: false, 
-              cutout: '80%', // ปรับให้วงแหวนดูบางลงและทันสมัยขึ้น
-              layout: { padding: 20 }, 
+              cutout: '65%', 
+              layout: { padding: 10 }, 
               plugins: { 
-                  legend: { display: false }, // 🔥 ปิด Legend ตามสั่ง
+                  legend: { display: false }, 
                   tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 12, cornerRadius: 8 }, 
                   datalabels: { display: false } 
               } 
@@ -1996,17 +2006,18 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               textStrokeWidth: 4 
           };
 
-          // 🟢 คำนวณ % Complete รวมสำหรับ Doughnut Chart
           const totalCompletedCount = chartFilteredTasks.filter(t => getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/)).length;
           const overallPercentComplete = totalTasksCount > 0 ? Math.round((totalCompletedCount / totalTasksCount) * 100) : 0;
 
           let barChartData, barChartOptions, barChartTitle;
-          let totalBarCollected = 0; // 🔥 เก็บผลรวม Collected
-          let totalBarOngoing = 0;   // 🔥 เก็บผลรวม Ongoing
+          let totalBarCollected = 0; 
+          let totalBarOngoing = 0;   
 
           if (dashboardView === 'subcontract') {
               barChartTitle = "Monthly Collection Summary";
               const monthlyData = {}; for (let i = 1; i <= 12; i++) monthlyData[i] = { collected: 0, ongoing: 0, percent: 0 };
+              
+              // 🔥 3. Logic การนับ Collected vs Ongoing
               chartFilteredTasks.forEach(t => {
                   const d = parseDateHelper(getDashboardTaskEffectiveDateStr(t));
                   if (d) {
@@ -2019,13 +2030,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   }
               });
               
-              // 🟢 คำนวณ % Complete ของแต่ละเดือน
               for (let i = 1; i <= 12; i++) {
                   const totalMonth = monthlyData[i].collected + monthlyData[i].ongoing;
                   monthlyData[i].percent = totalMonth > 0 ? Math.round((monthlyData[i].collected / totalMonth) * 100) : 0;
               }
 
-              // 🟢 เพิ่ม % ลงใน Labels แกน X
               const monthLabelsWithPercent = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].map((m, i) => [m, `${monthlyData[i+1].percent}%`]);
 
               barChartData = { labels: monthLabelsWithPercent, datasets: [ { label: 'Collected (CIDs)', data: Object.values(monthlyData).map(d => d.collected), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }, { label: 'Ongoing (CIDs)', data: Object.values(monthlyData).map(d => d.ongoing), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } ] };
@@ -2050,7 +2059,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   return a.localeCompare(b, 'en', { numeric: true });
               });
 
-              // 🟢 คำนวณ % Complete ของแต่ละปี
               const yearLabelsWithPercent = sortedYears.map(y => {
                   const totalYear = yearlyData[y].collected + yearlyData[y].ongoing;
                   const pct = totalYear > 0 ? Math.round((yearlyData[y].collected / totalYear) * 100) : 0;
