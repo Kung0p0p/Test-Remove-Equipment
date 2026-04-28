@@ -1634,7 +1634,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           
           const handleMouseLeave = () => setTooltipData({ visible: false, task: null, x: 0, y: 0 });
 
-          // 🔥 ฟังก์ชันอัปเดตแผ่นงาน
+          // 🔥 ฟังก์ชันอัปเดตแผ่นงาน (อัปเกรด Phase 1: ล้างข้อมูล + ป้องกันจอเด้ง)
           const handleCellChangeTable = async (taskObj, field, value, currentColumnsTableLocal) => {
               const docIds = taskObj._groupDocs || [taskObj.id];
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
@@ -1653,27 +1653,30 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const oldValue = taskObj[field] || '';
               if(oldValue === cleanValue) return true;
 
-              // 🔥 [Phase 1] จดจำเวลาที่เรากดแก้ไข เพื่อให้ระบบ Sync รู้ว่าไม่ต้องโหลดทับ
-              lastLocalEditTimestamp.current = Date.now();
-
               if (docIds.length > 20) {
                   customAlert(`⚠️ ระบบระงับการทำงานชั่วคราว! ตรวจพบความพยายามอัปเดตข้อมูลพร้อมกันถึง ${docIds.length} แถว คำแนะนำ: กรุณาลบแถวว่างใน Google Sheet ทิ้งก่อนครับ`, 'error');
                   return false; 
               }
 
+              // 🔥 [Phase 1] จดจำเวลาที่เรากดแก้ไข เพื่อให้ระบบ Sync รู้ว่าไม่ต้องโหลดทับ
+              lastLocalEditTimestamp.current = Date.now();
+
               const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
+              // 1. อัปเดตหน้าจอทันที (Optimistic UI) โดยใช้ cleanValue
               if (tasksSubTab === 'subcontract') {
-                  setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
+                  setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: cleanValue } : t));
               } else {
-                  setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
+                  setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: cleanValue } : t));
               }
 
+              // 2. บันทึกประวัติการแก้ไข (History)
               try {
                   const cCompCol = (currentColumnsTableLocal || []).find(c => ['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
-                  historyRef.add({ taskId: docIds[0], company: taskObj[cCompCol] || 'Unknown', field: field, oldValue: oldValue || '', newValue: value, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), groupSize: docIds.length }).catch(()=>{});
+                  historyRef.add({ taskId: docIds[0], company: taskObj[cCompCol] || 'Unknown', field: field, oldValue: oldValue || '', newValue: cleanValue, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), groupSize: docIds.length }).catch(()=>{});
               } catch (err) {}
 
+              // 3. ส่งข้อมูลไป Google Sheet (GAS)
               try {
                   if (GAS_WEB_APP_URL) {
                       let hasValidUpdate = false;
@@ -1689,6 +1692,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
                           if (rNum && rNum > 1 && rNum <= 50000) {
                               pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === field && u.sheetName === targetSheetName));
+                              // 🔥 ส่ง cleanValue ไปบันทึกลง Sheet
                               pendingUpdatesRef.current.push({ row: rNum, field: field, value: cleanValue, sheetName: targetSheetName });
                               hasValidUpdate = true;
                           } else {
@@ -1732,7 +1736,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                   body: payloadData
                               }).then(res => res.json()).then(data => {
                                   // ให้ GAS กดกระดิ่งเตือนเครื่องอื่นว่ามีข้อมูลใหม่
-                                  collectionRef.doc('_sync_status').set({ status: 'syncing', timestamp: Date.now() });
+                                  db.collection('system').doc('sync').set({ timestamp: Date.now() });
                               }).catch(err => {
                                   console.error('❌ ไม่สามารถอัปเดต Google Sheet ได้:', err);
                               });
