@@ -1271,9 +1271,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
           const pendingUpdatesRef = useRef([]);
           const syncTimerRef = useRef(null);
-          const lastLocalEditTimestamp = useRef(0); // 🔥 [Phase 1] ตัวแปรจำเวลาที่เราเพิ่งแก้ข้อมูลล่าสุด
-
-          // 🔥 Custom Alerts & Confirms State
+          const lastLocalEditTimestamp = useRef(0); 
+          const lastSyncTime = useRef(0); // 🔥 [แก้บั๊ก] ตัวแปรจำเสียงกระดิ่งล่าสุดจาก GAS
 
           // 🔥 Custom Alerts & Confirms State
           const [appAlert, setAppAlert] = useState({ show: false, message: '', type: 'success' });
@@ -1446,11 +1445,18 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               // แก้ไขจาก _sync_status เป็น system/sync ให้ตรงกับ GAS
               const unsubSync = db.collection('system').doc('sync').onSnapshot(doc => {
                   if (doc.exists) {
-                      // 🔥 [Phase 1] ถ้าเราเพิ่งแก้ข้อมูลไปไม่ถึง 8 วินาที ให้เมินการโหลดใหม่ (ป้องกันจอเด้งสลับไปมา)
-                      // แต่ถ้าคนอื่นแก้ (เวลาห่างเกิน 8 วิ) ระบบจะโหลดข้อมูลใหม่มาโชว์ให้แบบ Real-time
-                      if (Date.now() - lastLocalEditTimestamp.current > 8000) {
-                          setIsBackgroundSyncing(true);
-                          fetchAllDataFromServer(true); 
+                      const data = doc.data();
+                      const incomingTime = Number(data.timestamp) || 0;
+                      
+                      // 🔥 [แก้บั๊ก] เช็คว่าเป็นเสียงกระดิ่งใหม่จริงๆ ไม่ใช่เสียงเดิม
+                      if (incomingTime !== lastSyncTime.current) {
+                          lastSyncTime.current = incomingTime;
+                          
+                          // ถ้าเราไม่ได้เพิ่งแก้ข้อมูลในเว็บ (เกิน 5 วินาทีแล้ว) ให้โหลดข้อมูลใหม่จาก Sheet
+                          if (Date.now() - lastLocalEditTimestamp.current > 5000) {
+                              setIsBackgroundSyncing(true);
+                              fetchAllDataFromServer(true); 
+                          }
                       }
                   }
               });
@@ -1735,8 +1741,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                   headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                                   body: payloadData
                               }).then(res => res.json()).then(data => {
-                                  // ให้ GAS กดกระดิ่งเตือนเครื่องอื่นว่ามีข้อมูลใหม่
-                                  db.collection('system').doc('sync').set({ timestamp: Date.now() });
+                                  // 🔥 [แก้บั๊ก] ไม่ต้องให้ React กดกระดิ่ง ปล่อยให้ GAS กดเองตอนบันทึก Sheet เสร็จ
+                                  console.log("✅ ส่งข้อมูลให้ GAS อัปเดต Sheet สำเร็จ");
                               }).catch(err => {
                                   console.error('❌ ไม่สามารถอัปเดต Google Sheet ได้:', err);
                               });
