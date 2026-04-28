@@ -1892,27 +1892,27 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
           let dashboardFilteredTasks = (dashboardTasks || []).filter(t => {
               let matchMonth = true, matchTeam = true, matchYearView = true;
+              
+              // 🔥 1. ดึงวันที่ Effective Date (Priority: วันเข้าเก็บ -> วันยกเลิก)
               const parsedD = parseDateHelper(getDashboardTaskEffectiveDateStr(t));
               let m = parsedD ? parsedD.getMonth() + 1 : null;
               let dateObjYear = parsedD ? parsedD.getFullYear() : null;
 
-              const eqYearStr = d_equipYearCol && t[d_equipYearCol] ? String(t[d_equipYearCol]).trim() : '';
-              let y = null;
-              if (eqYearStr) {
-                  const yMatch = eqYearStr.match(/\d{4}/);
-                  if (yMatch) y = parseInt(yMatch[0], 10); else y = parseInt(eqYearStr, 10);
-                  if (y < 100) y += 2000; 
-                  if (y > 2500) y -= 543; 
-              }
+              // 🔥 2. กำหนดปี (y) ให้ยึดตาม Effective Date เป็นหลัก 100% (ไม่สน Equipment Year)
+              let y = dateObjYear;
+              if (y > 2500) y -= 543; // แปลง พ.ศ. เป็น ค.ศ.
+              if (!y) y = new Date().getFullYear(); // ถ้าไม่มีวันที่เลย ให้ใชัปีปัจจุบันเป็นค่าเริ่มต้น
 
-              if (!y && dateObjYear) { y = dateObjYear; if (y > 2500) y -= 543; }
-              if (!y) { y = new Date().getFullYear(); }
-
+              // 🔥 3. กรองตาม Tab ปีของ Dashboard (2026 หรือ History)
               if (dashboardView === 'subcontract') {
-                  if (dashboardYear === '2026') { if (y !== 2026) matchYearView = false; } 
-                  else if (dashboardYear === 'history') { if (y >= 2026) matchYearView = false; }
+                  if (dashboardYear === '2026') { 
+                      if (y !== 2026) matchYearView = false; 
+                  } else if (dashboardYear === 'history') { 
+                      if (y >= 2026) matchYearView = false; 
+                  }
               }
 
+              // 🔥 4. กรองตามเดือนและทีมงานที่เลือกใน Dropdown
               if (filterMonth !== 'All' && m !== parseInt(filterMonth)) matchMonth = false;
               if (filterTeams?.length > 0 && d_teamCol && !filterTeams.includes(getCleanTeam(t[d_teamCol]))) matchTeam = false;
               
