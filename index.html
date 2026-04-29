@@ -186,13 +186,6 @@
             return val;
         };
 
-        // 🔥 [Phase 1] ฟังก์ชันล้างข้อมูล: ตัดช่องว่างหัว-ท้าย และลบช่องว่างที่เบิ้ลกัน
-        const cleanInputData = (str) => {
-            if (typeof str !== 'string') return str;
-            return str.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '') // ตัด Spacebar หน้า-หลัง
-                      .replace(/\s{2,}/g, ' '); // ถ้าเคาะ Spacebar เบิ้ลตรงกลาง ให้เหลืออันเดียว
-        };
-
         const parseDateHelper = (dateStr) => {
             if (!dateStr || typeof dateStr !== 'string') return null;
             let str = dateStr.trim().split(/[\sT]+/)[0]; 
@@ -1271,8 +1264,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
           const pendingUpdatesRef = useRef([]);
           const syncTimerRef = useRef(null);
-          const lastLocalEditTimestamp = useRef(0); 
-          const lastSyncTime = useRef(0); // 🔥 [แก้บั๊ก] ตัวแปรจำเสียงกระดิ่งล่าสุดจาก GAS
 
           // 🔥 Custom Alerts & Confirms State
           const [appAlert, setAppAlert] = useState({ show: false, message: '', type: 'success' });
@@ -1445,19 +1436,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               // แก้ไขจาก _sync_status เป็น system/sync ให้ตรงกับ GAS
               const unsubSync = db.collection('system').doc('sync').onSnapshot(doc => {
                   if (doc.exists) {
-                      const data = doc.data();
-                      const incomingTime = Number(data.timestamp) || 0;
-                      
-                      // 🔥 [แก้บั๊ก] เช็คว่าเป็นเสียงกระดิ่งใหม่จริงๆ ไม่ใช่เสียงเดิม
-                      if (incomingTime !== lastSyncTime.current) {
-                          lastSyncTime.current = incomingTime;
-                          
-                          // ถ้าเราไม่ได้เพิ่งแก้ข้อมูลในเว็บ (เกิน 5 วินาทีแล้ว) ให้โหลดข้อมูลใหม่จาก Sheet
-                          if (Date.now() - lastLocalEditTimestamp.current > 5000) {
-                              setIsBackgroundSyncing(true);
-                              fetchAllDataFromServer(true); 
-                          }
-                      }
+                      setIsBackgroundSyncing(true);
+                      fetchAllDataFromServer(true); 
                   }
               });
 
@@ -1640,7 +1620,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           
           const handleMouseLeave = () => setTooltipData({ visible: false, task: null, x: 0, y: 0 });
 
-          // 🔥 ฟังก์ชันอัปเดตแผ่นงาน (อัปเกรด Phase 1: ล้างข้อมูล + ป้องกันจอเด้ง)
+          // 🔥 ฟังก์ชันอัปเดตแผ่นงาน
           const handleCellChangeTable = async (taskObj, field, value, currentColumnsTableLocal) => {
               const docIds = taskObj._groupDocs || [taskObj.id];
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
@@ -1654,35 +1634,27 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   return false; 
               }
 
-              // 🔥 [Phase 1] ล้างข้อมูลก่อนบันทึก (ตัด Spacebar ส่วนเกิน)
-              const cleanValue = cleanInputData(value);
               const oldValue = taskObj[field] || '';
-              if(oldValue === cleanValue) return true;
+              if(oldValue === value) return true;
 
               if (docIds.length > 20) {
                   customAlert(`⚠️ ระบบระงับการทำงานชั่วคราว! ตรวจพบความพยายามอัปเดตข้อมูลพร้อมกันถึง ${docIds.length} แถว คำแนะนำ: กรุณาลบแถวว่างใน Google Sheet ทิ้งก่อนครับ`, 'error');
                   return false; 
               }
 
-              // 🔥 [Phase 1] จดจำเวลาที่เรากดแก้ไข เพื่อให้ระบบ Sync รู้ว่าไม่ต้องโหลดทับ
-              lastLocalEditTimestamp.current = Date.now();
-
               const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
-              // 1. อัปเดตหน้าจอทันที (Optimistic UI) โดยใช้ cleanValue
               if (tasksSubTab === 'subcontract') {
-                  setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: cleanValue } : t));
+                  setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
               } else {
-                  setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: cleanValue } : t));
+                  setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
               }
 
-              // 2. บันทึกประวัติการแก้ไข (History)
               try {
                   const cCompCol = (currentColumnsTableLocal || []).find(c => ['บริษัท', 'ลูกค้า', 'site', 'องค์กร', 'ชื่อ', 'company'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
-                  historyRef.add({ taskId: docIds[0], company: taskObj[cCompCol] || 'Unknown', field: field, oldValue: oldValue || '', newValue: cleanValue, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), groupSize: docIds.length }).catch(()=>{});
+                  historyRef.add({ taskId: docIds[0], company: taskObj[cCompCol] || 'Unknown', field: field, oldValue: oldValue || '', newValue: value, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), groupSize: docIds.length }).catch(()=>{});
               } catch (err) {}
 
-              // 3. ส่งข้อมูลไป Google Sheet (GAS)
               try {
                   if (GAS_WEB_APP_URL) {
                       let hasValidUpdate = false;
@@ -1698,8 +1670,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
                           if (rNum && rNum > 1 && rNum <= 50000) {
                               pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === field && u.sheetName === targetSheetName));
-                              // 🔥 ส่ง cleanValue ไปบันทึกลง Sheet
-                              pendingUpdatesRef.current.push({ row: rNum, field: field, value: cleanValue, sheetName: targetSheetName });
+                              pendingUpdatesRef.current.push({ row: rNum, field: field, value: value, sheetName: targetSheetName });
                               hasValidUpdate = true;
                           } else {
                               console.warn(`⚠️ [Blocked] ข้ามการส่งซิงค์ลง Sheet งาน ${id} เนื่องจากเลขบรรทัดผิดปกติ (${rNum})`);
@@ -1741,8 +1712,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                   headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                                   body: payloadData
                               }).then(res => res.json()).then(data => {
-                                  // 🔥 [แก้บั๊ก] ไม่ต้องให้ React กดกระดิ่ง ปล่อยให้ GAS กดเองตอนบันทึก Sheet เสร็จ
-                                  console.log("✅ ส่งข้อมูลให้ GAS อัปเดต Sheet สำเร็จ");
+                                  // ให้ GAS กดกระดิ่งเตือนเครื่องอื่นว่ามีข้อมูลใหม่
+                                  collectionRef.doc('_sync_status').set({ status: 'syncing', timestamp: Date.now() });
                               }).catch(err => {
                                   console.error('❌ ไม่สามารถอัปเดต Google Sheet ได้:', err);
                               });
@@ -1845,7 +1816,40 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (tableFilterCID !== 'All' && t_cidCol) tableTasks = tableTasks.filter(t => (t[t_cidCol] ? String(t[t_cidCol]).trim() : '') === tableFilterCID);
               if (tableFilterYear?.length > 0 && t_equipYearCol) tableTasks = tableTasks.filter(t => tableFilterYear.includes(t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : ''));
               if (tableFilterStatus?.length > 0 && t_statusCol) tableTasks = tableTasks.filter(t => tableFilterStatus.includes(getCleanStatus(t[t_statusCol])));
-              if (tableFilterDate?.length > 0) { tableTasks = tableTasks.filter(t => { const d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null); return d && tableFilterDate.includes(monthNames[d.getMonth()]); }); }
+              // 🔥 [แก้บั๊ก] สอนให้ตารางงานดึง "วันที่ยกเลิก" มาใช้แทนถ้า "วันที่เข้าเก็บ" ว่างเปล่า
+              const t_cancelDateCol = t_getCol(['ยกเลิก', 'duejob', 'cancel']) || '';
+
+              if (tableFilterDate?.length > 0) { 
+                  tableTasks = tableTasks.filter(t => { 
+                      let d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null); 
+                      if (!d) d = parseDateHelper(t_cancelDateCol ? t[t_cancelDateCol] : null); // Fallback
+                      return d && tableFilterDate.includes(monthNames[d.getMonth()]); 
+                  }); 
+              }
+              
+              // 🔥 อัปเกรดการกรอง "ปี" ให้ฉลาดขึ้นด้วย (รองรับการกดจากกราฟ)
+              if (tableFilterYear?.length > 0) { 
+                  tableTasks = tableTasks.filter(t => { 
+                      let yStr = t_equipYearCol && t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : '';
+                      if (tableFilterYear.includes(yStr)) return true; 
+                      
+                      let y = null;
+                      if (yStr) {
+                          const yMatch = yStr.match(/\d{4}/);
+                          y = yMatch ? parseInt(yMatch[0], 10) : parseInt(yStr, 10);
+                          if (y < 100) y += 2000; if (y > 2500) y -= 543;
+                      }
+                      if (!y) {
+                          let d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null);
+                          if (!d) d = parseDateHelper(t_cancelDateCol ? t[t_cancelDateCol] : null);
+                          if (d) { y = d.getFullYear(); if (y > 2500) y -= 543; }
+                      }
+                      if (!y) y = new Date().getFullYear();
+                      
+                      return tableFilterYear.includes(String(y));
+                  }); 
+              }
+
               if (tableFilterOverdue?.length > 0 && t_overDueCol) {
                   tableTasks = tableTasks.filter(t => {
                       const cleanVal = getCleanStatus(t[t_overDueCol] || '').toLowerCase(); if (cleanVal === 'ไม่ระบุสถานะ' || !cleanVal) return false;
@@ -2512,7 +2516,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                   <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
                                       <i className="fa-solid fa-chart-pie text-blue-600"></i> Overall Progress
                                   </h3>
-                                  <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md"><i className="fa-solid fa-hand-pointer"></i> คลิกกราฟได้</span>
                               </div>
 
                               <div className="relative flex-1 w-full flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 min-h-[250px] md:min-h-[300px]">
@@ -2533,10 +2536,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                               />
                                           </div>
 
-                                          <div className="flex flex-col items-center md:items-start justify-center relative cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })} title="คลิกเพื่อดูงานที่เสร็จแล้วทั้งหมด">
+                                          <div className="flex flex-col items-center md:items-start justify-center relative cursor-pointer transform transition-transform hover:scale-105 active:scale-95" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })} title="คลิกเพื่อดูงานที่เสร็จแล้วทั้งหมด">
                                               <div className="absolute inset-0 bg-emerald-400 blur-3xl opacity-20 rounded-full w-32 h-32 -z-10 transform -translate-x-4"></div>
                                               <span className="text-sm md:text-base font-black text-slate-400 uppercase tracking-widest mb-1">Complete</span>
-                                              <div className="text-6xl md:text-7xl lg:text-8xl font-black bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 text-transparent bg-clip-text drop-shadow-xl transform hover:scale-105 transition-transform duration-300">
+                                              <div className="text-6xl md:text-7xl lg:text-8xl font-black bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 text-transparent bg-clip-text drop-shadow-xl">
                                                   {overallPercentComplete}<span className="text-3xl md:text-4xl lg:text-5xl">%</span>
                                               </div>
                                           </div>
@@ -2549,9 +2552,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <div className="flex justify-between items-start mb-4">
                                   <div className="flex items-center gap-2">
                                       <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
-                                      <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md hidden sm:inline-block"><i className="fa-solid fa-hand-pointer"></i> คลิกแท่งกราฟ</span>
                                   </div>
-                                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2 cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })}>
+                                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2 transform transition-transform hover:scale-105 active:scale-95 cursor-pointer hover:shadow-md" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })}>
                                       <div className="bg-emerald-50 hover:bg-emerald-100 transition-colors px-3 py-1.5 flex flex-col items-center border-r border-slate-200">
                                           <span className="text-lg font-black text-emerald-700 leading-none">{totalBarCollected}</span>
                                           <span className="text-[10px] font-bold text-emerald-600 uppercase">Collected</span>
@@ -2575,7 +2577,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                               handleChartDrillDown({ month: [monthName], status: targetStatuses });
                                           } else {
                                               let yearStr = barChartData.labels[index][0]; 
-                                              if (yearStr === 'ไม่ระบุปี') yearStr = ''; // 🔥 แปลงกลับเป็นค่าว่างให้ตรงกับตาราง
+                                              if (yearStr === 'ไม่ระบุปี') yearStr = ''; 
                                               handleChartDrillDown({ year: [yearStr], status: targetStatuses });
                                           }
                                       }}
@@ -2590,14 +2592,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                           <div className="flex justify-between items-start mb-4">
                                               <div className="flex items-center gap-2">
                                                   <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-users text-blue-600"></i> Tasks by Team</h3>
-                                                  <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md hidden sm:inline-block"><i className="fa-solid fa-hand-pointer"></i> คลิกแท่งกราฟ</span>
                                               </div>
-                                              <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2">
-                                                  <div className="bg-emerald-50 px-3 py-1.5 flex flex-col items-center border-r border-slate-200">
+                                              <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2 transform transition-transform hover:scale-105 active:scale-95 cursor-pointer hover:shadow-md" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })}>
+                                                  <div className="bg-emerald-50 hover:bg-emerald-100 transition-colors px-3 py-1.5 flex flex-col items-center border-r border-slate-200">
                                                       <span className="text-lg font-black text-emerald-700 leading-none">{totalTeamCompleted}</span>
                                                       <span className="text-[10px] font-bold text-emerald-600 uppercase">Completed</span>
                                                   </div>
-                                                  <div className="bg-blue-50 px-3 py-1.5 flex flex-col items-center">
+                                                  <div className="bg-blue-50 hover:bg-blue-100 transition-colors px-3 py-1.5 flex flex-col items-center" onClick={(e) => { e.stopPropagation(); handleChartDrillDown({ status: getStatusesForDrillDown(false) }); }}>
                                                       <span className="text-lg font-black text-blue-700 leading-none">{totalTeamOnProcess}</span>
                                                       <span className="text-[10px] font-bold text-blue-600 uppercase">On Process</span>
                                                   </div>
@@ -2625,7 +2626,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       <div className="lg:col-span-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 relative">
                                           <div className="flex justify-between items-start mb-4">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2 text-amber-600"><i className="fa-solid fa-layer-group"></i> Pending Tasks Status</h3>
-                                              <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => handleChartDrillDown({ team: ['ไม่ระบุทีม'] })}>
+                                              <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2 cursor-pointer transform transition-transform hover:scale-105 active:scale-95 hover:shadow-md hover:bg-amber-100" onClick={() => handleChartDrillDown({ team: ['ไม่ระบุทีม'] })}>
                                                   <span className="text-lg font-black text-amber-700 leading-none">{totalPendingCount}</span>
                                                   <span className="text-[10px] font-bold text-amber-600 uppercase">CIDs</span>
                                               </div>
@@ -2650,9 +2651,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       <div className="flex justify-between items-start mb-4">
                                           <div className="flex items-center gap-2">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-users text-blue-600"></i> Tasks & Status by Team</h3>
-                                              <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md hidden sm:inline-block"><i className="fa-solid fa-hand-pointer"></i> คลิกแท่งกราฟ</span>
                                           </div>
-                                          <div className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2">
+                                          <div className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2 cursor-pointer transform transition-transform hover:scale-105 active:scale-95 hover:shadow-md hover:bg-blue-100" onClick={() => handleChartDrillDown({})}>
                                               <span className="text-lg font-black text-blue-700 leading-none">{totalSubconTeamTasks}</span>
                                               <span className="text-[10px] font-bold text-blue-600 uppercase">Total CIDs</span>
                                           </div>
@@ -2681,7 +2681,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                                   <div className="flex justify-between items-start mb-4">
                                       <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> Overdue Appointments</h3>
-                                      <div className="bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2 cursor-pointer hover:bg-red-100 transition-colors" onClick={() => handleChartDrillDown({ overdue: ['เกินกำหนด'] })}>
+                                      <div className="bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2 cursor-pointer transform transition-transform hover:scale-105 active:scale-95 hover:shadow-md hover:bg-red-100" onClick={() => handleChartDrillDown({ overdue: ['เกินกำหนด'] })}>
                                           <span className="text-lg font-black text-red-700 leading-none">{totalOverdue}</span>
                                           <span className="text-[10px] font-bold text-red-600 uppercase">CIDs</span>
                                       </div>
@@ -2695,7 +2695,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                   options={overdueChartOptions} 
                                                   onClick={({ index }) => {
                                                       const fullTeamName = overdueChartData.labels[index];
-                                                      // 🔥 ส่งค่า Overdue ไปพร้อมกับทีมเลย ไม่ต้องใช้ setTimeout แล้ว
                                                       handleChartDrillDown({ team: [fullTeamName], overdue: ['เกินกำหนด'] });
                                                   }}
                                               />
@@ -2708,7 +2707,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     </div>
                   </div>
                 )}
-
                 {/* --- 2. หน้าตารางงาน --- */}
                 {activeTab === 'tasks' && (
                   <div className="absolute inset-0 flex flex-col p-2 md:p-4 lg:p-6 overflow-hidden bg-slate-50 min-h-0">
@@ -3212,9 +3210,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                             <select 
                                                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
                                                                 value="" 
-                                                                onClick={(e) => e.stopPropagation()} // 🔥 [Phase 1] ป้องกันการคลิกทะลุ
                                                                 onChange={async (e) => { 
-                                                                    e.stopPropagation(); // 🔥 [Phase 1] ป้องกันการคลิกทะลุ
                                                                     if (!e.target.value) return;
                                                                     const newVal = e.target.value;
                                                                     // 1. อัปเดตฝั่ง Subcontract (ตารางหลักของปฏิทิน)
