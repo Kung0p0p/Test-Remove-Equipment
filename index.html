@@ -1734,49 +1734,37 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           // 🔥 DRILL-DOWN LOGIC (คลิกกราฟแล้วไปหน้าตาราง)
           // ==========================================
           const handleChartDrillDown = (filters) => {
-              // 1. ล้างตัวกรองเก่าทั้งหมด
               setFilterMonth('All'); setFilterTeams([]); setSearchTerm(''); 
               setTableFilterTeams([]); setTableFilterDate([]); setTableFilterYear([]); 
               setTableFilterStatus([]); setTableFilterOverdue([]); setTableFilterRegionRespon([]);
               setVisibleRows(100); setShowDuplicatesOnly(false);
 
-              // 2. รับค่าจากกราฟที่คลิก
               if (filters.status) setTableFilterStatus(filters.status);
-              if (filters.overdue) setTableFilterOverdue(filters.overdue); // 🔥 รองรับการกดกล่อง Overdue
+              if (filters.overdue) setTableFilterOverdue(filters.overdue);
 
-              // 3. สืบทอดค่า "เดือน" จาก Dashboard (ถ้าไม่ได้คลิกแท่งเดือนโดยตรง)
               if (filters.month) {
                   setTableFilterDate(filters.month);
               } else if (filterMonth !== 'All') {
                   setTableFilterDate([monthNames[parseInt(filterMonth) - 1]]);
               }
 
-              // 4. สืบทอดค่า "ทีม" จาก Dashboard
               if (filters.team) {
                   setTableFilterTeams(filters.team);
               } else if (filterTeams.length > 0) {
                   setTableFilterTeams(filterTeams);
               }
               
-              // 5. สืบทอดค่า "ปี" จาก Dashboard (สำคัญมาก ทำให้ตัวเลขตรงกัน)
               if (filters.year) {
                   setTableFilterYear(filters.year);
               } else if (dashboardView === 'subcontract') {
                   if (dashboardYear === '2026') {
                       setTableFilterYear(['2026']);
                   } else if (dashboardYear === 'history') {
-                      // 🔥 ถ้าดู History ให้ดึงปีทั้งหมดที่น้อยกว่า 2026 ไปกรองในตาราง
-                      const historyYears = tableUniqueYears.filter(y => {
-                          if (!y || String(y).trim() === '') return true; // นับพวกไม่ระบุปีด้วย
-                          const match = String(y).match(/\d{4}/);
-                          const num = match ? parseInt(match[0], 10) : parseInt(y, 10);
-                          return num < 2026;
-                      });
-                      setTableFilterYear(historyYears.length > 0 ? historyYears : ['']);
+                      // 🔥 ส่งรหัสลับไปบอกตารางให้ดึงงานเก่าทั้งหมด
+                      setTableFilterYear(['__HISTORY__']);
                   }
               }
 
-              // 6. สลับไปหน้าตาราง
               startTransition(() => {
                   setTasksSubTab(dashboardView);
                   setActiveTab('tasks');
@@ -1784,9 +1772,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (window.innerWidth <= 1024) setIsSidebarOpen(false);
           };
 
-          // 🔥 ดึง Status จากข้อมูลที่แสดงบน Dashboard จริงๆ เพื่อความแม่นยำ 100%
           const getStatusesForDrillDown = (isCollected) => {
-              const availableStatuses = Object.keys(statusCounts); // ใช้สถานะที่มีอยู่จริงบนหน้าจอตอนนั้น
+              const availableStatuses = Object.keys(statusCounts);
               if (isCollected) {
                   return availableStatuses.filter(s => s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
               } else {
@@ -1816,7 +1803,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (tableFilterCID !== 'All' && t_cidCol) tableTasks = tableTasks.filter(t => (t[t_cidCol] ? String(t[t_cidCol]).trim() : '') === tableFilterCID);
               if (tableFilterStatus?.length > 0 && t_statusCol) tableTasks = tableTasks.filter(t => tableFilterStatus.includes(getCleanStatus(t[t_statusCol])));
               
-              // 🔥 แก้ไขให้ตารางใช้วิธีคิดวันที่แบบเดียวกับกราฟ (Priority: วันเข้าเก็บ -> วันยกเลิก)
               const cancelColMatch = t_getCol(['ยกเลิก', 'duejob', 'cancel']);
               
               if (tableFilterDate?.length > 0) { 
@@ -1829,15 +1815,19 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   }); 
               }
               
-              if (tableFilterYear?.length > 0 && t_equipYearCol) {
+              // 🔥 ระบบค้นหาปีแบบใหม่ ฉลาดและแม่นยำ 100%
+              if (tableFilterYear?.length > 0) {
                   tableTasks = tableTasks.filter(t => {
-                      let yStr = t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : '';
+                      let yStr = t_equipYearCol && t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : '';
                       let y = null;
+                      
+                      // สกัดตัวเลขปีออกจากข้อความ
                       if (yStr) {
                           const yMatch = yStr.match(/\d{4}/);
                           if (yMatch) y = parseInt(yMatch[0], 10); else y = parseInt(yStr, 10);
                           if (y < 100) y += 2000; if (y > 2500) y -= 543;
                       }
+                      // ถ้าไม่มีปี ให้ไปดึงจากวันที่เข้าเก็บ หรือ วันที่ยกเลิก
                       if (!y) {
                           let dStr = t_collectionDateCol ? t[t_collectionDateCol] : null;
                           if (!dStr || String(dStr).trim() === '' || String(dStr).trim() === '-') dStr = cancelColMatch ? t[cancelColMatch] : null;
@@ -1846,8 +1836,24 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       }
                       if (!y) y = new Date().getFullYear();
                       
-                      if (tableFilterYear.includes('')) return !t[t_equipYearCol] || String(t[t_equipYearCol]).trim() === '';
-                      return tableFilterYear.includes(String(y));
+                      // 1. ถ้ารับรหัสลับ History มา ให้โชว์งานที่เก่ากว่าปี 2026 ทั้งหมด
+                      if (tableFilterYear.includes('__HISTORY__')) return y < 2026;
+
+                      // 2. ถ้าค้นหาค่าว่าง
+                      if (tableFilterYear.includes('')) {
+                          if (!yStr || yStr === '') return true;
+                      }
+
+                      // 3. แปลงค่าที่ค้นหาให้เป็นตัวเลขแล้วเทียบกัน
+                      const filterYearsAsNumbers = tableFilterYear.map(fy => {
+                          if (!fy || String(fy).trim() === '') return null;
+                          const match = String(fy).match(/\d{4}/);
+                          let num = match ? parseInt(match[0], 10) : parseInt(fy, 10);
+                          if (num < 100) num += 2000; if (num > 2500) num -= 543;
+                          return num;
+                      });
+
+                      return filterYearsAsNumbers.includes(y);
                   });
               }
 
@@ -2600,14 +2606,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                           {/* กราฟโดนัท (อยู่ด้านซ้าย) 🔥 ปรับขนาดให้ใหญ่ขึ้น */}
                                           <div className="relative flex items-center justify-center w-56 h-56 md:w-64 md:h-64 shrink-0">
                                               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                                                  {/* 🔥 ทำให้ตัวเลขตรงกลางกดได้ พร้อมใส่ Hover Effect */}
+                                                  {/* 🔥 ทำให้ตัวเลขตรงกลางกดได้ พร้อมใส่ Hover Effect และสี Gradient */}
                                                   <div 
-                                                      className="flex flex-col items-center justify-center pointer-events-auto cursor-pointer hover:scale-110 transition-transform duration-200 group"
+                                                      className="flex flex-col items-center justify-center pointer-events-auto cursor-pointer hover:scale-110 transition-transform duration-300 group"
                                                       onClick={() => handleChartDrillDown({ status: selectedStatuses?.length > 0 ? selectedStatuses : undefined })}
                                                       title="คลิกเพื่อดูข้อมูลทั้งหมด"
                                                   >
-                                                      <span className="text-5xl md:text-6xl font-black text-slate-800 leading-none group-hover:text-blue-600 transition-colors">{chartFilteredTasks?.length || 0}</span>
-                                                      <span className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mt-1 group-hover:text-blue-500 transition-colors">CIDs</span>
+                                                      <span className="text-5xl md:text-6xl font-black bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 text-transparent bg-clip-text drop-shadow-md leading-none">{chartFilteredTasks?.length || 0}</span>
+                                                      <span className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mt-1 group-hover:text-emerald-500 transition-colors">CIDs</span>
                                                   </div>
                                               </div>
                                               <ChartComponent 
