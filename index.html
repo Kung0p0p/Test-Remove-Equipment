@@ -2104,12 +2104,25 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           
           const chartStatusCounts = {}; chartFilteredTasks.forEach(t => { const s = getCleanStatus(t[d_statusCol]); chartStatusCounts[s] = (chartStatusCounts[s] || 0) + 1; });
           const chartSortedStatuses = Object.keys(chartStatusCounts).sort((a, b) => { const rA = getStatusRank(a), rB = getStatusRank(b); return rA !== rB ? rA - rB : chartStatusCounts[b] - chartStatusCounts[a]; });
-          const statusChartData = { labels: chartSortedStatuses, datasets: [{ data: chartSortedStatuses.map(s => chartStatusCounts[s]), backgroundColor: chartSortedStatuses.map(s => getStatusColor(s, 0.8)), borderColor: chartSortedStatuses.map(s => getStatusColor(s, 1)), borderWidth: 2, hoverOffset: 6, borderRadius: 4 }] };
+          const statusChartData = { 
+              labels: chartSortedStatuses, 
+              datasets: [{ 
+                  data: chartSortedStatuses.map(s => chartStatusCounts[s]), 
+                  backgroundColor: chartSortedStatuses.map(s => getStatusColor(s, 0.8)), 
+                  hoverBackgroundColor: chartSortedStatuses.map(s => getStatusColor(s, 1)), // 🔥 สีสว่างขึ้นเมื่อชี้
+                  borderColor: chartSortedStatuses.map(s => getStatusColor(s, 1)), 
+                  borderWidth: 2, 
+                  hoverBorderColor: '#ffffff', // 🔥 ขอบสีขาวให้ดูนูน
+                  hoverBorderWidth: 4,
+                  hoverOffset: 15, // 🔥 ชิ้นส่วนโดนัทเด้งออกมา
+                  borderRadius: 4 
+              }] 
+          };
           const statusChartOptions = { 
               responsive: true, 
               maintainAspectRatio: false, 
               cutout: '65%', 
-              layout: { padding: 10 }, 
+              layout: { padding: 15 }, // เพิ่ม padding ให้โดนัทเด้งได้ไม่โดนตัด
               plugins: { 
                   legend: { display: false }, 
                   tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 12, cornerRadius: 8 }, 
@@ -2136,7 +2149,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               barChartTitle = "Monthly Collection Summary";
               const monthlyData = {}; for (let i = 1; i <= 12; i++) monthlyData[i] = { collected: 0, ongoing: 0, percent: 0 };
               
-              // 🔥 3. Logic การนับ Collected vs Ongoing
               chartFilteredTasks.forEach(t => {
                   const d = parseDateHelper(getDashboardTaskEffectiveDateStr(t));
                   if (d) {
@@ -2156,7 +2168,21 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
               const monthLabelsWithPercent = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].map((m, i) => [m, `${monthlyData[i+1].percent}%`]);
 
-              barChartData = { labels: monthLabelsWithPercent, datasets: [ { label: 'Collected (CIDs)', data: Object.values(monthlyData).map(d => d.collected), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }, { label: 'Ongoing (CIDs)', data: Object.values(monthlyData).map(d => d.ongoing), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } ] };
+              barChartData = { 
+                  labels: monthLabelsWithPercent, 
+                  datasets: [ 
+                      { 
+                          label: 'Collected (CIDs)', data: Object.values(monthlyData).map(d => d.collected), 
+                          backgroundColor: 'rgba(16, 185, 129, 0.8)', hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
+                          borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1, hoverBorderColor: '#ffffff', hoverBorderWidth: 2, borderRadius: 4 
+                      }, 
+                      { 
+                          label: 'Ongoing (CIDs)', data: Object.values(monthlyData).map(d => d.ongoing), 
+                          backgroundColor: 'rgba(245, 158, 11, 0.8)', hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
+                          borderColor: 'rgba(245, 158, 11, 1)', borderWidth: 1, hoverBorderColor: '#ffffff', hoverBorderWidth: 2, borderRadius: 4 
+                      } 
+                  ] 
+              };
               barChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true } } };
           } else {
               barChartTitle = "Collection by Job Year";
@@ -2187,8 +2213,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               barChartData = { 
                   labels: yearLabelsWithPercent, 
                   datasets: [ 
-                      { label: 'Collected (CIDs)', data: sortedYears.map(y => yearlyData[y].collected), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }, 
-                      { label: 'Ongoing (CIDs)', data: sortedYears.map(y => yearlyData[y].ongoing), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } 
+                      { 
+                          label: 'Collected (CIDs)', data: sortedYears.map(y => yearlyData[y].collected), 
+                          backgroundColor: 'rgba(16, 185, 129, 0.8)', hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
+                          borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1, hoverBorderColor: '#ffffff', hoverBorderWidth: 2, borderRadius: 4 
+                      }, 
+                      { 
+                          label: 'Ongoing (CIDs)', data: sortedYears.map(y => yearlyData[y].ongoing), 
+                          backgroundColor: 'rgba(245, 158, 11, 0.8)', hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
+                          borderColor: 'rgba(245, 158, 11, 1)', borderWidth: 1, hoverBorderColor: '#ffffff', hoverBorderWidth: 2, borderRadius: 4 
+                      } 
                   ] 
               };
               barChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true }, x: { stacked: false } } };
@@ -2199,36 +2233,40 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           // ==========================================
           let teamChartData, unassignedChartData, teamChartOptions, unassignedChartOptions;
           let totalPendingCount = 0; 
-          let totalTeamCompleted = 0; // 🔥 ผลรวม Completed ของทีม
-          let totalTeamOnProcess = 0; // 🔥 ผลรวม On Process ของทีม
-          let totalSubconTeamTasks = 0; // 🔥 ผลรวมงานของ Subcontract
+          let totalTeamCompleted = 0; 
+          let totalTeamOnProcess = 0; 
+          let totalSubconTeamTasks = 0; 
           const allActiveTeams = [...new Set(chartFilteredTasks.map(t => getCleanTeam(t[d_teamCol])))].sort();
 
           if (dashboardView === 'ns') {
-              // --- LOGIC สำหรับ REGION TASKS (NS) ---
               const completedKeywords = ["เก็บอุปกรณ์เรียบร้อย รอนำคืน SYM", "คืนอุปกรณ์ SYM เรียบร้อย", "เก็บเรียบร้อย", "Completed"];
               const isTaskCompleted = (status) => completedKeywords.some(k => String(status).includes(k));
               
               const mainTeams = allActiveTeams.filter(t => t !== 'ไม่ระบุทีม');
               const unassignedLabel = 'ไม่ระบุทีม';
 
-              // คำนวณผลรวมของทีมหลัก
               mainTeams.forEach(team => {
                   const teamTasks = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team);
                   totalTeamCompleted += teamTasks.filter(t => isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
                   totalTeamOnProcess += teamTasks.filter(t => !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
               });
 
-              // 1. กราฟทีมหลัก: ย่อชื่อ และ เปลี่ยนสี On Process เป็นสีส้ม
               teamChartData = { 
                   labels: mainTeams.map(shortenName), 
                   datasets: [
-                      { label: 'Completed', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 },
-                      { label: 'On Process', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } 
+                      { 
+                          label: 'Completed', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), 
+                          backgroundColor: 'rgba(16, 185, 129, 0.8)', hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
+                          borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1, hoverBorderColor: '#ffffff', hoverBorderWidth: 2, borderRadius: 4 
+                      },
+                      { 
+                          label: 'On Process', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), 
+                          backgroundColor: 'rgba(245, 158, 11, 0.8)', hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
+                          borderColor: 'rgba(245, 158, 11, 1)', borderWidth: 1, hoverBorderColor: '#ffffff', hoverBorderWidth: 2, borderRadius: 4 
+                      } 
                   ] 
               };
 
-              // 2. กราฟไม่ระบุทีม: แยกตาม Status
               const unassignedTasks = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === unassignedLabel);
               totalPendingCount = unassignedTasks.length; 
               const unassignedStatuses = [...new Set(unassignedTasks.map(t => getCleanStatus(t[d_statusCol])))].sort();
@@ -2239,12 +2277,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       label: status,
                       data: [unassignedTasks.filter(t => getCleanStatus(t[d_statusCol]) === status).length],
                       backgroundColor: getStatusColor(status, 0.8),
+                      hoverBackgroundColor: getStatusColor(status, 1),
                       borderColor: getStatusColor(status, 1),
-                      borderWidth: 1
+                      borderWidth: 1,
+                      hoverBorderColor: '#ffffff',
+                      hoverBorderWidth: 2,
+                      borderRadius: 4
                   }))
               };
 
-              // 3. Options สำหรับทีมหลัก
               teamChartOptions = { 
                   responsive: true, maintainAspectRatio: false, 
                   plugins: { 
@@ -2254,29 +2295,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   scales: { y: { beginAtZero: true, grid: { display: false } } } 
               };
 
-              // 4. Options สำหรับ Pending Tasks Status
               unassignedChartOptions = {
                   responsive: true, maintainAspectRatio: false,
                   layout: { padding: { top: 30 } }, 
                   plugins: {
                       legend: { display: false }, 
                       tooltip: {
-                          backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                          padding: 12,
-                          cornerRadius: 8,
-                          callbacks: {
-                              label: function(context) {
-                                  return ` ${context.dataset.label}: ${context.raw} CIDs`;
-                              }
-                          }
+                          backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 12, cornerRadius: 8,
+                          callbacks: { label: function(context) { return ` ${context.dataset.label}: ${context.raw} CIDs`; } }
                       },
-                      datalabels: { 
-                          ...dlStyle, // 🔥 ใช้สีขาวขอบดำตามต้นฉบับ
-                          display: true, 
-                          anchor: 'end', 
-                          align: 'top',
-                          offset: 4
-                      }
+                      datalabels: { ...dlStyle, display: true, anchor: 'end', align: 'top', offset: 4, color: '#1e293b' }
                   },
                   scales: { 
                       y: { beginAtZero: true, grid: { display: false }, ticks: { display: false } },
@@ -2285,7 +2313,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               };
 
           } else {
-              // --- LOGIC เดิมสำหรับ SUBCONTRACT ---
               totalSubconTeamTasks = chartFilteredTasks.filter(t => allActiveTeams.includes(getCleanTeam(t[d_teamCol]))).length;
               const activeStatusesForTeam = [...new Set(chartFilteredTasks.map(t => getCleanStatus(t[d_statusCol])))];
               teamChartData = { 
@@ -2294,8 +2321,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       label: status, 
                       data: allActiveTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && getCleanStatus(t[d_statusCol]) === status).length), 
                       backgroundColor: getStatusColor(status, 0.8), 
+                      hoverBackgroundColor: getStatusColor(status, 1),
                       borderColor: getStatusColor(status, 1), 
-                      borderWidth: 1 
+                      borderWidth: 1,
+                      hoverBorderColor: '#ffffff',
+                      hoverBorderWidth: 2,
+                      borderRadius: 4
                   })) 
               };
               teamChartOptions = { 
@@ -2306,8 +2337,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               unassignedChartData = null;
           }
 
-          // กราฟเกินกำหนด (Overdue)
-          let totalOverdue = 0; // 🔥 ผลรวมงานเกินกำหนด
+          let totalOverdue = 0; 
           const overdueByTeamCounts = {}; allActiveTeams.forEach(t => overdueByTeamCounts[t] = 0);
           chartFilteredTasks.forEach(t => {
               const val = d_overDueCol ? getCleanStatus(t[d_overDueCol]) : '';
@@ -2319,7 +2349,20 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   }
               }
           });
-          const overdueChartData = { labels: allActiveTeams, datasets: [{ label: 'เกินกำหนดนัดหมาย (CIDs)', data: allActiveTeams.map(t => overdueByTeamCounts[t]), backgroundColor: 'rgba(239, 68, 68, 0.8)', borderColor: 'rgba(220, 38, 38, 1)', borderWidth: 1 }] };
+          const overdueChartData = { 
+              labels: allActiveTeams, 
+              datasets: [{ 
+                  label: 'เกินกำหนดนัดหมาย (CIDs)', 
+                  data: allActiveTeams.map(t => overdueByTeamCounts[t]), 
+                  backgroundColor: 'rgba(239, 68, 68, 0.8)', 
+                  hoverBackgroundColor: 'rgba(239, 68, 68, 1)',
+                  borderColor: 'rgba(220, 38, 38, 1)', 
+                  borderWidth: 1,
+                  hoverBorderColor: '#ffffff',
+                  hoverBorderWidth: 2,
+                  borderRadius: 4
+              }] 
+          };
           const overdueChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: dlStyle }, scales: { y: { beginAtZero: true } } };
 
           // ================== CALENDAR CALCULATIONS ==================
