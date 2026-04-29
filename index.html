@@ -1731,26 +1731,20 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           };
 
           // ==========================================
-          // 🔥 // ==========================================
           // 🔥 DRILL-DOWN LOGIC (คลิกกราฟแล้วไปหน้าตาราง)
           // ==========================================
           const handleChartDrillDown = (filters) => {
-              // 1. ล้างเฉพาะตัวกรองของ "ตารางงาน" (ห้ามล้างของ Dashboard เด็ดขาด)
-              setSearchTerm(''); 
-              setTableFilterTeams([]); 
-              setTableFilterDate([]); 
-              setTableFilterYear([]); 
-              setTableFilterStatus([]); 
-              setTableFilterOverdue([]); 
-              setTableFilterRegionRespon([]);
-              setVisibleRows(100); 
-              setShowDuplicatesOnly(false);
+              // 1. ล้างตัวกรองเก่าทั้งหมด
+              setFilterMonth('All'); setFilterTeams([]); setSearchTerm(''); 
+              setTableFilterTeams([]); setTableFilterDate([]); setTableFilterYear([]); 
+              setTableFilterStatus([]); setTableFilterOverdue([]); setTableFilterRegionRespon([]);
+              setVisibleRows(100); setShowDuplicatesOnly(false);
 
               // 2. รับค่าจากกราฟที่คลิก
               if (filters.status) setTableFilterStatus(filters.status);
-              if (filters.overdue) setTableFilterOverdue(filters.overdue);
+              if (filters.overdue) setTableFilterOverdue(filters.overdue); // 🔥 รองรับการกดกล่อง Overdue
 
-              // 3. สืบทอดค่า "เดือน" จาก Dashboard
+              // 3. สืบทอดค่า "เดือน" จาก Dashboard (ถ้าไม่ได้คลิกแท่งเดือนโดยตรง)
               if (filters.month) {
                   setTableFilterDate(filters.month);
               } else if (filterMonth !== 'All') {
@@ -1764,15 +1758,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   setTableFilterTeams(filterTeams);
               }
               
-              // 5. สืบทอดค่า "ปี" จาก Dashboard
+              // 5. สืบทอดค่า "ปี" จาก Dashboard (สำคัญมาก ทำให้ตัวเลขตรงกัน)
               if (filters.year) {
                   setTableFilterYear(filters.year);
               } else if (dashboardView === 'subcontract') {
                   if (dashboardYear === '2026') {
                       setTableFilterYear(['2026']);
                   } else if (dashboardYear === 'history') {
+                      // 🔥 ถ้าดู History ให้ดึงปีทั้งหมดที่น้อยกว่า 2026 ไปกรองในตาราง
                       const historyYears = tableUniqueYears.filter(y => {
-                          if (!y || String(y).trim() === '') return true; 
+                          if (!y || String(y).trim() === '') return true; // นับพวกไม่ระบุปีด้วย
                           const match = String(y).match(/\d{4}/);
                           const num = match ? parseInt(match[0], 10) : parseInt(y, 10);
                           return num < 2026;
@@ -1789,16 +1784,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (window.innerWidth <= 1024) setIsSidebarOpen(false);
           };
 
-          // 🔥 ดึง Status จากฐานข้อมูลทั้งหมด (ไม่ใช่อิงแค่ที่โชว์บนกราฟ) เพื่อป้องกันการตกหล่น
+          // 🔥 ดึง Status จากข้อมูลที่แสดงบน Dashboard จริงๆ เพื่อความแม่นยำ 100%
           const getStatusesForDrillDown = (isCollected) => {
-              const allStatuses = dashboardView === 'subcontract' 
-                  ? [...new Set(tasks.map(t => getCleanStatus(t[d_statusCol])))] 
-                  : [...new Set(nsTasks.map(t => getCleanStatus(t[d_statusCol])))];
-                  
+              const availableStatuses = Object.keys(statusCounts); // ใช้สถานะที่มีอยู่จริงบนหน้าจอตอนนั้น
               if (isCollected) {
-                  return allStatuses.filter(s => s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
+                  return availableStatuses.filter(s => s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
               } else {
-                  return allStatuses.filter(s => !s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
+                  return availableStatuses.filter(s => !s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
               }
           };
 
@@ -1824,40 +1816,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (tableFilterCID !== 'All' && t_cidCol) tableTasks = tableTasks.filter(t => (t[t_cidCol] ? String(t[t_cidCol]).trim() : '') === tableFilterCID);
               if (tableFilterYear?.length > 0 && t_equipYearCol) tableTasks = tableTasks.filter(t => tableFilterYear.includes(t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : ''));
               if (tableFilterStatus?.length > 0 && t_statusCol) tableTasks = tableTasks.filter(t => tableFilterStatus.includes(getCleanStatus(t[t_statusCol])));
-              // 🔥 [แก้บั๊ก] สอนให้ตารางงานดึง "วันที่ยกเลิก" มาใช้แทนถ้า "วันที่เข้าเก็บ" ว่างเปล่า
-              const t_cancelDateCol = t_getCol(['ยกเลิก', 'duejob', 'cancel']) || '';
-
-              if (tableFilterDate?.length > 0) { 
-                  tableTasks = tableTasks.filter(t => { 
-                      let d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null); 
-                      if (!d) d = parseDateHelper(t_cancelDateCol ? t[t_cancelDateCol] : null); // Fallback
-                      return d && tableFilterDate.includes(monthNames[d.getMonth()]); 
-                  }); 
-              }
-              
-              // 🔥 อัปเกรดการกรอง "ปี" ให้ฉลาดขึ้นด้วย (รองรับการกดจากกราฟ)
-              if (tableFilterYear?.length > 0) { 
-                  tableTasks = tableTasks.filter(t => { 
-                      let yStr = t_equipYearCol && t[t_equipYearCol] ? String(t[t_equipYearCol]).trim() : '';
-                      if (tableFilterYear.includes(yStr)) return true; 
-                      
-                      let y = null;
-                      if (yStr) {
-                          const yMatch = yStr.match(/\d{4}/);
-                          y = yMatch ? parseInt(yMatch[0], 10) : parseInt(yStr, 10);
-                          if (y < 100) y += 2000; if (y > 2500) y -= 543;
-                      }
-                      if (!y) {
-                          let d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null);
-                          if (!d) d = parseDateHelper(t_cancelDateCol ? t[t_cancelDateCol] : null);
-                          if (d) { y = d.getFullYear(); if (y > 2500) y -= 543; }
-                      }
-                      if (!y) y = new Date().getFullYear();
-                      
-                      return tableFilterYear.includes(String(y));
-                  }); 
-              }
-
+              if (tableFilterDate?.length > 0) { tableTasks = tableTasks.filter(t => { const d = parseDateHelper(t_collectionDateCol ? t[t_collectionDateCol] : null); return d && tableFilterDate.includes(monthNames[d.getMonth()]); }); }
               if (tableFilterOverdue?.length > 0 && t_overDueCol) {
                   tableTasks = tableTasks.filter(t => {
                       const cleanVal = getCleanStatus(t[t_overDueCol] || '').toLowerCase(); if (cleanVal === 'ไม่ระบุสถานะ' || !cleanVal) return false;
@@ -2104,25 +2063,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           
           const chartStatusCounts = {}; chartFilteredTasks.forEach(t => { const s = getCleanStatus(t[d_statusCol]); chartStatusCounts[s] = (chartStatusCounts[s] || 0) + 1; });
           const chartSortedStatuses = Object.keys(chartStatusCounts).sort((a, b) => { const rA = getStatusRank(a), rB = getStatusRank(b); return rA !== rB ? rA - rB : chartStatusCounts[b] - chartStatusCounts[a]; });
-          const statusChartData = { 
-              labels: chartSortedStatuses, 
-              datasets: [{ 
-                  data: chartSortedStatuses.map(s => chartStatusCounts[s]), 
-                  backgroundColor: chartSortedStatuses.map(s => getStatusColor(s, 0.8)), 
-                  hoverBackgroundColor: chartSortedStatuses.map(s => getStatusColor(s, 1)), // 🔥 สีสว่างขึ้นเมื่อชี้
-                  borderColor: chartSortedStatuses.map(s => getStatusColor(s, 1)), 
-                  borderWidth: 2, 
-                  hoverBorderColor: '#ffffff', // 🔥 ขอบสีขาวให้ดูนูน
-                  hoverBorderWidth: 4,
-                  hoverOffset: 15, // 🔥 ชิ้นส่วนโดนัทเด้งออกมา
-                  borderRadius: 4 
-              }] 
-          };
+          const statusChartData = { labels: chartSortedStatuses, datasets: [{ data: chartSortedStatuses.map(s => chartStatusCounts[s]), backgroundColor: chartSortedStatuses.map(s => getStatusColor(s, 0.8)), borderColor: chartSortedStatuses.map(s => getStatusColor(s, 1)), borderWidth: 2, hoverOffset: 6, borderRadius: 4 }] };
           const statusChartOptions = { 
               responsive: true, 
               maintainAspectRatio: false, 
               cutout: '65%', 
-              layout: { padding: 15 }, // เพิ่ม padding ให้โดนัทเด้งได้ไม่โดนตัด
+              layout: { padding: 10 }, 
               plugins: { 
                   legend: { display: false }, 
                   tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 12, cornerRadius: 8 }, 
@@ -2149,6 +2095,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               barChartTitle = "Monthly Collection Summary";
               const monthlyData = {}; for (let i = 1; i <= 12; i++) monthlyData[i] = { collected: 0, ongoing: 0, percent: 0 };
               
+              // 🔥 3. Logic การนับ Collected vs Ongoing
               chartFilteredTasks.forEach(t => {
                   const d = parseDateHelper(getDashboardTaskEffectiveDateStr(t));
                   if (d) {
@@ -2168,21 +2115,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
               const monthLabelsWithPercent = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].map((m, i) => [m, `${monthlyData[i+1].percent}%`]);
 
-              barChartData = { 
-                  labels: monthLabelsWithPercent, 
-                  datasets: [ 
-                      { 
-                          label: 'Collected (CIDs)', data: Object.values(monthlyData).map(d => d.collected), 
-                          backgroundColor: 'rgba(16, 185, 129, 0.8)', hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
-                          borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1, hoverBorderColor: '#ffffff', hoverBorderWidth: 2, borderRadius: 4 
-                      }, 
-                      { 
-                          label: 'Ongoing (CIDs)', data: Object.values(monthlyData).map(d => d.ongoing), 
-                          backgroundColor: 'rgba(245, 158, 11, 0.8)', hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
-                          borderColor: 'rgba(245, 158, 11, 1)', borderWidth: 1, hoverBorderColor: '#ffffff', hoverBorderWidth: 2, borderRadius: 4 
-                      } 
-                  ] 
-              };
+              barChartData = { labels: monthLabelsWithPercent, datasets: [ { label: 'Collected (CIDs)', data: Object.values(monthlyData).map(d => d.collected), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }, { label: 'Ongoing (CIDs)', data: Object.values(monthlyData).map(d => d.ongoing), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } ] };
               barChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true } } };
           } else {
               barChartTitle = "Collection by Job Year";
@@ -2213,16 +2146,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               barChartData = { 
                   labels: yearLabelsWithPercent, 
                   datasets: [ 
-                      { 
-                          label: 'Collected (CIDs)', data: sortedYears.map(y => yearlyData[y].collected), 
-                          backgroundColor: 'rgba(16, 185, 129, 0.8)', hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
-                          borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1, hoverBorderColor: '#ffffff', hoverBorderWidth: 2, borderRadius: 4 
-                      }, 
-                      { 
-                          label: 'Ongoing (CIDs)', data: sortedYears.map(y => yearlyData[y].ongoing), 
-                          backgroundColor: 'rgba(245, 158, 11, 0.8)', hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
-                          borderColor: 'rgba(245, 158, 11, 1)', borderWidth: 1, hoverBorderColor: '#ffffff', hoverBorderWidth: 2, borderRadius: 4 
-                      } 
+                      { label: 'Collected (CIDs)', data: sortedYears.map(y => yearlyData[y].collected), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }, 
+                      { label: 'Ongoing (CIDs)', data: sortedYears.map(y => yearlyData[y].ongoing), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } 
                   ] 
               };
               barChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true }, x: { stacked: false } } };
@@ -2233,40 +2158,36 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           // ==========================================
           let teamChartData, unassignedChartData, teamChartOptions, unassignedChartOptions;
           let totalPendingCount = 0; 
-          let totalTeamCompleted = 0; 
-          let totalTeamOnProcess = 0; 
-          let totalSubconTeamTasks = 0; 
+          let totalTeamCompleted = 0; // 🔥 ผลรวม Completed ของทีม
+          let totalTeamOnProcess = 0; // 🔥 ผลรวม On Process ของทีม
+          let totalSubconTeamTasks = 0; // 🔥 ผลรวมงานของ Subcontract
           const allActiveTeams = [...new Set(chartFilteredTasks.map(t => getCleanTeam(t[d_teamCol])))].sort();
 
           if (dashboardView === 'ns') {
+              // --- LOGIC สำหรับ REGION TASKS (NS) ---
               const completedKeywords = ["เก็บอุปกรณ์เรียบร้อย รอนำคืน SYM", "คืนอุปกรณ์ SYM เรียบร้อย", "เก็บเรียบร้อย", "Completed"];
               const isTaskCompleted = (status) => completedKeywords.some(k => String(status).includes(k));
               
               const mainTeams = allActiveTeams.filter(t => t !== 'ไม่ระบุทีม');
               const unassignedLabel = 'ไม่ระบุทีม';
 
+              // คำนวณผลรวมของทีมหลัก
               mainTeams.forEach(team => {
                   const teamTasks = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team);
                   totalTeamCompleted += teamTasks.filter(t => isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
                   totalTeamOnProcess += teamTasks.filter(t => !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length;
               });
 
+              // 1. กราฟทีมหลัก: ย่อชื่อ และ เปลี่ยนสี On Process เป็นสีส้ม
               teamChartData = { 
                   labels: mainTeams.map(shortenName), 
                   datasets: [
-                      { 
-                          label: 'Completed', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), 
-                          backgroundColor: 'rgba(16, 185, 129, 0.8)', hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
-                          borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1, hoverBorderColor: '#ffffff', hoverBorderWidth: 2, borderRadius: 4 
-                      },
-                      { 
-                          label: 'On Process', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), 
-                          backgroundColor: 'rgba(245, 158, 11, 0.8)', hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
-                          borderColor: 'rgba(245, 158, 11, 1)', borderWidth: 1, hoverBorderColor: '#ffffff', hoverBorderWidth: 2, borderRadius: 4 
-                      } 
+                      { label: 'Completed', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 },
+                      { label: 'On Process', data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), backgroundColor: 'rgba(245, 158, 11, 0.8)', borderRadius: 4 } 
                   ] 
               };
 
+              // 2. กราฟไม่ระบุทีม: แยกตาม Status
               const unassignedTasks = chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === unassignedLabel);
               totalPendingCount = unassignedTasks.length; 
               const unassignedStatuses = [...new Set(unassignedTasks.map(t => getCleanStatus(t[d_statusCol])))].sort();
@@ -2277,15 +2198,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       label: status,
                       data: [unassignedTasks.filter(t => getCleanStatus(t[d_statusCol]) === status).length],
                       backgroundColor: getStatusColor(status, 0.8),
-                      hoverBackgroundColor: getStatusColor(status, 1),
                       borderColor: getStatusColor(status, 1),
-                      borderWidth: 1,
-                      hoverBorderColor: '#ffffff',
-                      hoverBorderWidth: 2,
-                      borderRadius: 4
+                      borderWidth: 1
                   }))
               };
 
+              // 3. Options สำหรับทีมหลัก
               teamChartOptions = { 
                   responsive: true, maintainAspectRatio: false, 
                   plugins: { 
@@ -2295,16 +2213,29 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   scales: { y: { beginAtZero: true, grid: { display: false } } } 
               };
 
+              // 4. Options สำหรับ Pending Tasks Status
               unassignedChartOptions = {
                   responsive: true, maintainAspectRatio: false,
                   layout: { padding: { top: 30 } }, 
                   plugins: {
                       legend: { display: false }, 
                       tooltip: {
-                          backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 12, cornerRadius: 8,
-                          callbacks: { label: function(context) { return ` ${context.dataset.label}: ${context.raw} CIDs`; } }
+                          backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                          padding: 12,
+                          cornerRadius: 8,
+                          callbacks: {
+                              label: function(context) {
+                                  return ` ${context.dataset.label}: ${context.raw} CIDs`;
+                              }
+                          }
                       },
-                      datalabels: { ...dlStyle, display: true, anchor: 'end', align: 'top', offset: 4, color: '#1e293b' }
+                      datalabels: { 
+                          ...dlStyle, // 🔥 ใช้สีขาวขอบดำตามต้นฉบับ
+                          display: true, 
+                          anchor: 'end', 
+                          align: 'top',
+                          offset: 4
+                      }
                   },
                   scales: { 
                       y: { beginAtZero: true, grid: { display: false }, ticks: { display: false } },
@@ -2313,6 +2244,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               };
 
           } else {
+              // --- LOGIC เดิมสำหรับ SUBCONTRACT ---
               totalSubconTeamTasks = chartFilteredTasks.filter(t => allActiveTeams.includes(getCleanTeam(t[d_teamCol]))).length;
               const activeStatusesForTeam = [...new Set(chartFilteredTasks.map(t => getCleanStatus(t[d_statusCol])))];
               teamChartData = { 
@@ -2321,12 +2253,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       label: status, 
                       data: allActiveTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && getCleanStatus(t[d_statusCol]) === status).length), 
                       backgroundColor: getStatusColor(status, 0.8), 
-                      hoverBackgroundColor: getStatusColor(status, 1),
                       borderColor: getStatusColor(status, 1), 
-                      borderWidth: 1,
-                      hoverBorderColor: '#ffffff',
-                      hoverBorderWidth: 2,
-                      borderRadius: 4
+                      borderWidth: 1 
                   })) 
               };
               teamChartOptions = { 
@@ -2337,7 +2265,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               unassignedChartData = null;
           }
 
-          let totalOverdue = 0; 
+          // กราฟเกินกำหนด (Overdue)
+          let totalOverdue = 0; // 🔥 ผลรวมงานเกินกำหนด
           const overdueByTeamCounts = {}; allActiveTeams.forEach(t => overdueByTeamCounts[t] = 0);
           chartFilteredTasks.forEach(t => {
               const val = d_overDueCol ? getCleanStatus(t[d_overDueCol]) : '';
@@ -2349,20 +2278,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   }
               }
           });
-          const overdueChartData = { 
-              labels: allActiveTeams, 
-              datasets: [{ 
-                  label: 'เกินกำหนดนัดหมาย (CIDs)', 
-                  data: allActiveTeams.map(t => overdueByTeamCounts[t]), 
-                  backgroundColor: 'rgba(239, 68, 68, 0.8)', 
-                  hoverBackgroundColor: 'rgba(239, 68, 68, 1)',
-                  borderColor: 'rgba(220, 38, 38, 1)', 
-                  borderWidth: 1,
-                  hoverBorderColor: '#ffffff',
-                  hoverBorderWidth: 2,
-                  borderRadius: 4
-              }] 
-          };
+          const overdueChartData = { labels: allActiveTeams, datasets: [{ label: 'เกินกำหนดนัดหมาย (CIDs)', data: allActiveTeams.map(t => overdueByTeamCounts[t]), backgroundColor: 'rgba(239, 68, 68, 0.8)', borderColor: 'rgba(220, 38, 38, 1)', borderWidth: 1 }] };
           const overdueChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: dlStyle }, scales: { y: { beginAtZero: true } } };
 
           // ================== CALENDAR CALCULATIONS ==================
@@ -2562,21 +2478,20 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           })}
                       </div>
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-6">
-                          
-                          {/* 1. Overall Progress */}
-                          <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1 relative overflow-hidden">
+                          <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1 flex flex-col relative overflow-hidden">
                               <div className="flex justify-between items-center mb-4">
                                   <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
                                       <i className="fa-solid fa-chart-pie text-blue-600"></i> Overall Progress
                                   </h3>
+                                  <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md"><i className="fa-solid fa-hand-pointer"></i> คลิกกราฟได้</span>
                               </div>
-                              <div className="relative w-full flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 h-64 md:h-72">
+
+                              <div className="relative flex-1 w-full flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 min-h-[250px] md:min-h-[300px]">
                                   {chartFilteredTasks?.length > 0 ? (
                                       <>
-                                          {/* 🔥 เพิ่ม Hover Effect ให้กราฟโดนัท */}
-                                          <div className="relative flex items-center justify-center w-48 h-48 md:w-56 md:h-56 shrink-0 transform transition-all duration-300 hover:scale-105 hover:drop-shadow-[0_0_20px_rgba(16,185,129,0.3)] cursor-pointer">
+                                          <div className="relative flex items-center justify-center w-56 h-56 md:w-64 md:h-64 shrink-0">
                                               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                                                  <span className="text-4xl md:text-5xl font-black text-slate-800 leading-none">{chartFilteredTasks?.length || 0}</span>
+                                                  <span className="text-5xl md:text-6xl font-black text-slate-800 leading-none">{chartFilteredTasks?.length || 0}</span>
                                                   <span className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">CIDs</span>
                                               </div>
                                               <ChartComponent 
@@ -2588,10 +2503,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                   }}
                                               />
                                           </div>
-                                          <div className="flex flex-col items-center md:items-start justify-center relative cursor-pointer group" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })} title="คลิกเพื่อดูงานที่เสร็จแล้วทั้งหมด">
-                                              <div className="absolute inset-0 bg-emerald-400 blur-3xl opacity-20 group-hover:opacity-40 rounded-full w-32 h-32 -z-10 transform -translate-x-4 transition-opacity duration-300"></div>
+
+                                          <div className="flex flex-col items-center md:items-start justify-center relative cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })} title="คลิกเพื่อดูงานที่เสร็จแล้วทั้งหมด">
+                                              <div className="absolute inset-0 bg-emerald-400 blur-3xl opacity-20 rounded-full w-32 h-32 -z-10 transform -translate-x-4"></div>
                                               <span className="text-sm md:text-base font-black text-slate-400 uppercase tracking-widest mb-1">Complete</span>
-                                              <div className="text-6xl md:text-7xl lg:text-8xl font-black bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 text-transparent bg-clip-text drop-shadow-xl transform group-hover:scale-105 transition-transform duration-300">
+                                              <div className="text-6xl md:text-7xl lg:text-8xl font-black bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 text-transparent bg-clip-text drop-shadow-xl transform hover:scale-105 transition-transform duration-300">
                                                   {overallPercentComplete}<span className="text-3xl md:text-4xl lg:text-5xl">%</span>
                                               </div>
                                           </div>
@@ -2600,29 +2516,24 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               </div>
                           </div>
                           
-                          {/* 2. Bar Chart (Monthly/Yearly) */}
                           <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
                               <div className="flex justify-between items-start mb-4">
-                                  <h3 className="text-base md:text-lg font-bold flex items-center gap-2 mt-1"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
-                                  <div className="flex gap-2 ml-auto">
-                                      <div className="relative group cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })}>
-                                          <div className="absolute inset-0 bg-emerald-400 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 rounded-xl"></div>
-                                          <div className="relative bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm group-hover:shadow-md transition-all transform group-hover:-translate-y-1 flex flex-col items-center min-w-[70px]">
-                                              <span className="text-xl font-black bg-gradient-to-br from-emerald-400 to-teal-600 text-transparent bg-clip-text drop-shadow-sm">{totalBarCollected}</span>
-                                              <span className="text-[9px] font-bold text-emerald-700 uppercase mt-0.5">Collected</span>
-                                          </div>
+                                  <div className="flex items-center gap-2">
+                                      <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
+                                      <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md hidden sm:inline-block"><i className="fa-solid fa-hand-pointer"></i> คลิกแท่งกราฟ</span>
+                                  </div>
+                                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2 cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })}>
+                                      <div className="bg-emerald-50 hover:bg-emerald-100 transition-colors px-3 py-1.5 flex flex-col items-center border-r border-slate-200">
+                                          <span className="text-lg font-black text-emerald-700 leading-none">{totalBarCollected}</span>
+                                          <span className="text-[10px] font-bold text-emerald-600 uppercase">Collected</span>
                                       </div>
-                                      <div className="relative group cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(false) })}>
-                                          <div className="absolute inset-0 bg-amber-400 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 rounded-xl"></div>
-                                          <div className="relative bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm group-hover:shadow-md transition-all transform group-hover:-translate-y-1 flex flex-col items-center min-w-[70px]">
-                                              <span className="text-xl font-black bg-gradient-to-br from-amber-400 to-orange-500 text-transparent bg-clip-text drop-shadow-sm">{totalBarOngoing}</span>
-                                              <span className="text-[9px] font-bold text-amber-700 uppercase mt-0.5">Ongoing</span>
-                                          </div>
+                                      <div className="bg-amber-50 hover:bg-amber-100 transition-colors px-3 py-1.5 flex flex-col items-center" onClick={(e) => { e.stopPropagation(); handleChartDrillDown({ status: getStatusesForDrillDown(false) }); }}>
+                                          <span className="text-lg font-black text-amber-700 leading-none">{totalBarOngoing}</span>
+                                          <span className="text-[10px] font-bold text-amber-600 uppercase">Ongoing</span>
                                       </div>
                                   </div>
                               </div>
-                              {/* 🔥 เพิ่ม Hover Effect ให้กราฟแท่ง */}
-                              <div className="relative h-60 md:h-72 w-full transform transition-all duration-300 hover:scale-[1.01] hover:drop-shadow-[0_0_15px_rgba(59,130,246,0.15)] cursor-pointer">
+                              <div className="relative h-60 md:h-72 w-full">
                                   <ChartComponent 
                                       type="bar" 
                                       data={barChartData} 
@@ -2635,7 +2546,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                               handleChartDrillDown({ month: [monthName], status: targetStatuses });
                                           } else {
                                               let yearStr = barChartData.labels[index][0]; 
-                                              if (yearStr === 'ไม่ระบุปี') yearStr = ''; 
+                                              if (yearStr === 'ไม่ระบุปี') yearStr = ''; // 🔥 แปลงกลับเป็นค่าว่างให้ตรงกับตาราง
                                               handleChartDrillDown({ year: [yearStr], status: targetStatuses });
                                           }
                                       }}
@@ -2643,32 +2554,27 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               </div>
                           </div>
                           
-                          {/* 3. Team Charts */}
                           <div className={`${dashboardView === 'ns' ? 'lg:col-span-3 grid grid-cols-1 lg:grid-cols-4 gap-6' : 'lg:col-span-2'}`}>
                               {dashboardView === 'ns' ? (
                                   <>
                                       <div className="lg:col-span-3 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                                           <div className="flex justify-between items-start mb-4">
-                                              <h3 className="text-base md:text-lg font-bold flex items-center gap-2 mt-1"><i className="fa-solid fa-users text-blue-600"></i> Tasks by Team</h3>
-                                              <div className="flex gap-2 ml-auto">
-                                                  <div className="relative group cursor-pointer" onClick={() => handleChartDrillDown({ team: allActiveTeams.filter(t => t !== 'ไม่ระบุทีม'), status: getStatusesForDrillDown(true) })}>
-                                                      <div className="absolute inset-0 bg-emerald-400 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 rounded-xl"></div>
-                                                      <div className="relative bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm group-hover:shadow-md transition-all transform group-hover:-translate-y-1 flex flex-col items-center min-w-[70px]">
-                                                          <span className="text-xl font-black bg-gradient-to-br from-emerald-400 to-teal-600 text-transparent bg-clip-text drop-shadow-sm">{totalTeamCompleted}</span>
-                                                          <span className="text-[9px] font-bold text-emerald-700 uppercase mt-0.5">Completed</span>
-                                                      </div>
+                                              <div className="flex items-center gap-2">
+                                                  <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-users text-blue-600"></i> Tasks by Team</h3>
+                                                  <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md hidden sm:inline-block"><i className="fa-solid fa-hand-pointer"></i> คลิกแท่งกราฟ</span>
+                                              </div>
+                                              <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2">
+                                                  <div className="bg-emerald-50 px-3 py-1.5 flex flex-col items-center border-r border-slate-200">
+                                                      <span className="text-lg font-black text-emerald-700 leading-none">{totalTeamCompleted}</span>
+                                                      <span className="text-[10px] font-bold text-emerald-600 uppercase">Completed</span>
                                                   </div>
-                                                  <div className="relative group cursor-pointer" onClick={() => handleChartDrillDown({ team: allActiveTeams.filter(t => t !== 'ไม่ระบุทีม'), status: getStatusesForDrillDown(false) })}>
-                                                      <div className="absolute inset-0 bg-blue-400 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 rounded-xl"></div>
-                                                      <div className="relative bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm group-hover:shadow-md transition-all transform group-hover:-translate-y-1 flex flex-col items-center min-w-[70px]">
-                                                          <span className="text-xl font-black bg-gradient-to-br from-blue-400 to-indigo-600 text-transparent bg-clip-text drop-shadow-sm">{totalTeamOnProcess}</span>
-                                                          <span className="text-[9px] font-bold text-blue-700 uppercase mt-0.5">On Process</span>
-                                                      </div>
+                                                  <div className="bg-blue-50 px-3 py-1.5 flex flex-col items-center">
+                                                      <span className="text-lg font-black text-blue-700 leading-none">{totalTeamOnProcess}</span>
+                                                      <span className="text-[10px] font-bold text-blue-600 uppercase">On Process</span>
                                                   </div>
                                               </div>
                                           </div>
-                                          {/* 🔥 เพิ่ม Hover Effect ให้กราฟแท่ง */}
-                                          <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2 transform transition-all duration-300 hover:scale-[1.01] hover:drop-shadow-[0_0_15px_rgba(59,130,246,0.15)] cursor-pointer">
+                                          <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
                                               <div className="min-w-[500px] h-full">
                                                   {chartFilteredTasks?.length > 0 ? (
                                                       <ChartComponent 
@@ -2689,17 +2595,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
                                       <div className="lg:col-span-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 relative">
                                           <div className="flex justify-between items-start mb-4">
-                                              <h3 className="text-base md:text-lg font-bold flex items-center gap-2 mt-1 text-amber-600"><i className="fa-solid fa-layer-group"></i> Pending Tasks</h3>
-                                              <div className="relative group cursor-pointer ml-auto" onClick={() => handleChartDrillDown({ team: ['ไม่ระบุทีม'] })}>
-                                                  <div className="absolute inset-0 bg-amber-400 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 rounded-xl"></div>
-                                                  <div className="relative bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm group-hover:shadow-md transition-all transform group-hover:-translate-y-1 flex flex-col items-center min-w-[70px]">
-                                                      <span className="text-xl font-black bg-gradient-to-br from-amber-400 to-orange-500 text-transparent bg-clip-text drop-shadow-sm">{totalPendingCount}</span>
-                                                      <span className="text-[9px] font-bold text-amber-700 uppercase mt-0.5">CIDs</span>
-                                                  </div>
+                                              <h3 className="text-base md:text-lg font-bold flex items-center gap-2 text-amber-600"><i className="fa-solid fa-layer-group"></i> Pending Tasks Status</h3>
+                                              <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => handleChartDrillDown({ team: ['ไม่ระบุทีม'] })}>
+                                                  <span className="text-lg font-black text-amber-700 leading-none">{totalPendingCount}</span>
+                                                  <span className="text-[10px] font-bold text-amber-600 uppercase">CIDs</span>
                                               </div>
                                           </div>
-                                          {/* 🔥 เพิ่ม Hover Effect ให้กราฟแท่ง */}
-                                          <div className="relative h-64 md:h-80 w-full transform transition-all duration-300 hover:scale-[1.02] hover:drop-shadow-[0_0_15px_rgba(245,158,11,0.15)] cursor-pointer">
+                                          <div className="relative h-64 md:h-80 w-full">
                                               {chartFilteredTasks?.length > 0 ? (
                                                   <ChartComponent 
                                                       type="bar" 
@@ -2717,17 +2619,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               ) : (
                                   <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 h-full">
                                       <div className="flex justify-between items-start mb-4">
-                                          <h3 className="text-base md:text-lg font-bold flex items-center gap-2 mt-1"><i className="fa-solid fa-users text-blue-600"></i> Tasks & Status by Team</h3>
-                                          <div className="relative group cursor-pointer ml-auto" onClick={() => handleChartDrillDown({})}>
-                                              <div className="absolute inset-0 bg-blue-400 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 rounded-xl"></div>
-                                              <div className="relative bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm group-hover:shadow-md transition-all transform group-hover:-translate-y-1 flex flex-col items-center min-w-[70px]">
-                                                  <span className="text-xl font-black bg-gradient-to-br from-blue-400 to-indigo-600 text-transparent bg-clip-text drop-shadow-sm">{totalSubconTeamTasks}</span>
-                                                  <span className="text-[9px] font-bold text-blue-700 uppercase mt-0.5">Total CIDs</span>
-                                              </div>
+                                          <div className="flex items-center gap-2">
+                                              <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-users text-blue-600"></i> Tasks & Status by Team</h3>
+                                              <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md hidden sm:inline-block"><i className="fa-solid fa-hand-pointer"></i> คลิกแท่งกราฟ</span>
+                                          </div>
+                                          <div className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2">
+                                              <span className="text-lg font-black text-blue-700 leading-none">{totalSubconTeamTasks}</span>
+                                              <span className="text-[10px] font-bold text-blue-600 uppercase">Total CIDs</span>
                                           </div>
                                       </div>
-                                      {/* 🔥 เพิ่ม Hover Effect ให้กราฟแท่ง */}
-                                      <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2 transform transition-all duration-300 hover:scale-[1.01] hover:drop-shadow-[0_0_15px_rgba(59,130,246,0.15)] cursor-pointer">
+                                      <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
                                           <div className="min-w-[500px] h-full">
                                               {chartFilteredTasks?.length > 0 ? (
                                                   <ChartComponent 
@@ -2750,17 +2651,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           {dashboardView === 'subcontract' && (
                               <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                                   <div className="flex justify-between items-start mb-4">
-                                      <h3 className="text-base md:text-lg font-bold flex items-center gap-2 mt-1"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> Overdue Appointments</h3>
-                                      <div className="relative group cursor-pointer ml-auto" onClick={() => handleChartDrillDown({ overdue: ['เกินกำหนด'] })}>
-                                          <div className="absolute inset-0 bg-red-400 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 rounded-xl"></div>
-                                          <div className="relative bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm group-hover:shadow-md transition-all transform group-hover:-translate-y-1 flex flex-col items-center min-w-[70px]">
-                                              <span className="text-xl font-black bg-gradient-to-br from-red-400 to-rose-600 text-transparent bg-clip-text drop-shadow-sm">{totalOverdue}</span>
-                                              <span className="text-[9px] font-bold text-red-700 uppercase mt-0.5">CIDs</span>
-                                          </div>
+                                      <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> Overdue Appointments</h3>
+                                      <div className="bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2 cursor-pointer hover:bg-red-100 transition-colors" onClick={() => handleChartDrillDown({ overdue: ['เกินกำหนด'] })}>
+                                          <span className="text-lg font-black text-red-700 leading-none">{totalOverdue}</span>
+                                          <span className="text-[10px] font-bold text-red-600 uppercase">CIDs</span>
                                       </div>
                                   </div>
-                                  {/* 🔥 เพิ่ม Hover Effect ให้กราฟแท่ง */}
-                                  <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2 transform transition-all duration-300 hover:scale-[1.01] hover:drop-shadow-[0_0_15px_rgba(239,68,68,0.15)] cursor-pointer">
+                                  <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
                                       <div className="min-w-[300px] h-full">
                                           {chartFilteredTasks?.length > 0 ? (
                                               <ChartComponent 
@@ -2769,6 +2666,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                   options={overdueChartOptions} 
                                                   onClick={({ index }) => {
                                                       const fullTeamName = overdueChartData.labels[index];
+                                                      // 🔥 ส่งค่า Overdue ไปพร้อมกับทีมเลย ไม่ต้องใช้ setTimeout แล้ว
                                                       handleChartDrillDown({ team: [fullTeamName], overdue: ['เกินกำหนด'] });
                                                   }}
                                               />
@@ -2781,6 +2679,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     </div>
                   </div>
                 )}
+
                 {/* --- 2. หน้าตารางงาน --- */}
                 {activeTab === 'tasks' && (
                   <div className="absolute inset-0 flex flex-col p-2 md:p-4 lg:p-6 overflow-hidden bg-slate-50 min-h-0">
