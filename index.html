@@ -1731,20 +1731,26 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           };
 
           // ==========================================
+          // 🔥 // ==========================================
           // 🔥 DRILL-DOWN LOGIC (คลิกกราฟแล้วไปหน้าตาราง)
           // ==========================================
           const handleChartDrillDown = (filters) => {
-              // 1. ล้างตัวกรองเก่าทั้งหมด
-              setFilterMonth('All'); setFilterTeams([]); setSearchTerm(''); 
-              setTableFilterTeams([]); setTableFilterDate([]); setTableFilterYear([]); 
-              setTableFilterStatus([]); setTableFilterOverdue([]); setTableFilterRegionRespon([]);
-              setVisibleRows(100); setShowDuplicatesOnly(false);
+              // 1. ล้างเฉพาะตัวกรองของ "ตารางงาน" (ห้ามล้างของ Dashboard เด็ดขาด)
+              setSearchTerm(''); 
+              setTableFilterTeams([]); 
+              setTableFilterDate([]); 
+              setTableFilterYear([]); 
+              setTableFilterStatus([]); 
+              setTableFilterOverdue([]); 
+              setTableFilterRegionRespon([]);
+              setVisibleRows(100); 
+              setShowDuplicatesOnly(false);
 
               // 2. รับค่าจากกราฟที่คลิก
               if (filters.status) setTableFilterStatus(filters.status);
-              if (filters.overdue) setTableFilterOverdue(filters.overdue); // 🔥 รองรับการกดกล่อง Overdue
+              if (filters.overdue) setTableFilterOverdue(filters.overdue);
 
-              // 3. สืบทอดค่า "เดือน" จาก Dashboard (ถ้าไม่ได้คลิกแท่งเดือนโดยตรง)
+              // 3. สืบทอดค่า "เดือน" จาก Dashboard
               if (filters.month) {
                   setTableFilterDate(filters.month);
               } else if (filterMonth !== 'All') {
@@ -1758,16 +1764,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   setTableFilterTeams(filterTeams);
               }
               
-              // 5. สืบทอดค่า "ปี" จาก Dashboard (สำคัญมาก ทำให้ตัวเลขตรงกัน)
+              // 5. สืบทอดค่า "ปี" จาก Dashboard
               if (filters.year) {
                   setTableFilterYear(filters.year);
               } else if (dashboardView === 'subcontract') {
                   if (dashboardYear === '2026') {
                       setTableFilterYear(['2026']);
                   } else if (dashboardYear === 'history') {
-                      // 🔥 ถ้าดู History ให้ดึงปีทั้งหมดที่น้อยกว่า 2026 ไปกรองในตาราง
                       const historyYears = tableUniqueYears.filter(y => {
-                          if (!y || String(y).trim() === '') return true; // นับพวกไม่ระบุปีด้วย
+                          if (!y || String(y).trim() === '') return true; 
                           const match = String(y).match(/\d{4}/);
                           const num = match ? parseInt(match[0], 10) : parseInt(y, 10);
                           return num < 2026;
@@ -2511,19 +2516,20 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           })}
                       </div>
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-6">
-                          <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1 flex flex-col relative overflow-hidden">
+                          
+                          {/* 1. Overall Progress */}
+                          <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1 relative overflow-hidden">
                               <div className="flex justify-between items-center mb-4">
                                   <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
                                       <i className="fa-solid fa-chart-pie text-blue-600"></i> Overall Progress
                                   </h3>
                               </div>
-
-                              <div className="relative flex-1 w-full flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 min-h-[250px] md:min-h-[300px]">
+                              <div className="relative w-full flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 h-64 md:h-72">
                                   {chartFilteredTasks?.length > 0 ? (
                                       <>
-                                          <div className="relative flex items-center justify-center w-56 h-56 md:w-64 md:h-64 shrink-0">
+                                          <div className="relative flex items-center justify-center w-48 h-48 md:w-56 md:h-56 shrink-0">
                                               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                                                  <span className="text-5xl md:text-6xl font-black text-slate-800 leading-none">{chartFilteredTasks?.length || 0}</span>
+                                                  <span className="text-4xl md:text-5xl font-black text-slate-800 leading-none">{chartFilteredTasks?.length || 0}</span>
                                                   <span className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">CIDs</span>
                                               </div>
                                               <ChartComponent 
@@ -2535,7 +2541,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                   }}
                                               />
                                           </div>
-
                                           <div className="flex flex-col items-center md:items-start justify-center relative cursor-pointer group" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })} title="คลิกเพื่อดูงานที่เสร็จแล้วทั้งหมด">
                                               <div className="absolute inset-0 bg-emerald-400 blur-3xl opacity-20 group-hover:opacity-40 rounded-full w-32 h-32 -z-10 transform -translate-x-4 transition-opacity duration-300"></div>
                                               <span className="text-sm md:text-base font-black text-slate-400 uppercase tracking-widest mb-1">Complete</span>
@@ -2548,11 +2553,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               </div>
                           </div>
                           
-                          <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2 flex flex-col">
+                          {/* 2. Bar Chart (Monthly/Yearly) */}
+                          <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
                               <div className="flex justify-between items-start mb-4">
                                   <h3 className="text-base md:text-lg font-bold flex items-center gap-2 mt-1"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
-                                  
-                                  {/* 🔥 กล่องผลรวมแบบใหม่ (Glow + Gradient) */}
                                   <div className="flex gap-2 ml-auto">
                                       <div className="relative group cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })}>
                                           <div className="absolute inset-0 bg-emerald-400 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 rounded-xl"></div>
@@ -2570,7 +2574,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       </div>
                                   </div>
                               </div>
-                              <div className="relative flex-1 w-full min-h-[240px]">
+                              <div className="relative h-60 md:h-72 w-full">
                                   <ChartComponent 
                                       type="bar" 
                                       data={barChartData} 
@@ -2591,14 +2595,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               </div>
                           </div>
                           
+                          {/* 3. Team Charts */}
                           <div className={`${dashboardView === 'ns' ? 'lg:col-span-3 grid grid-cols-1 lg:grid-cols-4 gap-6' : 'lg:col-span-2'}`}>
                               {dashboardView === 'ns' ? (
                                   <>
-                                      <div className="lg:col-span-3 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+                                      <div className="lg:col-span-3 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                                           <div className="flex justify-between items-start mb-4">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2 mt-1"><i className="fa-solid fa-users text-blue-600"></i> Tasks by Team</h3>
-                                              
-                                              {/* 🔥 กล่องผลรวมแบบใหม่ (Glow + Gradient) */}
                                               <div className="flex gap-2 ml-auto">
                                                   <div className="relative group cursor-pointer" onClick={() => handleChartDrillDown({ team: allActiveTeams.filter(t => t !== 'ไม่ระบุทีม'), status: getStatusesForDrillDown(true) })}>
                                                       <div className="absolute inset-0 bg-emerald-400 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 rounded-xl"></div>
@@ -2616,7 +2619,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                   </div>
                                               </div>
                                           </div>
-                                          <div className="relative flex-1 w-full overflow-x-auto custom-scrollbar pb-2 min-h-[240px]">
+                                          <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
                                               <div className="min-w-[500px] h-full">
                                                   {chartFilteredTasks?.length > 0 ? (
                                                       <ChartComponent 
@@ -2635,11 +2638,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                           </div>
                                       </div>
 
-                                      <div className="lg:col-span-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col relative">
+                                      <div className="lg:col-span-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 relative">
                                           <div className="flex justify-between items-start mb-4">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2 mt-1 text-amber-600"><i className="fa-solid fa-layer-group"></i> Pending Tasks</h3>
-                                              
-                                              {/* 🔥 กล่องผลรวมแบบใหม่ (Glow + Gradient) */}
                                               <div className="relative group cursor-pointer ml-auto" onClick={() => handleChartDrillDown({ team: ['ไม่ระบุทีม'] })}>
                                                   <div className="absolute inset-0 bg-amber-400 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 rounded-xl"></div>
                                                   <div className="relative bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm group-hover:shadow-md transition-all transform group-hover:-translate-y-1 flex flex-col items-center min-w-[70px]">
@@ -2648,7 +2649,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                   </div>
                                               </div>
                                           </div>
-                                          <div className="relative flex-1 w-full min-h-[240px]">
+                                          <div className="relative h-64 md:h-80 w-full">
                                               {chartFilteredTasks?.length > 0 ? (
                                                   <ChartComponent 
                                                       type="bar" 
@@ -2664,12 +2665,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       </div>
                                   </>
                               ) : (
-                                  <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full">
+                                  <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                                       <div className="flex justify-between items-start mb-4">
                                           <h3 className="text-base md:text-lg font-bold flex items-center gap-2 mt-1"><i className="fa-solid fa-users text-blue-600"></i> Tasks & Status by Team</h3>
-                                          
-                                          {/* 🔥 กล่องผลรวมแบบใหม่ (Glow + Gradient) */}
-                                          <div className="relative group cursor-pointer ml-auto" onClick={() => handleChartDrillDown({ team: allActiveTeams })}>
+                                          <div className="relative group cursor-pointer ml-auto" onClick={() => handleChartDrillDown({})}>
                                               <div className="absolute inset-0 bg-blue-400 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 rounded-xl"></div>
                                               <div className="relative bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm group-hover:shadow-md transition-all transform group-hover:-translate-y-1 flex flex-col items-center min-w-[70px]">
                                                   <span className="text-xl font-black bg-gradient-to-br from-blue-400 to-indigo-600 text-transparent bg-clip-text drop-shadow-sm">{totalSubconTeamTasks}</span>
@@ -2677,7 +2676,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                               </div>
                                           </div>
                                       </div>
-                                      <div className="relative flex-1 w-full overflow-x-auto custom-scrollbar pb-2 min-h-[240px]">
+                                      <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
                                           <div className="min-w-[500px] h-full">
                                               {chartFilteredTasks?.length > 0 ? (
                                                   <ChartComponent 
@@ -2698,11 +2697,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           </div>
                           
                           {dashboardView === 'subcontract' && (
-                              <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1 flex flex-col">
+                              <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                                   <div className="flex justify-between items-start mb-4">
                                       <h3 className="text-base md:text-lg font-bold flex items-center gap-2 mt-1"><i className="fa-solid fa-triangle-exclamation text-red-600"></i> Overdue Appointments</h3>
-                                      
-                                      {/* 🔥 กล่องผลรวมแบบใหม่ (Glow + Gradient) */}
                                       <div className="relative group cursor-pointer ml-auto" onClick={() => handleChartDrillDown({ overdue: ['เกินกำหนด'] })}>
                                           <div className="absolute inset-0 bg-red-400 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300 rounded-xl"></div>
                                           <div className="relative bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm group-hover:shadow-md transition-all transform group-hover:-translate-y-1 flex flex-col items-center min-w-[70px]">
@@ -2711,7 +2708,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                           </div>
                                       </div>
                                   </div>
-                                  <div className="relative flex-1 w-full overflow-x-auto custom-scrollbar pb-2 min-h-[240px]">
+                                  <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
                                       <div className="min-w-[300px] h-full">
                                           {chartFilteredTasks?.length > 0 ? (
                                               <ChartComponent 
