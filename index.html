@@ -1789,13 +1789,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (window.innerWidth <= 1024) setIsSidebarOpen(false);
           };
 
-          // 🔥 ดึง Status จากข้อมูลที่แสดงบน Dashboard จริงๆ เพื่อความแม่นยำ 100%
+          // 🔥 ดึง Status จากฐานข้อมูลทั้งหมด (ไม่ใช่อิงแค่ที่โชว์บนกราฟ) เพื่อป้องกันการตกหล่น
           const getStatusesForDrillDown = (isCollected) => {
-              const availableStatuses = Object.keys(statusCounts); // ใช้สถานะที่มีอยู่จริงบนหน้าจอตอนนั้น
+              const allStatuses = dashboardView === 'subcontract' 
+                  ? [...new Set(tasks.map(t => getCleanStatus(t[d_statusCol])))] 
+                  : [...new Set(nsTasks.map(t => getCleanStatus(t[d_statusCol])))];
+                  
               if (isCollected) {
-                  return availableStatuses.filter(s => s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
+                  return allStatuses.filter(s => s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
               } else {
-                  return availableStatuses.filter(s => !s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
+                  return allStatuses.filter(s => !s.toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/));
               }
           };
 
@@ -2527,7 +2530,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <div className="relative w-full flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 h-64 md:h-72">
                                   {chartFilteredTasks?.length > 0 ? (
                                       <>
-                                          <div className="relative flex items-center justify-center w-48 h-48 md:w-56 md:h-56 shrink-0">
+                                          {/* 🔥 เพิ่ม Hover Effect ให้กราฟโดนัท */}
+                                          <div className="relative flex items-center justify-center w-48 h-48 md:w-56 md:h-56 shrink-0 transform transition-all duration-300 hover:scale-105 hover:drop-shadow-[0_0_20px_rgba(16,185,129,0.3)] cursor-pointer">
                                               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
                                                   <span className="text-4xl md:text-5xl font-black text-slate-800 leading-none">{chartFilteredTasks?.length || 0}</span>
                                                   <span className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">CIDs</span>
@@ -2574,7 +2578,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       </div>
                                   </div>
                               </div>
-                              <div className="relative h-60 md:h-72 w-full">
+                              {/* 🔥 เพิ่ม Hover Effect ให้กราฟแท่ง */}
+                              <div className="relative h-60 md:h-72 w-full transform transition-all duration-300 hover:scale-[1.01] hover:drop-shadow-[0_0_15px_rgba(59,130,246,0.15)] cursor-pointer">
                                   <ChartComponent 
                                       type="bar" 
                                       data={barChartData} 
@@ -2619,7 +2624,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                   </div>
                                               </div>
                                           </div>
-                                          <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
+                                          {/* 🔥 เพิ่ม Hover Effect ให้กราฟแท่ง */}
+                                          <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2 transform transition-all duration-300 hover:scale-[1.01] hover:drop-shadow-[0_0_15px_rgba(59,130,246,0.15)] cursor-pointer">
                                               <div className="min-w-[500px] h-full">
                                                   {chartFilteredTasks?.length > 0 ? (
                                                       <ChartComponent 
@@ -2649,7 +2655,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                   </div>
                                               </div>
                                           </div>
-                                          <div className="relative h-64 md:h-80 w-full">
+                                          {/* 🔥 เพิ่ม Hover Effect ให้กราฟแท่ง */}
+                                          <div className="relative h-64 md:h-80 w-full transform transition-all duration-300 hover:scale-[1.02] hover:drop-shadow-[0_0_15px_rgba(245,158,11,0.15)] cursor-pointer">
                                               {chartFilteredTasks?.length > 0 ? (
                                                   <ChartComponent 
                                                       type="bar" 
@@ -2665,7 +2672,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       </div>
                                   </>
                               ) : (
-                                  <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+                                  <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 h-full">
                                       <div className="flex justify-between items-start mb-4">
                                           <h3 className="text-base md:text-lg font-bold flex items-center gap-2 mt-1"><i className="fa-solid fa-users text-blue-600"></i> Tasks & Status by Team</h3>
                                           <div className="relative group cursor-pointer ml-auto" onClick={() => handleChartDrillDown({})}>
@@ -2676,7 +2683,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                               </div>
                                           </div>
                                       </div>
-                                      <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
+                                      {/* 🔥 เพิ่ม Hover Effect ให้กราฟแท่ง */}
+                                      <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2 transform transition-all duration-300 hover:scale-[1.01] hover:drop-shadow-[0_0_15px_rgba(59,130,246,0.15)] cursor-pointer">
                                           <div className="min-w-[500px] h-full">
                                               {chartFilteredTasks?.length > 0 ? (
                                                   <ChartComponent 
@@ -2708,7 +2716,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                           </div>
                                       </div>
                                   </div>
-                                  <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2">
+                                  {/* 🔥 เพิ่ม Hover Effect ให้กราฟแท่ง */}
+                                  <div className="relative h-64 md:h-80 w-full overflow-x-auto custom-scrollbar pb-2 transform transition-all duration-300 hover:scale-[1.01] hover:drop-shadow-[0_0_15px_rgba(239,68,68,0.15)] cursor-pointer">
                                       <div className="min-w-[300px] h-full">
                                           {chartFilteredTasks?.length > 0 ? (
                                               <ChartComponent 
