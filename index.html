@@ -2121,16 +2121,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const totalCompletedCount = chartFilteredTasks.filter(t => getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/)).length;
           const overallPercentComplete = totalTasksCount > 0 ? Math.round((totalCompletedCount / totalTasksCount) * 100) : 0;
 
-          // 🔥 ฟังก์ชันสร้างสี Gradient ให้กราฟดูมีมิติ
-          const getBarGradient = (context, colorStart, colorEnd) => {
-              if (!context.chart || !context.chart.chartArea) return colorEnd;
-              const { ctx, chartArea } = context.chart;
-              const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-              gradient.addColorStop(0, colorStart);
-              gradient.addColorStop(1, colorEnd);
-              return gradient;
-          };
-
           let barChartData, barChartOptions, barChartTitle;
           let totalBarCollected = 0; 
           let totalBarOngoing = 0;   
@@ -2164,16 +2154,22 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       { 
                           label: 'Collected (CIDs)', 
                           data: Object.values(monthlyData).map(d => d.collected), 
-                          backgroundColor: (c) => getBarGradient(c, 'rgba(16, 185, 129, 0.4)', 'rgba(20, 184, 166, 0.9)'), 
-                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(52, 211, 153, 0.8)', 'rgba(45, 212, 191, 1)'), 
-                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
+                          backgroundColor: 'rgba(16, 185, 129, 0.8)', // 🔥 สีทึบ 80%
+                          hoverBackgroundColor: 'rgba(16, 185, 129, 1)', // 🔥 สว่างขึ้น 100% ตอนชี้
+                          borderColor: 'transparent', 
+                          hoverBorderColor: '#1e293b', // 🔥 กรอบสีเทาเข้มตอนชี้
+                          hoverBorderWidth: 2, 
+                          borderRadius: 4 
                       }, 
                       { 
                           label: 'Ongoing (CIDs)', 
                           data: Object.values(monthlyData).map(d => d.ongoing), 
-                          backgroundColor: (c) => getBarGradient(c, 'rgba(245, 158, 11, 0.4)', 'rgba(234, 88, 12, 0.9)'), 
-                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(251, 191, 36, 0.8)', 'rgba(249, 115, 22, 1)'), 
-                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
+                          backgroundColor: 'rgba(245, 158, 11, 0.8)', 
+                          hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
+                          borderColor: 'transparent', 
+                          hoverBorderColor: '#1e293b', 
+                          hoverBorderWidth: 2, 
+                          borderRadius: 4 
                       } 
                   ] 
               };
@@ -2210,16 +2206,22 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       { 
                           label: 'Collected (CIDs)', 
                           data: sortedYears.map(y => yearlyData[y].collected), 
-                          backgroundColor: (c) => getBarGradient(c, 'rgba(16, 185, 129, 0.4)', 'rgba(20, 184, 166, 0.9)'), 
-                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(52, 211, 153, 0.8)', 'rgba(45, 212, 191, 1)'), 
-                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
+                          backgroundColor: 'rgba(16, 185, 129, 0.8)', 
+                          hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
+                          borderColor: 'transparent', 
+                          hoverBorderColor: '#1e293b', 
+                          hoverBorderWidth: 2, 
+                          borderRadius: 4 
                       }, 
                       { 
                           label: 'Ongoing (CIDs)', 
                           data: sortedYears.map(y => yearlyData[y].ongoing), 
-                          backgroundColor: (c) => getBarGradient(c, 'rgba(245, 158, 11, 0.4)', 'rgba(234, 88, 12, 0.9)'), 
-                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(251, 191, 36, 0.8)', 'rgba(249, 115, 22, 1)'), 
-                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
+                          backgroundColor: 'rgba(245, 158, 11, 0.8)', 
+                          hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
+                          borderColor: 'transparent', 
+                          hoverBorderColor: '#1e293b', 
+                          hoverBorderWidth: 2, 
+                          borderRadius: 4 
                       } 
                   ] 
               };
@@ -2255,16 +2257,22 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       { 
                           label: 'Completed', 
                           data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), 
-                          backgroundColor: (c) => getBarGradient(c, 'rgba(16, 185, 129, 0.4)', 'rgba(20, 184, 166, 0.9)'), 
-                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(52, 211, 153, 0.8)', 'rgba(45, 212, 191, 1)'), 
-                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
+                          backgroundColor: 'rgba(16, 185, 129, 0.8)', 
+                          hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
+                          borderColor: 'transparent', 
+                          hoverBorderColor: '#1e293b', 
+                          hoverBorderWidth: 2, 
+                          borderRadius: 4 
                       },
                       { 
                           label: 'On Process', 
                           data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), 
-                          backgroundColor: (c) => getBarGradient(c, 'rgba(245, 158, 11, 0.4)', 'rgba(234, 88, 12, 0.9)'), 
-                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(251, 191, 36, 0.8)', 'rgba(249, 115, 22, 1)'), 
-                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
+                          backgroundColor: 'rgba(245, 158, 11, 0.8)', 
+                          hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
+                          borderColor: 'transparent', 
+                          hoverBorderColor: '#1e293b', 
+                          hoverBorderWidth: 2, 
+                          borderRadius: 4 
                       } 
                   ] 
               };
@@ -2280,10 +2288,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       return {
                           label: status,
                           data: [unassignedTasks.filter(t => getCleanStatus(t[d_statusCol]) === status).length],
-                          backgroundColor: (c) => getBarGradient(c, baseColor.replace('1)', '0.4)'), baseColor.replace('1)', '0.9)')),
-                          hoverBackgroundColor: (c) => getBarGradient(c, baseColor.replace('1)', '0.7)'), baseColor),
+                          backgroundColor: baseColor.replace('1)', '0.8)'),
+                          hoverBackgroundColor: baseColor,
                           borderColor: 'transparent',
-                          hoverBorderColor: 'rgba(255, 255, 255, 0.9)',
+                          hoverBorderColor: '#1e293b',
                           borderWidth: 0,
                           hoverBorderWidth: 2
                       };
@@ -2315,12 +2323,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           }
                       },
                       datalabels: { 
-                          ...dlStyle, 
+                          ...dlStyle, // 🔥 กลับมาใช้สีขาว ขอบดำ ตามต้นฉบับ
                           display: true, 
                           anchor: 'end', 
                           align: 'top',
-                          offset: 4,
-                          color: '#1e293b' 
+                          offset: 4
                       }
                   },
                   scales: { 
@@ -2339,10 +2346,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       return { 
                           label: status, 
                           data: allActiveTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && getCleanStatus(t[d_statusCol]) === status).length), 
-                          backgroundColor: (c) => getBarGradient(c, baseColor.replace('1)', '0.4)'), baseColor.replace('1)', '0.9)')),
-                          hoverBackgroundColor: (c) => getBarGradient(c, baseColor.replace('1)', '0.7)'), baseColor),
+                          backgroundColor: baseColor.replace('1)', '0.8)'),
+                          hoverBackgroundColor: baseColor,
                           borderColor: 'transparent', 
-                          hoverBorderColor: 'rgba(255, 255, 255, 0.9)',
+                          hoverBorderColor: '#1e293b',
                           borderWidth: 0,
                           hoverBorderWidth: 2
                       };
@@ -2373,9 +2380,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               datasets: [{ 
                   label: 'เกินกำหนดนัดหมาย (CIDs)', 
                   data: allActiveTeams.map(t => overdueByTeamCounts[t]), 
-                  backgroundColor: (c) => getBarGradient(c, 'rgba(239, 68, 68, 0.4)', 'rgba(225, 29, 72, 0.9)'), 
-                  hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(248, 113, 113, 0.8)', 'rgba(244, 63, 94, 1)'), 
-                  borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', borderWidth: 0, hoverBorderWidth: 2 
+                  backgroundColor: 'rgba(239, 68, 68, 0.8)', 
+                  hoverBackgroundColor: 'rgba(239, 68, 68, 1)', 
+                  borderColor: 'transparent', 
+                  hoverBorderColor: '#1e293b', 
+                  borderWidth: 0, 
+                  hoverBorderWidth: 2 
               }] 
           };
           const overdueChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: dlStyle }, scales: { y: { beginAtZero: true } } };
@@ -2660,7 +2670,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                   <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-users text-blue-600"></i> Tasks by Team</h3>
                                               </div>
                                               <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2">
-                                                  {/* 🔥 แก้ไขให้ส่ง mainTeams ไปด้วยตอนกดกล่องผลรวม */}
                                                   <div className="bg-emerald-50 hover:bg-emerald-100 transition-colors px-3 py-1.5 flex flex-col items-center border-r border-slate-200 cursor-pointer" onClick={() => handleChartDrillDown({ team: allActiveTeams.filter(t => t !== 'ไม่ระบุทีม'), status: getStatusesForDrillDown(true) })}>
                                                       <span className="text-lg font-black text-emerald-700 leading-none">{totalTeamCompleted}</span>
                                                       <span className="text-[10px] font-bold text-emerald-600 uppercase">Completed</span>
@@ -2719,7 +2728,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                           <div className="flex items-center gap-2">
                                               <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-users text-blue-600"></i> Tasks & Status by Team</h3>
                                           </div>
-                                          {/* 🔥 แก้ไขให้ส่ง allActiveTeams ไปด้วยตอนกดกล่องผลรวม */}
                                           <div className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg shadow-sm flex flex-col items-center shrink-0 ml-2 cursor-pointer hover:bg-blue-100 transition-colors" onClick={() => handleChartDrillDown({ team: allActiveTeams })}>
                                               <span className="text-lg font-black text-blue-700 leading-none">{totalSubconTeamTasks}</span>
                                               <span className="text-[10px] font-bold text-blue-600 uppercase">Total CIDs</span>
