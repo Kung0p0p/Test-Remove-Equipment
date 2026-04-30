@@ -1871,7 +1871,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if (sortConfig.key && sortConfig.direction) {
                   tableTasks.sort((a, b) => sortConfig.direction === 'asc' ? String(a[sortConfig.key] || '').localeCompare(String(b[sortConfig.key] || ''), 'th', { numeric: true }) : String(b[sortConfig.key] || '').localeCompare(String(a[sortConfig.key] || ''), 'th', { numeric: true }));
               } else {
-                  tableTasks.sort((a, b) => parseInt(a._rowIndex) - parseInt(b._rowIndex));
+                  // 🔥 แก้ไขให้งานล่าสุด (บรรทัดล่างสุดใน Sheet) ขึ้นก่อน
+                  tableTasks.sort((a, b) => {
+                      const rowA = parseInt(a._rowIndex);
+                      const rowB = parseInt(b._rowIndex);
+                      if (rowA === 0) return -1; // งานที่เพิ่ง Assign ใหม่จากเว็บ ให้อยู่บนสุดเสมอ
+                      if (rowB === 0) return 1;
+                      return rowB - rowA; // เรียงจากมากไปน้อย (ล่าสุดขึ้นก่อน)
+                  });
               }
               // 🔥 กรองตาม Region Responsible (เฉพาะหน้า Subcontract)
              let processedTasks = [...tableTasks];
@@ -2931,6 +2938,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     // หาชื่อคอลัมน์แบบ Dynamic
                                     const isStatus = col === t_statusCol;
                                     const isTeam = col === t_teamCol;
+                                    const isEquipYear = col === t_equipYearCol; // 🔥 เพิ่มการเช็คว่าเป็นคอลัมน์ปีหรือไม่
                                     const isCid = (col === t_cidCol || col.toLowerCase().includes('cid') || col.toLowerCase().includes('circuit'));
                                     const isOverdue = (col === t_overDueCol || col.includes('นัดหมาย'));
                                     const isStatusChange = col.toLowerCase().includes('status_change');
@@ -2979,15 +2987,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                         color: styleObj.color, fontWeight: styleObj.fontWeight, display: 'block', width: '100%', minWidth: 0, boxSizing: 'border-box', minHeight: '28px', 
                                                         height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto',
                                                         whiteSpace: (isContact || isEquip || isStatusChange || (task._groupDocs && task._groupDocs.length > 1)) ? 'pre-wrap' : (colConfig.mode === 'auto' ? 'nowrap' : 'normal'), 
-                                                        wordBreak: 'break-word', lineHeight: '1.5', overflow: 'visible', textAlign: (isStatus || isTeam || isCid || isOverdue) ? 'center' : 'left'
+                                                        wordBreak: 'break-word', lineHeight: '1.5', overflow: 'visible', textAlign: (isStatus || isTeam || isCid || isOverdue || isEquipYear) ? 'center' : 'left'
                                                     }} 
                                                     onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} 
                                                     onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, (tasksSubTab === 'subcontract' ? columns : nsColumns)); setEditingCell(null); }}
                                                 >
                                                     {val}
                                                 </div>
-                                                {(isStatus || isTeam) && (
-                                                    // 🔥 เพิ่ม z-10 และขยายความกว้าง w-8 เพื่อให้กดติดง่ายขึ้น
+                                                {/* 🔥 เพิ่ม isEquipYear เข้าไปในเงื่อนไขการโชว์ Dropdown */}
+                                                {(isStatus || isTeam || isEquipYear) && (
                                                     <div className="relative w-8 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5 z-10">
                                                         <select 
                                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
@@ -2995,11 +3003,18 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                             onChange={e => handleCellChangeTable(task, col, e.target.value, (tasksSubTab === 'subcontract' ? columns : nsColumns))}
                                                         >
                                                             <option value="" disabled></option>
-                                                            {/* 🔥 บังคับสีตัวเลือกเป็นสีดำพื้นขาวเพื่อให้มองง่าย */}
-                                                            {(isStatus ? (tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses) : (tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams)).map(opt => {
+                                                            {isStatus && (tasksSubTab === 'ns' ? masterData.nsStatuses : masterData.subconStatuses).map(opt => {
                                                                 const name = typeof opt === 'string' ? opt : opt.name;
                                                                 return <option key={name} value={name} className="text-black bg-white">{name}</option>
                                                             })}
+                                                            {isTeam && (tasksSubTab === 'ns' ? masterData.nsTeams : masterData.teams).map(opt => {
+                                                                const name = typeof opt === 'string' ? opt : opt.name;
+                                                                return <option key={name} value={name} className="text-black bg-white">{name}</option>
+                                                            })}
+                                                            {/* 🔥 สร้างตัวเลือกปี (ปีปัจจุบัน+2 ย้อนหลังไป 15 ปี) */}
+                                                            {isEquipYear && Array.from({length: 15}, (_, i) => new Date().getFullYear() + 2 - i).map(y => (
+                                                                <option key={y} value={y} className="text-black bg-white">{y}</option>
+                                                            ))}
                                                         </select>
                                                         <i className="fa-solid fa-chevron-down text-[8px] opacity-40"></i>
                                                     </div>
