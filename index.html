@@ -2957,6 +2957,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     } else if (isTeam) {
                                         const tColor = getTeamColorStyle(val, masterData);
                                         styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold' };
+                                    } else if (isEquipYear && cleanVal) {
+                                        // 🔥 เพิ่มการดึงสีสำหรับคอลัมน์ปีอุปกรณ์
+                                        const yColor = getYearColorStyle(cleanVal);
+                                        styleObj = { backgroundColor: yColor.bg, color: yColor.text, border: `1px solid ${yColor.border}`, fontWeight: 'bold' };
                                     } else if (isCid && cleanVal) {
                                         const s = getCleanStatus(task[t_statusCol]);
                                         styleObj = { backgroundColor: getStatusColor(s, 0.1), color: getStatusColor(s, 1), fontWeight: 'bold', border: `1px solid ${getStatusColor(s, 0.2)}` };
