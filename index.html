@@ -1562,7 +1562,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
 
               customConfirm(`ยืนยันการลบข้อมูลจำนวน ${docIds.length} แถว ใช่หรือไม่?\n(ข้อมูลจะถูกลบออกจากระบบและ Google Sheet อย่างถาวร)`, async () => {
-                  const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract Database' : 'Region Database';
+                  const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
                   if (tasksSubTab === 'subcontract') {
                       setTasks(prev => prev.filter(t => !docIds.includes(t.id)));
@@ -1642,7 +1642,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   return false; 
               }
 
-              const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract Database' : 'Region Database';
+              const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
 
               if (tasksSubTab === 'subcontract') {
                   setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
@@ -2606,14 +2606,14 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                           {/* กราฟโดนัท (อยู่ด้านซ้าย) 🔥 ปรับขนาดให้ใหญ่ขึ้น */}
                                           <div className="relative flex items-center justify-center w-56 h-56 md:w-64 md:h-64 shrink-0">
                                               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                                                  {/* 🔥 ทำให้ตัวเลขตรงกลางกดได้ พร้อมใส่ Hover Effect และเปลี่ยนเป็น Gradient สีฟ้า */}
+                                                  {/* 🔥 ทำให้ตัวเลขตรงกลางกดได้ พร้อมใส่ Hover Effect และสี Gradient */}
                                                   <div 
                                                       className="flex flex-col items-center justify-center pointer-events-auto cursor-pointer hover:scale-110 transition-transform duration-300 group"
                                                       onClick={() => handleChartDrillDown({ status: selectedStatuses?.length > 0 ? selectedStatuses : undefined })}
                                                       title="คลิกเพื่อดูข้อมูลทั้งหมด"
                                                   >
-                                                      <span className="text-5xl md:text-6xl font-black bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 text-transparent bg-clip-text drop-shadow-md leading-none">{chartFilteredTasks?.length || 0}</span>
-                                                      <span className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mt-1 group-hover:text-blue-500 transition-colors">CIDs</span>
+                                                      <span className="text-5xl md:text-6xl font-black bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 text-transparent bg-clip-text drop-shadow-md leading-none">{chartFilteredTasks?.length || 0}</span>
+                                                      <span className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mt-1 group-hover:text-emerald-500 transition-colors">CIDs</span>
                                                   </div>
                                               </div>
                                               <ChartComponent 
