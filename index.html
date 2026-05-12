@@ -1641,7 +1641,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   if (cidVal && nsTeamCol && nsCidCol) {
                       const matchedNsTask = nsTasks.find(nt => String(nt[nsCidCol]).trim().toLowerCase() === cidVal);
                       if (matchedNsTask) {
-                          // สั่งให้ไปอัปเดตข้อมูลในฝั่ง Region แทน
                           return handleCellChangeTable(matchedNsTask, nsTeamCol, value, nsColumns);
                       }
                   }
@@ -1669,18 +1668,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   return false; 
               }
 
-              // 🔥 2. สร้าง Timestamp สำหรับ Last Update (รูปแบบ: 12/5/2026 - 10:00)
+              // 🔥 2. สร้าง Timestamp สำหรับ Last Update
               const now = new Date();
               const timestampStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} - ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
               
-              // หาชื่อคอลัมน์ Last Update ในตารางปัจจุบัน
               const lastUpdateCol = (currentColumnsTableLocal || []).find(c => String(c).toLowerCase().replace(/[\s_]+/g, '') === 'lastupdate') || '';
 
-              // เช็คว่ากำลังอัปเดต Sheet ไหน (ใช้ currentColumnsTableLocal เป็นตัวตัดสิน)
               const isUpdatingNS = currentColumnsTableLocal === nsColumns;
               const targetSheetName = isUpdatingNS ? 'Jobs for NS 2018-2025' : 'Subcontract_2026';
 
-              // อัปเดต State บนหน้าเว็บทันที (รวมถึง Last Update ด้วย)
               if (!isUpdatingNS) {
                   setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value, ...(lastUpdateCol ? {[lastUpdateCol]: timestampStr} : {}) } : t));
               } else {
@@ -1706,11 +1702,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           }
 
                           if (rNum && rNum > 1 && rNum <= 50000) {
-                              // ส่งค่าฟิลด์หลักที่ถูกแก้
                               pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === field && u.sheetName === targetSheetName));
                               pendingUpdatesRef.current.push({ row: rNum, field: field, value: value, sheetName: targetSheetName });
                               
-                              // 🔥 3. ส่งค่า Last Update ตามไปด้วย (ถ้ามีคอลัมน์นี้ใน Sheet)
+                              // 🔥 3. ส่งค่า Last Update ไป Sheet ด้วย
                               if (lastUpdateCol) {
                                   pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === lastUpdateCol && u.sheetName === targetSheetName));
                                   pendingUpdatesRef.current.push({ row: rNum, field: lastUpdateCol, value: timestampStr, sheetName: targetSheetName });
@@ -3114,7 +3109,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
                                     return (
                                         <td key={idx} className={`p-1 md:p-1.5 align-middle border-r border-slate-100 bg-white ${isPinned ? 'sticky-col-cell' : ''} ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`} style={tdStyle}>
-                                            <div className="flex items-stretch w-full mx-auto relative" style={{ backgroundColor: styleObj.backgroundColor, border: styleObj.border || 'none', borderRadius: '6px', overflow: 'hidden', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
+                                            <div className="flex items-stretch w-full mx-auto relative" style={{ backgroundColor: styleObj.backgroundColor, border: styleObj.border || 'none', borderRadius: '6px', overflow: 'hidden', box boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
                                                 <div 
                                                     contentEditable={isEditing} 
                                                     suppressContentEditableWarning={true} 
