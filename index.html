@@ -1001,6 +1001,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         "CID Customer": form.cid,
                         "ทีมงาน": form.team,
                         "บริษัทลูกค้า": form.customerName,
+                        "Address": form.address, // 🔥 เพิ่มข้อมูลที่อยู่ลงในคอลัมน์ Address
                         "ชื่อและเบอร์โทรลูกค้าประสานงาน": form.phone,
                         "วันที่ยกเลิกใช้งาน": form.cancelDate,
                         "สถานะ": "รอเข้าเก็บ",
@@ -1629,6 +1630,25 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const handleMouseLeave = () => setTooltipData({ visible: false, task: null, x: 0, y: 0 });
 
           const handleCellChangeTable = async (taskObj, field, value, currentColumnsTableLocal) => {
+              // 🔥 1. ดักจับการแก้ไขคอลัมน์จำลอง Region_Respon ในหน้า Subcontract
+              if (field === 'Region_Respon') {
+                  const cidColSub = t_getCol(['cid', 'circuitno']);
+                  const cidVal = taskObj[cidColSub] ? String(taskObj[cidColSub]).trim().toLowerCase() : '';
+                  
+                  const nsTeamCol = getTeamColumnName(nsColumns);
+                  const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+                  
+                  if (cidVal && nsTeamCol && nsCidCol) {
+                      const matchedNsTask = nsTasks.find(nt => String(nt[nsCidCol]).trim().toLowerCase() === cidVal);
+                      if (matchedNsTask) {
+                          // สั่งให้ไปอัปเดตข้อมูลในฝั่ง Region แทน
+                          return handleCellChangeTable(matchedNsTask, nsTeamCol, value, nsColumns);
+                      }
+                  }
+                  customAlert('ไม่พบ CID นี้ในฐานข้อมูล Region ไม่สามารถอัปเดตได้', 'error');
+                  return false;
+              }
+
               const docIds = taskObj._groupDocs || [taskObj.id];
               const rowIndices = taskObj._groupRows || [taskObj._rowIndex];
               
@@ -1645,16 +1665,26 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               if(oldValue === value) return true;
 
               if (docIds.length > 20) {
-                  customAlert(`⚠️ ระบบระงับการทำงานชั่วคราว! ตรวจพบความพยายามอัปเดตข้อมูลพร้อมกันถึง ${docIds.length} แถว คำแนะนำ: กรุณาลบแถวว่างใน Google Sheet ทิ้งก่อนครับ`, 'error');
+                  customAlert(`⚠️ ระบบระงับการทำงานชั่วคราว! ตรวจพบความพยายามอัปเดตข้อมูลพร้อมกันถึง ${docIds.length} แถว`, 'error');
                   return false; 
               }
 
-              const targetSheetName = tasksSubTab === 'subcontract' ? 'Subcontract_2026' : 'Jobs for NS 2018-2025';
+              // 🔥 2. สร้าง Timestamp สำหรับ Last Update (รูปแบบ: 12/5/2026 - 10:00)
+              const now = new Date();
+              const timestampStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} - ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+              
+              // หาชื่อคอลัมน์ Last Update ในตารางปัจจุบัน
+              const lastUpdateCol = (currentColumnsTableLocal || []).find(c => String(c).toLowerCase().replace(/[\s_]+/g, '') === 'lastupdate') || '';
 
-              if (tasksSubTab === 'subcontract') {
-                  setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
+              // เช็คว่ากำลังอัปเดต Sheet ไหน (ใช้ currentColumnsTableLocal เป็นตัวตัดสิน)
+              const isUpdatingNS = currentColumnsTableLocal === nsColumns;
+              const targetSheetName = isUpdatingNS ? 'Jobs for NS 2018-2025' : 'Subcontract_2026';
+
+              // อัปเดต State บนหน้าเว็บทันที (รวมถึง Last Update ด้วย)
+              if (!isUpdatingNS) {
+                  setTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value, ...(lastUpdateCol ? {[lastUpdateCol]: timestampStr} : {}) } : t));
               } else {
-                  setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value } : t));
+                  setNsTasks(prev => prev.map(t => docIds.includes(t.id) ? { ...t, [field]: value, ...(lastUpdateCol ? {[lastUpdateCol]: timestampStr} : {}) } : t));
               }
 
               try {
@@ -1676,16 +1706,22 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           }
 
                           if (rNum && rNum > 1 && rNum <= 50000) {
+                              // ส่งค่าฟิลด์หลักที่ถูกแก้
                               pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === field && u.sheetName === targetSheetName));
                               pendingUpdatesRef.current.push({ row: rNum, field: field, value: value, sheetName: targetSheetName });
+                              
+                              // 🔥 3. ส่งค่า Last Update ตามไปด้วย (ถ้ามีคอลัมน์นี้ใน Sheet)
+                              if (lastUpdateCol) {
+                                  pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === lastUpdateCol && u.sheetName === targetSheetName));
+                                  pendingUpdatesRef.current.push({ row: rNum, field: lastUpdateCol, value: timestampStr, sheetName: targetSheetName });
+                              }
+                              
                               hasValidUpdate = true;
-                          } else {
-                              console.warn(`⚠️ [Blocked] ข้ามการส่งซิงค์ลง Sheet งาน ${id} เนื่องจากเลขบรรทัดผิดปกติ (${rNum})`);
                           }
                       });
 
                       if (!hasValidUpdate) {
-                          customAlert('ข้อมูลงานนี้กำลังซิงค์อยู่ หรือหาเลขบรรทัดใน Sheet ไม่พบ กรุณารอสักครู่แล้วรีเฟรชหน้าเว็บอีกครั้งครับ', 'warning');
+                          customAlert('ข้อมูลงานนี้กำลังซิงค์อยู่ หรือหาเลขบรรทัดใน Sheet ไม่พบ', 'warning');
                           return true;
                       }
 
@@ -1720,9 +1756,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                   body: payloadData
                               }).then(res => res.json()).then(data => {
                                   collectionRef.doc('_sync_status').set({ status: 'syncing', timestamp: Date.now() });
-                              }).catch(err => {
-                                  console.error('❌ ไม่สามารถอัปเดต Google Sheet ได้:', err);
-                              });
+                              }).catch(err => console.error('❌ ไม่สามารถอัปเดต Google Sheet ได้:', err));
                           });
 
                           setTimeout(() => setIsBackgroundSyncing(false), 2000);
@@ -1730,7 +1764,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   }
                   return true;
               } catch (e) {
-                  console.error("Error updating document: ", e); 
                   customAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
                   return false;
               }
@@ -3039,6 +3072,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     const isStatus = col === t_statusCol;
                                     const isTeam = col === t_teamCol;
                                     const isEquipYear = col === t_equipYearCol; 
+                                    const isRegionRespon = col === 'Region_Respon'; // 🔥 เช็คว่าเป็นคอลัมน์ Region_Respon หรือไม่
                                     const isCid = (col === t_cidCol || col.toLowerCase().includes('cid') || col.toLowerCase().includes('circuit'));
                                     const isOverdue = (col === t_overDueCol || col.includes('นัดหมาย'));
                                     const isStatusChange = col.toLowerCase().includes('status_change');
@@ -3053,7 +3087,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     let styleObj = { backgroundColor: 'transparent', color: 'inherit', fontWeight: 'normal' };
                                     if (isStatus) {
                                         styleObj = { backgroundColor: getStatusColor(cleanVal, 0.15), color: getStatusColor(cleanVal, 1), fontWeight: 'bold' };
-                                    } else if (isTeam) {
+                                    } else if (isTeam || isRegionRespon) { // 🔥 ให้ Region_Respon ใช้สีเดียวกับทีม
                                         const tColor = getTeamColorStyle(val, masterData);
                                         styleObj = { backgroundColor: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`, fontWeight: 'bold' };
                                     } else if (isEquipYear && cleanVal) {
@@ -3089,14 +3123,15 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                         color: styleObj.color, fontWeight: styleObj.fontWeight, display: 'block', width: '100%', minWidth: 0, boxSizing: 'border-box', minHeight: '28px', 
                                                         height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto',
                                                         whiteSpace: (isContact || isEquip || isStatusChange || (task._groupDocs && task._groupDocs.length > 1)) ? 'pre-wrap' : (colConfig.mode === 'auto' ? 'nowrap' : 'normal'), 
-                                                        wordBreak: 'break-word', lineHeight: '1.5', overflow: 'visible', textAlign: (isStatus || isTeam || isCid || isOverdue || isEquipYear) ? 'center' : 'left'
+                                                        wordBreak: 'break-word', lineHeight: '1.5', overflow: 'visible', textAlign: (isStatus || isTeam || isCid || isOverdue || isEquipYear || isRegionRespon) ? 'center' : 'left'
                                                     }} 
                                                     onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} 
                                                     onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, (tasksSubTab === 'subcontract' ? columns : nsColumns)); setEditingCell(null); }}
                                                 >
                                                     {val}
                                                 </div>
-                                                {(isStatus || isTeam || isEquipYear) && (
+                                                {/* 🔥 เพิ่ม isRegionRespon เข้าไปในเงื่อนไข Dropdown */}
+                                                {(isStatus || isTeam || isEquipYear || isRegionRespon) && (
                                                     <div className="relative w-8 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5 z-10">
                                                         <select 
                                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
@@ -3112,6 +3147,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                                 const name = typeof opt === 'string' ? opt : opt.name;
                                                                 return <option key={name} value={name} className="text-black bg-white">{name}</option>
                                                             })}
+                                                            {/* 🔥 ดึงรายชื่อทีม NS มาใส่ใน Dropdown ของ Region_Respon */}
+                                                            {isRegionRespon && (masterData.nsTeams || []).map(opt => {
+                                                                const name = typeof opt === 'string' ? opt : opt.name;
+                                                                return <option key={name} value={name} className="text-black bg-white">{name}</option>
+                                                            })}
                                                             {isEquipYear && Array.from({length: 15}, (_, i) => new Date().getFullYear() + 2 - i).map(y => (
                                                                 <option key={y} value={y} className="text-black bg-white">{y}</option>
                                                             ))}
@@ -3122,7 +3162,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                             </div>
                                         </td>
                                     );
-                                })}
                                 <td className="p-1 align-middle border-l border-slate-200 bg-slate-50 sticky right-0 z-30 text-center group relative">
                                     <div className="flex flex-col gap-2 px-1 py-1">
                                         {tasksSubTab === 'ns' ? (
