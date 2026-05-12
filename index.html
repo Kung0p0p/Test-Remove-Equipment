@@ -3109,7 +3109,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
 
                                     return (
                                         <td key={idx} className={`p-1 md:p-1.5 align-middle border-r border-slate-100 bg-white ${isPinned ? 'sticky-col-cell' : ''} ${isLastPinned ? 'shadow-[4px_0_6px_-1px_rgba(0,0,0,0.1)] border-r-slate-300' : ''}`} style={tdStyle}>
-                                            <div className="flex items-stretch w-full mx-auto relative" style={{ backgroundColor: styleObj.backgroundColor, border: styleObj.border || 'none', borderRadius: '6px', overflow: 'hidden', box boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
+                                            <div className="flex items-stretch w-full mx-auto relative" style={{ backgroundColor: styleObj.backgroundColor, border: styleObj.border || 'none', borderRadius: '6px', overflow: 'hidden', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
                                                 <div 
                                                     contentEditable={isEditing} 
                                                     suppressContentEditableWarning={true} 
