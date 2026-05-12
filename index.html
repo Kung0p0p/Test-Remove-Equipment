@@ -987,7 +987,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         return `เหลือเวลา ${diffDays} วัน`;
                     };
 
-                    const dynamicFormula = `=LET(day_diff, (IFERROR(INT(INDIRECT("P"&ROW())),0) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
+                    // 🔥 แก้ไขสูตร: เปลี่ยนจากคอลัมน์ P เป็น Q เนื่องจากมีการแทรกคอลัมน์ Address
+                    const dynamicFormula = `=LET(day_diff, (IFERROR(INT(INDIRECT("Q"&ROW())),0) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
 
                     const webDisplayData = {
                         "id": newTaskId,
