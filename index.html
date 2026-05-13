@@ -3073,6 +3073,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     const isStatusChange = col.toLowerCase().includes('status_change');
                                     const isContact = col === contactJobColMatch;
                                     const isEquip = col === 'รายการอุปกรณ์';
+                                    
+                                    // 🔥 เช็คว่าข้อความในเซลล์นี้มีการกด Enter (ขึ้นบรรทัดใหม่) ซ่อนอยู่หรือไม่
+                                    const hasNewLine = String(val).includes('\n');
 
                                     const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
                                     const isPinned = (pinnedColumns || []).includes(col);
@@ -3117,7 +3120,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                     style={{ 
                                                         color: styleObj.color, fontWeight: styleObj.fontWeight, display: 'block', width: '100%', minWidth: 0, boxSizing: 'border-box', minHeight: '28px', 
                                                         height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto',
-                                                        whiteSpace: (isContact || isEquip || isStatusChange || (task._groupDocs && task._groupDocs.length > 1)) ? 'pre-wrap' : (colConfig.mode === 'auto' ? 'nowrap' : 'normal'), 
+                                                        // 🔥 เพิ่ม hasNewLine เข้าไปในเงื่อนไข เพื่อบังคับให้แสดงผลแบบขึ้นบรรทัดใหม่
+                                                        whiteSpace: (hasNewLine || isContact || isEquip || isStatusChange || (task._groupDocs && task._groupDocs.length > 1)) ? 'pre-wrap' : (colConfig.mode === 'auto' ? 'nowrap' : 'normal'), 
                                                         wordBreak: 'break-word', lineHeight: '1.5', overflow: 'visible', textAlign: (isStatus || isTeam || isCid || isOverdue || isEquipYear || isRegionRespon) ? 'center' : 'left'
                                                     }} 
                                                     onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} 
