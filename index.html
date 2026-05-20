@@ -1323,10 +1323,8 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           let currentColumnsTable = tasksSubTab === 'subcontract' ? [...columns] : [...nsColumns];
           const currentTasksTable = tasksSubTab === 'subcontract' ? tasks : nsTasks;
           
-          if (tasksSubTab === 'subcontract' && currentColumnsTable.length > 0 && !currentColumnsTable.includes('Region_Respon')) {
-              currentColumnsTable.push('Region_Respon');
-          }
-
+          // 🔥 ลบการสร้างคอลัมน์จำลองออก เพราะตอนนี้มีคอลัมน์ Region Responsible ของจริงใน Sheet แล้ว
+            
           const [hasAutoHidden, setHasAutoHidden] = useState(false);
           useEffect(() => {
               if (columns.length > 0 && !hasAutoHidden) {
@@ -1623,32 +1621,65 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           
           const handleMouseLeave = () => setTooltipData({ visible: false, task: null, x: 0, y: 0 });
 
-          const handleCellChangeTable = async (taskObj, field, value, currentColumnsTableLocal) => {
-              // 🔥 1. ดักจับการแก้ไขคอลัมน์จำลอง Region_Respon ในหน้า Subcontract
-              if (field === 'Region_Respon') {
-                  const cidColSub = t_getCol(['cid', 'circuitno']);
-                  const siteColSub = currentColumnsTableLocal.find(c => ['sitetype', 'site'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+          // 🔥 เพิ่ม preventSync = false เพื่อป้องกันการวนลูป (Ping-Pong Effect)
+          const handleCellChangeTable = async (taskObj, field, value, currentColumnsTableLocal, preventSync = false) => {
+              
+              const isUpdatingNS = currentColumnsTableLocal === nsColumns;
+              // ดึงชื่อคอลัมน์จาก columns หลักเสมอ เพื่อให้หาเจอแม้จะอยู่ข้าม Tab
+              const regionResponColName = columns.find(c => String(c).toLowerCase().replace(/[\s_]+/g, '').includes('regionrespon')) || '';
+              const nsTeamColName = getTeamColumnName(nsColumns); 
 
-                  const cidVal = taskObj[cidColSub] ? String(taskObj[cidColSub]).trim().toLowerCase() : '';
-                  const siteVal = (siteColSub && taskObj[siteColSub]) ? String(taskObj[siteColSub]).trim().toLowerCase() : '';
-                  
-                  const nsTeamCol = getTeamColumnName(nsColumns);
-                  const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
-                  const nsSiteCol = nsColumns.find(c => ['sitetype', 'site'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
-                  
-                  if (cidVal && nsTeamCol && nsCidCol) {
-                      const matchedNsTask = nsTasks.find(nt => {
-                          const matchCid = String(nt[nsCidCol]).trim().toLowerCase() === cidVal;
-                          const matchSite = nsSiteCol && siteVal ? String(nt[nsSiteCol]).trim().toLowerCase() === siteVal : true;
-                          return matchCid && matchSite;
-                      }) || nsTasks.find(nt => String(nt[nsCidCol]).trim().toLowerCase() === cidVal);
+              // 🔥 ถ้าไม่ได้ถูกสั่งห้าม Sync ให้ทำงานส่วนนี้
+              if (!preventSync) {
+                  // กรณีที่ 1: แก้ไข Region Responsible ในหน้า Subcontract -> ให้ไปแก้ใน Region ด้วย
+                  if (!isUpdatingNS && field === regionResponColName) {
+                      const cidColSub = t_getCol(['cid', 'circuitno']);
+                      const siteColSub = currentColumnsTableLocal.find(c => ['sitetype', 'site'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
 
-                      if (matchedNsTask) {
-                          return handleCellChangeTable(matchedNsTask, nsTeamCol, value, nsColumns);
+                      const cidVal = taskObj[cidColSub] ? String(taskObj[cidColSub]).trim().toLowerCase() : '';
+                      const siteVal = (siteColSub && taskObj[siteColSub]) ? String(taskObj[siteColSub]).trim().toLowerCase() : '';
+                      
+                      const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+                      const nsSiteCol = nsColumns.find(c => ['sitetype', 'site'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+                      
+                      if (cidVal && nsTeamColName && nsCidCol) {
+                          const matchedNsTask = nsTasks.find(nt => {
+                              const matchCid = String(nt[nsCidCol]).trim().toLowerCase() === cidVal;
+                              const matchSite = nsSiteCol && siteVal ? String(nt[nsSiteCol]).trim().toLowerCase() === siteVal : true;
+                              return matchCid && matchSite;
+                          }) || nsTasks.find(nt => String(nt[nsCidCol]).trim().toLowerCase() === cidVal);
+
+                          if (matchedNsTask) {
+                              // 🔥 สั่งอัปเดตฝั่ง Region และส่ง true ไปเพื่อบอกว่า "ห้ามสั่งกลับมานะ"
+                              handleCellChangeTable(matchedNsTask, nsTeamColName, value, nsColumns, true);
+                          }
                       }
                   }
-                  customAlert('ไม่พบ CID นี้ในฐานข้อมูล Region ไม่สามารถอัปเดตได้', 'error');
-                  return false;
+
+                  // กรณีที่ 2: แก้ไขทีมในหน้า Region -> ให้ไปแก้ Region Responsible ในหน้า Subcontract ด้วย
+                  if (isUpdatingNS && field === nsTeamColName) {
+                      const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+                      const nsSiteCol = nsColumns.find(c => ['sitetype', 'site'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+
+                      const cidVal = taskObj[nsCidCol] ? String(taskObj[nsCidCol]).trim().toLowerCase() : '';
+                      const siteVal = (nsSiteCol && taskObj[nsSiteCol]) ? String(taskObj[nsSiteCol]).trim().toLowerCase() : '';
+
+                      const subCidCol = columns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+                      const subSiteCol = columns.find(c => ['sitetype', 'site'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+
+                      if (cidVal && regionResponColName && subCidCol) {
+                          const matchedSubTask = tasks.find(t => {
+                              const matchCid = String(t[subCidCol]).trim().toLowerCase() === cidVal;
+                              const matchSite = subSiteCol && siteVal ? String(t[subSiteCol]).trim().toLowerCase() === siteVal : true;
+                              return matchCid && matchSite;
+                          }) || tasks.find(t => String(t[subCidCol]).trim().toLowerCase() === cidVal);
+
+                          if (matchedSubTask) {
+                              // 🔥 สั่งอัปเดตฝั่ง Subcontract และส่ง true ไปเพื่อบอกว่า "ห้ามสั่งกลับมานะ"
+                              handleCellChangeTable(matchedSubTask, regionResponColName, value, columns, true);
+                          }
+                      }
+                  }
               }
 
               const docIds = taskObj._groupDocs || [taskObj.id];
@@ -1901,44 +1932,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               
               let processedTasks = [...tableTasks];
 
-              if (tasksSubTab === 'subcontract') {
-                  const nsTeamCol = getTeamColumnName(nsColumns);
-                  const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
-                  const nsSiteCol = nsColumns.find(c => ['sitetype', 'site'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
-                  
-                  const nsCidMap = {};
-                  if (nsCidCol && nsTeamCol) {
-                      nsTasks.forEach(nt => {
-                          if (!nt) return;
-                          const cid = nt[nsCidCol] ? String(nt[nsCidCol]).trim().toLowerCase() : '';
-                          const site = nsSiteCol && nt[nsSiteCol] ? String(nt[nsSiteCol]).trim().toLowerCase() : '';
-                          if (cid) {
-                              if (site) nsCidMap[`${cid}_${site}`] = nt[nsTeamCol];
-                              if (!nsCidMap[cid]) nsCidMap[cid] = nt[nsTeamCol]; 
-                          }
-                      });
-                  }
-
-                  const subSiteCol = currentColumnsTable.find(c => ['sitetype', 'site'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || '';
-
-                  processedTasks = processedTasks.map(t => {
-                      const cid = t_cidCol ? String(t[t_cidCol] || '').trim().toLowerCase() : '';
-                      const site = subSiteCol && t[subSiteCol] ? String(t[subSiteCol]).trim().toLowerCase() : '';
-                      
-                      let regionRespon = '-';
-                      if (cid) {
-                          if (site && nsCidMap[`${cid}_${site}`]) {
-                              regionRespon = nsCidMap[`${cid}_${site}`];
-                          } else if (nsCidMap[cid]) {
-                              regionRespon = nsCidMap[cid];
-                          }
-                      }
-                      return { ...t, 'Region_Respon': regionRespon };
-                  });
-
-                  if (Array.isArray(tableFilterRegionRespon) && tableFilterRegionRespon.length > 0) {
+              // 🔥 เปลี่ยนมากรองจากคอลัมน์ Region Responsible ของจริงใน Sheet
+              if (tasksSubTab === 'subcontract' && Array.isArray(tableFilterRegionRespon) && tableFilterRegionRespon.length > 0) {
+                  const regionResponColName = currentColumnsTable.find(c => String(c).toLowerCase().replace(/[\s_]+/g, '').includes('regionrespon')) || '';
+                  if (regionResponColName) {
                       processedTasks = processedTasks.filter(t => {
-                          const val = t['Region_Respon'] || '-';
+                          const val = t[regionResponColName] ? String(t[regionResponColName]).trim() : '-';
                           return tableFilterRegionRespon.includes(val);
                       });
                   }
