@@ -1622,10 +1622,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           const handleMouseLeave = () => setTooltipData({ visible: false, task: null, x: 0, y: 0 });
 
           // 🔥 เพิ่ม preventSync = false เพื่อป้องกันการวนลูป (Ping-Pong Effect)
+          // 🔥 เพิ่ม preventSync = false เพื่อป้องกันการวนลูป (Ping-Pong Effect)
           const handleCellChangeTable = async (taskObj, field, value, currentColumnsTableLocal, preventSync = false) => {
               
               const isUpdatingNS = currentColumnsTableLocal === nsColumns;
-              // ดึงชื่อคอลัมน์จาก columns หลักเสมอ เพื่อให้หาเจอแม้จะอยู่ข้าม Tab
               const regionResponColName = columns.find(c => String(c).toLowerCase().replace(/[\s_]+/g, '').includes('regionrespon')) || '';
               const nsTeamColName = getTeamColumnName(nsColumns); 
 
@@ -1702,13 +1702,12 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   return false; 
               }
 
-              // 🔥 2. สร้าง Timestamp สำหรับ Last Update
+              // 🔥 สร้าง Timestamp สำหรับ Last Update
               const now = new Date();
               const timestampStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} - ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
               
               const lastUpdateCol = (currentColumnsTableLocal || []).find(c => String(c).toLowerCase().replace(/[\s_]+/g, '') === 'lastupdate') || '';
 
-              const isUpdatingNS = currentColumnsTableLocal === nsColumns;
               const targetSheetName = isUpdatingNS ? 'Jobs for NS 2018-2025' : 'Subcontract_2026';
 
               if (!isUpdatingNS) {
@@ -1739,7 +1738,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === field && u.sheetName === targetSheetName));
                               pendingUpdatesRef.current.push({ row: rNum, field: field, value: value, sheetName: targetSheetName });
                               
-                              // 🔥 3. ส่งค่า Last Update ไป Sheet ด้วย
+                              // 🔥 ส่งค่า Last Update ไป Sheet ด้วย
                               if (lastUpdateCol) {
                                   pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === lastUpdateCol && u.sheetName === targetSheetName));
                                   pendingUpdatesRef.current.push({ row: rNum, field: lastUpdateCol, value: timestampStr, sheetName: targetSheetName });
