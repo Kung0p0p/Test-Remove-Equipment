@@ -89,9 +89,9 @@
 
     <script type="text/babel">
         // ==========================================
-        // APP VERSION: v2.5.0 (Full Feature + Sync + Drill-down)
+        // APP VERSION: v2.6.0 (Full Feature + Sync + Drill-down + History Chart)
         // ==========================================
-        const APP_VERSION = "2.5.0";
+        const APP_VERSION = "2.6.0";
 
         if (typeof ChartDataLabels !== 'undefined') {
             Chart.register(ChartDataLabels);
@@ -99,7 +99,6 @@
 
         const { useState, useEffect, useRef, useMemo, useTransition } = React;
 
-        // Error Boundary เพื่อป้องกันหน้าจอขาว
         class ErrorBoundary extends React.Component {
             constructor(props) {
                 super(props);
@@ -765,7 +764,7 @@
         // -------------------------------------------------------------
         // --- COMPONENT: ASSIGN JOB & LINE NOTIFY ---
         // -------------------------------------------------------------
-        const AssignJobTab = ({ masterData, queueState, setQueueState, masterDataRef, collectionRef, GAS_WEB_APP_URL, nsTasks, autoAssignData, clearAutoAssignData, customAlert, setTasks }) => {
+        const AssignJobTab = ({ masterData, queueState, setQueueState, masterDataRef, collectionRef, GAS_WEB_APP_URL, nsTasks, autoAssignData, clearAutoAssignData, customAlert, setTasks, columns, nsColumns }) => {
             const getInitialFormState = () => {
                 const now = new Date();
                 return {
@@ -972,6 +971,21 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     const newTaskId = `task_assign_${Date.now()}`;
                     const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
 
+                    const nsYearCol = (nsColumns || []).find(c => ['year', 'ปี'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
+                    const subYearCol = (columns || []).find(c => ['year', 'ปี'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || 'Equipment Year';
+
+                    let equipYearValue = new Date().getFullYear().toString(); 
+                    
+                    if (form.cid && nsYearCol) {
+                        const matchedNsTask = (nsTasks || []).find(t => {
+                            const cidKey = Object.keys(t).find(k => k.toLowerCase().includes('circuitno') || k.toLowerCase().includes('cid'));
+                            return cidKey && String(t[cidKey]).trim().toLowerCase() === form.cid.trim().toLowerCase();
+                        });
+                        if (matchedNsTask && matchedNsTask[nsYearCol]) {
+                            equipYearValue = String(matchedNsTask[nsYearCol]).trim(); 
+                        }
+                    }
+
                     const calcInstantStatus = () => {
                         const getback = parseDateHelper(form.getbackDate);
                         const assigned = parseDateHelper(form.date) || new Date();
@@ -987,7 +1001,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         return `เหลือเวลา ${diffDays} วัน`;
                     };
 
-                    // 🔥 แก้ไขสูตร: เปลี่ยนจากคอลัมน์ P เป็น Q เนื่องจากมีการแทรกคอลัมน์ Address
                     const dynamicFormula = `=LET(day_diff, (IFERROR(INT(INDIRECT("Q"&ROW())),0) + 3) - IF(ISBLANK(INDIRECT("A"&ROW())), TODAY(), INT(INDIRECT("A"&ROW()))), IF(day_diff < 0, "เกินกำหนด " & ABS(day_diff) & " วัน", IF(day_diff = 0, "ครบกำหนด", "เหลือเวลา " & day_diff & " วัน")))`;
 
                     const webDisplayData = {
@@ -996,12 +1009,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                         "CID Customer": form.cid,
                         "ทีมงาน": form.team,
                         "บริษัทลูกค้า": form.customerName,
-                        "Address": form.address, // 🔥 เพิ่มข้อมูลที่อยู่
+                        "Address": form.address,
                         "ชื่อและเบอร์โทรลูกค้าประสานงาน": form.phone,
                         "วันที่ยกเลิกใช้งาน": form.cancelDate,
                         "สถานะ": "รอเข้าเก็บ",
                         "วันที่เข้าเก็บ": form.getbackDate || '',
                         "เวลาเข้าเก็บ": form.getbackTime || '',
+                        [subYearCol]: equipYearValue, 
                         "นัดหมายลูกค้า": calcInstantStatus(), 
                         "รายการอุปกรณ์": equipStr,
                         "รายละเอียดงาน": `[Site Type: ${form.siteType}] \n${form.details}`,
@@ -1323,8 +1337,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           let currentColumnsTable = tasksSubTab === 'subcontract' ? [...columns] : [...nsColumns];
           const currentTasksTable = tasksSubTab === 'subcontract' ? tasks : nsTasks;
           
-          // 🔥 ลบการสร้างคอลัมน์จำลองออก เพราะตอนนี้มีคอลัมน์ Region Responsible ของจริงใน Sheet แล้ว
-            
           const [hasAutoHidden, setHasAutoHidden] = useState(false);
           useEffect(() => {
               if (columns.length > 0 && !hasAutoHidden) {
@@ -1621,17 +1633,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           
           const handleMouseLeave = () => setTooltipData({ visible: false, task: null, x: 0, y: 0 });
 
-          // 🔥 เพิ่ม preventSync = false เพื่อป้องกันการวนลูป (Ping-Pong Effect)
-          // 🔥 เพิ่ม preventSync = false เพื่อป้องกันการวนลูป (Ping-Pong Effect)
           const handleCellChangeTable = async (taskObj, field, value, currentColumnsTableLocal, preventSync = false) => {
               
               const isUpdatingNS = currentColumnsTableLocal === nsColumns;
               const regionResponColName = columns.find(c => String(c).toLowerCase().replace(/[\s_]+/g, '').includes('regionrespon')) || '';
               const nsTeamColName = getTeamColumnName(nsColumns); 
 
-              // 🔥 ถ้าไม่ได้ถูกสั่งห้าม Sync ให้ทำงานส่วนนี้
               if (!preventSync) {
-                  // กรณีที่ 1: แก้ไข Region Responsible ในหน้า Subcontract -> ให้ไปแก้ใน Region ด้วย
                   if (!isUpdatingNS && field === regionResponColName) {
                       const cidColSub = t_getCol(['cid', 'circuitno']);
                       const siteColSub = currentColumnsTableLocal.find(c => ['sitetype', 'site'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
@@ -1650,13 +1658,11 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           }) || nsTasks.find(nt => String(nt[nsCidCol]).trim().toLowerCase() === cidVal);
 
                           if (matchedNsTask) {
-                              // 🔥 สั่งอัปเดตฝั่ง Region และส่ง true ไปเพื่อบอกว่า "ห้ามสั่งกลับมานะ"
                               handleCellChangeTable(matchedNsTask, nsTeamColName, value, nsColumns, true);
                           }
                       }
                   }
 
-                  // กรณีที่ 2: แก้ไขทีมในหน้า Region -> ให้ไปแก้ Region Responsible ในหน้า Subcontract ด้วย
                   if (isUpdatingNS && field === nsTeamColName) {
                       const nsCidCol = nsColumns.find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
                       const nsSiteCol = nsColumns.find(c => ['sitetype', 'site'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
@@ -1675,7 +1681,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                           }) || tasks.find(t => String(t[subCidCol]).trim().toLowerCase() === cidVal);
 
                           if (matchedSubTask) {
-                              // 🔥 สั่งอัปเดตฝั่ง Subcontract และส่ง true ไปเพื่อบอกว่า "ห้ามสั่งกลับมานะ"
                               handleCellChangeTable(matchedSubTask, regionResponColName, value, columns, true);
                           }
                       }
@@ -1702,7 +1707,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                   return false; 
               }
 
-              // 🔥 สร้าง Timestamp สำหรับ Last Update
               const now = new Date();
               const timestampStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} - ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
               
@@ -1738,7 +1742,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === field && u.sheetName === targetSheetName));
                               pendingUpdatesRef.current.push({ row: rNum, field: field, value: value, sheetName: targetSheetName });
                               
-                              // 🔥 ส่งค่า Last Update ไป Sheet ด้วย
                               if (lastUpdateCol) {
                                   pendingUpdatesRef.current = pendingUpdatesRef.current.filter(u => !(u.row === rNum && u.field === lastUpdateCol && u.sheetName === targetSheetName));
                                   pendingUpdatesRef.current.push({ row: rNum, field: lastUpdateCol, value: timestampStr, sheetName: targetSheetName });
@@ -1931,7 +1934,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               
               let processedTasks = [...tableTasks];
 
-              // 🔥 เปลี่ยนมากรองจากคอลัมน์ Region Responsible ของจริงใน Sheet
               if (tasksSubTab === 'subcontract' && Array.isArray(tableFilterRegionRespon) && tableFilterRegionRespon.length > 0) {
                   const regionResponColName = currentColumnsTable.find(c => String(c).toLowerCase().replace(/[\s_]+/g, '').includes('regionrespon')) || '';
                   if (regionResponColName) {
@@ -2199,56 +2201,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
           let totalBarCollected = 0; 
           let totalBarOngoing = 0;   
 
-          if (dashboardView === 'subcontract') {
-              barChartTitle = "Monthly Collection Summary";
-              const monthlyData = {}; for (let i = 1; i <= 12; i++) monthlyData[i] = { collected: 0, ongoing: 0, percent: 0 };
-              
-              chartFilteredTasks.forEach(t => {
-                  const d = parseDateHelper(getDashboardTaskEffectiveDateStr(t));
-                  if (d) {
-                      let m = d.getMonth() + 1;
-                      if (m >= 1 && m <= 12) {
-                          const isCollected = getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/);
-                          if (isCollected) { monthlyData[m].collected++; totalBarCollected++; } 
-                          else { monthlyData[m].ongoing++; totalBarOngoing++; }
-                      }
-                  }
-              });
-              
-              for (let i = 1; i <= 12; i++) {
-                  const totalMonth = monthlyData[i].collected + monthlyData[i].ongoing;
-                  monthlyData[i].percent = totalMonth > 0 ? Math.round((monthlyData[i].collected / totalMonth) * 100) : 0;
-              }
-
-              const monthLabelsWithPercent = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].map((m, i) => [m, `${monthlyData[i+1].percent}%`]);
-
-              barChartData = { 
-                  labels: monthLabelsWithPercent, 
-                  datasets: [ 
-                      { 
-                          label: 'Collected (CIDs)', 
-                          data: Object.values(monthlyData).map(d => d.collected), 
-                          backgroundColor: 'rgba(16, 185, 129, 0.8)', 
-                          hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
-                          borderColor: 'transparent', 
-                          hoverBorderColor: '#1e293b', 
-                          hoverBorderWidth: 2, 
-                          borderRadius: 4 
-                      }, 
-                      { 
-                          label: 'Ongoing (CIDs)', 
-                          data: Object.values(monthlyData).map(d => d.ongoing), 
-                          backgroundColor: 'rgba(245, 158, 11, 0.8)', 
-                          hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
-                          borderColor: 'transparent', 
-                          hoverBorderColor: '#1e293b', 
-                          hoverBorderWidth: 2, 
-                          borderRadius: 4 
-                      } 
-                  ] 
-              };
-              barChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true } } };
-          } else {
+          if (dashboardView === 'ns' || (dashboardView === 'subcontract' && dashboardYear === 'history')) {
               barChartTitle = "Collection by Job Year";
               const yearlyData = {};
               chartFilteredTasks.forEach(t => {
@@ -2280,26 +2233,63 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       { 
                           label: 'Collected (CIDs)', 
                           data: sortedYears.map(y => yearlyData[y].collected), 
-                          backgroundColor: 'rgba(16, 185, 129, 0.8)', 
-                          hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
-                          borderColor: 'transparent', 
-                          hoverBorderColor: '#1e293b', 
-                          hoverBorderWidth: 2, 
-                          borderRadius: 4 
+                          backgroundColor: (c) => getBarGradient(c, 'rgba(16, 185, 129, 0.4)', 'rgba(20, 184, 166, 0.9)'), 
+                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(52, 211, 153, 0.8)', 'rgba(45, 212, 191, 1)'), 
+                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
                       }, 
                       { 
                           label: 'Ongoing (CIDs)', 
                           data: sortedYears.map(y => yearlyData[y].ongoing), 
-                          backgroundColor: 'rgba(245, 158, 11, 0.8)', 
-                          hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
-                          borderColor: 'transparent', 
-                          hoverBorderColor: '#1e293b', 
-                          hoverBorderWidth: 2, 
-                          borderRadius: 4 
+                          backgroundColor: (c) => getBarGradient(c, 'rgba(245, 158, 11, 0.4)', 'rgba(234, 88, 12, 0.9)'), 
+                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(251, 191, 36, 0.8)', 'rgba(249, 115, 22, 1)'), 
+                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
                       } 
                   ] 
               };
               barChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true }, x: { stacked: false } } };
+          } else {
+              barChartTitle = "Monthly Collection Summary";
+              const monthlyData = {}; for (let i = 1; i <= 12; i++) monthlyData[i] = { collected: 0, ongoing: 0, percent: 0 };
+              
+              chartFilteredTasks.forEach(t => {
+                  const d = parseDateHelper(getDashboardTaskEffectiveDateStr(t));
+                  if (d) {
+                      let m = d.getMonth() + 1;
+                      if (m >= 1 && m <= 12) {
+                          const isCollected = getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/);
+                          if (isCollected) { monthlyData[m].collected++; totalBarCollected++; } 
+                          else { monthlyData[m].ongoing++; totalBarOngoing++; }
+                      }
+                  }
+              });
+              
+              for (let i = 1; i <= 12; i++) {
+                  const totalMonth = monthlyData[i].collected + monthlyData[i].ongoing;
+                  monthlyData[i].percent = totalMonth > 0 ? Math.round((monthlyData[i].collected / totalMonth) * 100) : 0;
+              }
+
+              const monthLabelsWithPercent = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].map((m, i) => [m, `${monthlyData[i+1].percent}%`]);
+
+              barChartData = { 
+                  labels: monthLabelsWithPercent, 
+                  datasets: [ 
+                      { 
+                          label: 'Collected (CIDs)', 
+                          data: Object.values(monthlyData).map(d => d.collected), 
+                          backgroundColor: (c) => getBarGradient(c, 'rgba(16, 185, 129, 0.4)', 'rgba(20, 184, 166, 0.9)'), 
+                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(52, 211, 153, 0.8)', 'rgba(45, 212, 191, 1)'), 
+                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
+                      }, 
+                      { 
+                          label: 'Ongoing (CIDs)', 
+                          data: Object.values(monthlyData).map(d => d.ongoing), 
+                          backgroundColor: (c) => getBarGradient(c, 'rgba(245, 158, 11, 0.4)', 'rgba(234, 88, 12, 0.9)'), 
+                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(251, 191, 36, 0.8)', 'rgba(249, 115, 22, 1)'), 
+                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
+                      } 
+                  ] 
+              };
+              barChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true } } };
           }
 
           let teamChartData, unassignedChartData, teamChartOptions, unassignedChartOptions;
@@ -2328,22 +2318,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       { 
                           label: 'Completed', 
                           data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), 
-                          backgroundColor: 'rgba(16, 185, 129, 0.8)', 
-                          hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
-                          borderColor: 'transparent', 
-                          hoverBorderColor: '#1e293b', 
-                          hoverBorderWidth: 2, 
-                          borderRadius: 4 
+                          backgroundColor: (c) => getBarGradient(c, 'rgba(16, 185, 129, 0.4)', 'rgba(20, 184, 166, 0.9)'), 
+                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(52, 211, 153, 0.8)', 'rgba(45, 212, 191, 1)'), 
+                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
                       },
                       { 
                           label: 'On Process', 
                           data: mainTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && !isTaskCompleted(getCleanStatus(t[d_statusCol]))).length), 
-                          backgroundColor: 'rgba(245, 158, 11, 0.8)', 
-                          hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
-                          borderColor: 'transparent', 
-                          hoverBorderColor: '#1e293b', 
-                          hoverBorderWidth: 2, 
-                          borderRadius: 4 
+                          backgroundColor: (c) => getBarGradient(c, 'rgba(245, 158, 11, 0.4)', 'rgba(234, 88, 12, 0.9)'), 
+                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(251, 191, 36, 0.8)', 'rgba(249, 115, 22, 1)'), 
+                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
                       } 
                   ] 
               };
@@ -2359,10 +2343,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       return {
                           label: status,
                           data: [unassignedTasks.filter(t => getCleanStatus(t[d_statusCol]) === status).length],
-                          backgroundColor: baseColor.replace('1)', '0.8)'),
-                          hoverBackgroundColor: baseColor,
+                          backgroundColor: (c) => getBarGradient(c, baseColor.replace('1)', '0.4)'), baseColor.replace('1)', '0.9)')),
+                          hoverBackgroundColor: (c) => getBarGradient(c, baseColor.replace('1)', '0.7)'), baseColor),
                           borderColor: 'transparent',
-                          hoverBorderColor: '#1e293b',
+                          hoverBorderColor: 'rgba(255, 255, 255, 0.9)',
                           borderWidth: 0,
                           hoverBorderWidth: 2
                       };
@@ -2418,10 +2402,10 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                       return { 
                           label: status, 
                           data: allActiveTeams.map(team => chartFilteredTasks.filter(t => getCleanTeam(t[d_teamCol]) === team && getCleanStatus(t[d_statusCol]) === status).length), 
-                          backgroundColor: baseColor.replace('1)', '0.8)'),
-                          hoverBackgroundColor: baseColor,
+                          backgroundColor: (c) => getBarGradient(c, baseColor.replace('1)', '0.4)'), baseColor.replace('1)', '0.9)')),
+                          hoverBackgroundColor: (c) => getBarGradient(c, baseColor.replace('1)', '0.7)'), baseColor),
                           borderColor: 'transparent', 
-                          hoverBorderColor: '#1e293b',
+                          hoverBorderColor: 'rgba(255, 255, 255, 0.9)',
                           borderWidth: 0,
                           hoverBorderWidth: 2
                       };
@@ -2452,12 +2436,9 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               datasets: [{ 
                   label: 'เกินกำหนดนัดหมาย (CIDs)', 
                   data: allActiveTeams.map(t => overdueByTeamCounts[t]), 
-                  backgroundColor: 'rgba(239, 68, 68, 0.8)', 
-                  hoverBackgroundColor: 'rgba(239, 68, 68, 1)', 
-                  borderColor: 'transparent', 
-                  hoverBorderColor: '#1e293b', 
-                  borderWidth: 0, 
-                  hoverBorderWidth: 2 
+                  backgroundColor: (c) => getBarGradient(c, 'rgba(239, 68, 68, 0.4)', 'rgba(225, 29, 72, 0.9)'), 
+                  hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(248, 113, 113, 0.8)', 'rgba(244, 63, 94, 1)'), 
+                  borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', borderWidth: 0, hoverBorderWidth: 2 
               }] 
           };
           const overdueChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: dlStyle }, scales: { y: { beginAtZero: true } } };
@@ -2726,7 +2707,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                       onClick={({ datasetIndex, index }) => {
                                           const isCollected = datasetIndex === 0;
                                           const targetStatuses = getStatusesForDrillDown(isCollected);
-                                          if (dashboardView === 'subcontract') {
+                                          if (dashboardView === 'subcontract' && dashboardYear !== 'history') {
                                               const monthName = monthNames[index]; 
                                               handleChartDrillDown({ month: [monthName], status: targetStatuses });
                                           } else {
@@ -3479,7 +3460,7 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                 {activeTab === 'master_data' && isAdmin && <MasterDataTab masterData={masterData} masterDataRef={masterDataRef} customAlert={customAlert} customConfirm={customConfirm} columns={columns} nsColumns={nsColumns} setMasterData={setMasterData} />}
 
                 {/* --- 5. หน้า ASSIGN JOB --- */}
-                {activeTab === 'assign' && <AssignJobTab masterData={masterData} queueState={queueState} setQueueState={setQueueState} masterDataRef={masterDataRef} collectionRef={collectionRef} GAS_WEB_APP_URL={GAS_WEB_APP_URL} nsTasks={nsTasks} autoAssignData={autoAssignData} clearAutoAssignData={clearAutoAssignData} customAlert={customAlert} setTasks={setTasks} />}
+                {activeTab === 'assign' && <AssignJobTab masterData={masterData} queueState={queueState} setQueueState={setQueueState} masterDataRef={masterDataRef} collectionRef={collectionRef} GAS_WEB_APP_URL={GAS_WEB_APP_URL} nsTasks={nsTasks} autoAssignData={autoAssignData} clearAutoAssignData={clearAutoAssignData} customAlert={customAlert} setTasks={setTasks} columns={columns} nsColumns={nsColumns} />}
 
               </main>
 
