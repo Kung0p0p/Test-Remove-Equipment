@@ -89,9 +89,9 @@
 
     <script type="text/babel">
         // ==========================================
-        // APP VERSION: v2.6.0 (Full Feature + Sync + Drill-down + History Chart)
+        // APP VERSION: v2.7.0 (Full Feature + Sync + Drill-down + History Chart)
         // ==========================================
-        const APP_VERSION = "2.6.0";
+        const APP_VERSION = "2.7.0";
 
         if (typeof ChartDataLabels !== 'undefined') {
             Chart.register(ChartDataLabels);
@@ -971,21 +971,16 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                     const newTaskId = `task_assign_${Date.now()}`;
                     const equipStr = equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN: ${e.serial || '-'} ]`).join('\n');
 
-                    // 🔥 ค้นหาคอลัมน์ปีของทั้ง 2 หน้า
                     const nsYearCol = (nsColumns || []).find(c => ['year', 'ปี'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
                     const subYearCol = (columns || []).find(c => ['year', 'ปี'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false)) || 'Equipment Year';
 
-                    let equipYearValue = new Date().getFullYear().toString(); // ค่าเริ่มต้นคือปีปัจจุบัน
+                    let equipYearValue = new Date().getFullYear().toString(); 
                     
                     if (form.cid && nsYearCol) {
-                        // 🔥 หาคอลัมน์ CID ของหน้า Region ให้เจอชัวร์ๆ ก่อน
                         const nsCidCol = (nsColumns || []).find(c => ['cid', 'circuitno'].some(kw => c ? String(c).toLowerCase().replace(/[\s_]+/g,'').includes(kw) : false));
                         
                         if (nsCidCol) {
-                            // วิ่งหา CID ที่ตรงกันในหน้า Region
                             const matchedNsTask = (nsTasks || []).find(t => String(t[nsCidCol]).trim().toLowerCase() === form.cid.trim().toLowerCase());
-                            
-                            // ถ้าเจอ และมีข้อมูลปีอยู่ ให้ดึงมาใช้
                             if (matchedNsTask && matchedNsTask[nsYearCol] && String(matchedNsTask[nsYearCol]).trim() !== '') {
                                 equipYearValue = String(matchedNsTask[nsYearCol]).trim(); 
                             }
@@ -2203,106 +2198,100 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
               return gradient;
           };
 
-          // ==========================================
-          // 🔥 สร้างข้อมูลสำหรับกราฟรายเดือน (Monthly)
-          // ==========================================
-          let monthlyChartData, monthlyChartOptions;
-          let totalMonthlyCollected = 0; 
-          let totalMonthlyOngoing = 0;   
+          let barChartData, barChartOptions, barChartTitle;
+          let totalBarCollected = 0; 
+          let totalBarOngoing = 0;   
 
-          const monthlyData = {}; for (let i = 1; i <= 12; i++) monthlyData[i] = { collected: 0, ongoing: 0, percent: 0 };
-          
-          chartFilteredTasks.forEach(t => {
-              const d = parseDateHelper(getDashboardTaskEffectiveDateStr(t));
-              if (d) {
-                  let m = d.getMonth() + 1;
-                  if (m >= 1 && m <= 12) {
-                      const isCollected = getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/);
-                      if (isCollected) { monthlyData[m].collected++; totalMonthlyCollected++; } 
-                      else { monthlyData[m].ongoing++; totalMonthlyOngoing++; }
+          if (dashboardView === 'ns' || (dashboardView === 'subcontract' && dashboardYear === 'history')) {
+              barChartTitle = "Collection by Job Year";
+              const yearlyData = {};
+              chartFilteredTasks.forEach(t => {
+                  let yStr = d_equipYearCol && t[d_equipYearCol] ? String(t[d_equipYearCol]).trim() : '';
+                  if (!yStr) yStr = 'ไม่ระบุปี';
+                  
+                  if (!yearlyData[yStr]) yearlyData[yStr] = { collected: 0, ongoing: 0 };
+                  
+                  const isCollected = getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/);
+                  if (isCollected) { yearlyData[yStr].collected++; totalBarCollected++; } 
+                  else { yearlyData[yStr].ongoing++; totalBarOngoing++; }
+              });
+              
+              const sortedYears = Object.keys(yearlyData).sort((a, b) => {
+                  if (a === 'ไม่ระบุปี') return 1;
+                  if (b === 'ไม่ระบุปี') return -1;
+                  return a.localeCompare(b, 'en', { numeric: true });
+              });
+
+              const yearLabelsWithPercent = sortedYears.map(y => {
+                  const totalYear = yearlyData[y].collected + yearlyData[y].ongoing;
+                  const pct = totalYear > 0 ? Math.round((yearlyData[y].collected / totalYear) * 100) : 0;
+                  return [y, `${pct}%`];
+              });
+
+              barChartData = { 
+                  labels: yearLabelsWithPercent, 
+                  datasets: [ 
+                      { 
+                          label: 'Collected (CIDs)', 
+                          data: sortedYears.map(y => yearlyData[y].collected), 
+                          backgroundColor: (c) => getBarGradient(c, 'rgba(16, 185, 129, 0.4)', 'rgba(20, 184, 166, 0.9)'), 
+                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(52, 211, 153, 0.8)', 'rgba(45, 212, 191, 1)'), 
+                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
+                      }, 
+                      { 
+                          label: 'Ongoing (CIDs)', 
+                          data: sortedYears.map(y => yearlyData[y].ongoing), 
+                          backgroundColor: (c) => getBarGradient(c, 'rgba(245, 158, 11, 0.4)', 'rgba(234, 88, 12, 0.9)'), 
+                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(251, 191, 36, 0.8)', 'rgba(249, 115, 22, 1)'), 
+                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
+                      } 
+                  ] 
+              };
+              barChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true }, x: { stacked: false } } };
+          } else {
+              barChartTitle = "Monthly Collection Summary";
+              const monthlyData = {}; for (let i = 1; i <= 12; i++) monthlyData[i] = { collected: 0, ongoing: 0, percent: 0 };
+              
+              chartFilteredTasks.forEach(t => {
+                  const d = parseDateHelper(getDashboardTaskEffectiveDateStr(t));
+                  if (d) {
+                      let m = d.getMonth() + 1;
+                      if (m >= 1 && m <= 12) {
+                          const isCollected = getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/);
+                          if (isCollected) { monthlyData[m].collected++; totalBarCollected++; } 
+                          else { monthlyData[m].ongoing++; totalBarOngoing++; }
+                      }
                   }
+              });
+              
+              for (let i = 1; i <= 12; i++) {
+                  const totalMonth = monthlyData[i].collected + monthlyData[i].ongoing;
+                  monthlyData[i].percent = totalMonth > 0 ? Math.round((monthlyData[i].collected / totalMonth) * 100) : 0;
               }
-          });
-          
-          for (let i = 1; i <= 12; i++) {
-              const totalMonth = monthlyData[i].collected + monthlyData[i].ongoing;
-              monthlyData[i].percent = totalMonth > 0 ? Math.round((monthlyData[i].collected / totalMonth) * 100) : 0;
+
+              const monthLabelsWithPercent = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].map((m, i) => [m, `${monthlyData[i+1].percent}%`]);
+
+              barChartData = { 
+                  labels: monthLabelsWithPercent, 
+                  datasets: [ 
+                      { 
+                          label: 'Collected (CIDs)', 
+                          data: Object.values(monthlyData).map(d => d.collected), 
+                          backgroundColor: (c) => getBarGradient(c, 'rgba(16, 185, 129, 0.4)', 'rgba(20, 184, 166, 0.9)'), 
+                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(52, 211, 153, 0.8)', 'rgba(45, 212, 191, 1)'), 
+                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
+                      }, 
+                      { 
+                          label: 'Ongoing (CIDs)', 
+                          data: Object.values(monthlyData).map(d => d.ongoing), 
+                          backgroundColor: (c) => getBarGradient(c, 'rgba(245, 158, 11, 0.4)', 'rgba(234, 88, 12, 0.9)'), 
+                          hoverBackgroundColor: (c) => getBarGradient(c, 'rgba(251, 191, 36, 0.8)', 'rgba(249, 115, 22, 1)'), 
+                          borderColor: 'transparent', hoverBorderColor: 'rgba(255, 255, 255, 0.9)', hoverBorderWidth: 2, borderRadius: 4 
+                      } 
+                  ] 
+              };
+              barChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true } } };
           }
-
-          const monthLabelsWithPercent = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].map((m, i) => [m, `${monthlyData[i+1].percent}%`]);
-
-          monthlyChartData = { 
-              labels: monthLabelsWithPercent, 
-              datasets: [ 
-                  { 
-                      label: 'Collected (CIDs)', 
-                      data: Object.values(monthlyData).map(d => d.collected), 
-                      backgroundColor: 'rgba(16, 185, 129, 0.8)', // 🔥 สีเขียวทึบ
-                      hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
-                      borderColor: 'transparent', hoverBorderColor: '#1e293b', hoverBorderWidth: 2, borderRadius: 4 
-                  }, 
-                  { 
-                      label: 'Ongoing (CIDs)', 
-                      data: Object.values(monthlyData).map(d => d.ongoing), 
-                      backgroundColor: 'rgba(245, 158, 11, 0.8)', // 🔥 สีส้มทึบ
-                      hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
-                      borderColor: 'transparent', hoverBorderColor: '#1e293b', hoverBorderWidth: 2, borderRadius: 4 
-                  } 
-              ] 
-          };
-          monthlyChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true } } };
-
-          // ==========================================
-          // 🔥 สร้างข้อมูลสำหรับกราฟรายปี (Yearly)
-          // ==========================================
-          let yearlyChartData, yearlyChartOptions;
-          let totalYearlyCollected = 0; 
-          let totalYearlyOngoing = 0;
-
-          const yearlyData = {};
-          chartFilteredTasks.forEach(t => {
-              let yStr = d_equipYearCol && t[d_equipYearCol] ? String(t[d_equipYearCol]).trim() : '';
-              if (!yStr) yStr = 'ไม่ระบุปี';
-              
-              if (!yearlyData[yStr]) yearlyData[yStr] = { collected: 0, ongoing: 0 };
-              
-              const isCollected = getCleanStatus(t[d_statusCol]).toLowerCase().match(/(สำเร็จ|เรียบร้อย|complete|done|100%)/);
-              if (isCollected) { yearlyData[yStr].collected++; totalYearlyCollected++; } 
-              else { yearlyData[yStr].ongoing++; totalYearlyOngoing++; }
-          });
-          
-          const sortedYears = Object.keys(yearlyData).sort((a, b) => {
-              if (a === 'ไม่ระบุปี') return 1;
-              if (b === 'ไม่ระบุปี') return -1;
-              return a.localeCompare(b, 'en', { numeric: true });
-          });
-
-          const yearLabelsWithPercent = sortedYears.map(y => {
-              const totalYear = yearlyData[y].collected + yearlyData[y].ongoing;
-              const pct = totalYear > 0 ? Math.round((yearlyData[y].collected / totalYear) * 100) : 0;
-              return [y, `${pct}%`];
-          });
-
-          yearlyChartData = { 
-              labels: yearLabelsWithPercent, 
-              datasets: [ 
-                  { 
-                      label: 'Collected (CIDs)', 
-                      data: sortedYears.map(y => yearlyData[y].collected), 
-                      backgroundColor: 'rgba(16, 185, 129, 0.8)', // 🔥 สีเขียวทึบ
-                      hoverBackgroundColor: 'rgba(16, 185, 129, 1)', 
-                      borderColor: 'transparent', hoverBorderColor: '#1e293b', hoverBorderWidth: 2, borderRadius: 4 
-                  }, 
-                  { 
-                      label: 'Ongoing (CIDs)', 
-                      data: sortedYears.map(y => yearlyData[y].ongoing), 
-                      backgroundColor: 'rgba(245, 158, 11, 0.8)', // 🔥 สีส้มทึบ
-                      hoverBackgroundColor: 'rgba(245, 158, 11, 1)', 
-                      borderColor: 'transparent', hoverBorderColor: '#1e293b', hoverBorderWidth: 2, borderRadius: 4 
-                  } 
-              ] 
-          };
-          yearlyChartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, datalabels: { ...dlStyle, font: { weight: 'bold', size: 13, family: 'Prompt' } } }, scales: { y: { beginAtZero: true }, x: { stacked: false } } };
 
           let teamChartData, unassignedChartData, teamChartOptions, unassignedChartOptions;
           let totalPendingCount = 0; 
@@ -2695,19 +2684,18 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               </div>
                           </div>
                           
-                          {/* 🔥 กราฟรายเดือน (Monthly) */}
                           <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
                               <div className="flex justify-between items-start mb-4">
                                   <div className="flex items-center gap-2">
-                                      <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-chart-column text-blue-600"></i> Monthly Collection Summary</h3>
+                                      <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-chart-column text-blue-600"></i> {barChartTitle}</h3>
                                   </div>
                                   <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2">
                                       <div className="bg-emerald-50 hover:bg-emerald-100 transition-colors px-3 py-1.5 flex flex-col items-center border-r border-slate-200 cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })}>
-                                          <span className="text-lg font-black text-emerald-700 leading-none">{totalMonthlyCollected}</span>
+                                          <span className="text-lg font-black text-emerald-700 leading-none">{totalBarCollected}</span>
                                           <span className="text-[10px] font-bold text-emerald-600 uppercase">Collected</span>
                                       </div>
                                       <div className="bg-amber-50 hover:bg-amber-100 transition-colors px-3 py-1.5 flex flex-col items-center cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(false) })}>
-                                          <span className="text-lg font-black text-amber-700 leading-none">{totalMonthlyOngoing}</span>
+                                          <span className="text-lg font-black text-amber-700 leading-none">{totalBarOngoing}</span>
                                           <span className="text-[10px] font-bold text-amber-600 uppercase">Ongoing</span>
                                       </div>
                                   </div>
@@ -2715,46 +2703,19 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                               <div className="relative h-60 md:h-72 w-full">
                                   <ChartComponent 
                                       type="bar" 
-                                      data={monthlyChartData} 
-                                      options={monthlyChartOptions} 
+                                      data={barChartData} 
+                                      options={barChartOptions} 
                                       onClick={({ datasetIndex, index }) => {
                                           const isCollected = datasetIndex === 0;
                                           const targetStatuses = getStatusesForDrillDown(isCollected);
-                                          const monthName = monthNames[index]; 
-                                          handleChartDrillDown({ month: [monthName], status: targetStatuses });
-                                      }}
-                                  />
-                              </div>
-                          </div>
-
-                          {/* 🔥 กราฟรายปี (Yearly) เพิ่มเข้ามาใหม่ */}
-                          <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-3">
-                              <div className="flex justify-between items-start mb-4">
-                                  <div className="flex items-center gap-2">
-                                      <h3 className="text-base md:text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-calendar-days text-blue-600"></i> Collection by Job Year</h3>
-                                  </div>
-                                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex overflow-hidden shrink-0 ml-2">
-                                      <div className="bg-emerald-50 hover:bg-emerald-100 transition-colors px-3 py-1.5 flex flex-col items-center border-r border-slate-200 cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(true) })}>
-                                          <span className="text-lg font-black text-emerald-700 leading-none">{totalYearlyCollected}</span>
-                                          <span className="text-[10px] font-bold text-emerald-600 uppercase">Collected</span>
-                                      </div>
-                                      <div className="bg-amber-50 hover:bg-amber-100 transition-colors px-3 py-1.5 flex flex-col items-center cursor-pointer" onClick={() => handleChartDrillDown({ status: getStatusesForDrillDown(false) })}>
-                                          <span className="text-lg font-black text-amber-700 leading-none">{totalYearlyOngoing}</span>
-                                          <span className="text-[10px] font-bold text-amber-600 uppercase">Ongoing</span>
-                                      </div>
-                                  </div>
-                              </div>
-                              <div className="relative h-60 md:h-72 w-full">
-                                  <ChartComponent 
-                                      type="bar" 
-                                      data={yearlyChartData} 
-                                      options={yearlyChartOptions} 
-                                      onClick={({ datasetIndex, index }) => {
-                                          const isCollected = datasetIndex === 0;
-                                          const targetStatuses = getStatusesForDrillDown(isCollected);
-                                          let yearStr = yearlyChartData.labels[index][0]; 
-                                          if (yearStr === 'ไม่ระบุปี') yearStr = ''; 
-                                          handleChartDrillDown({ year: [yearStr], status: targetStatuses });
+                                          if (dashboardView === 'subcontract' && dashboardYear !== 'history') {
+                                              const monthName = monthNames[index]; 
+                                              handleChartDrillDown({ month: [monthName], status: targetStatuses });
+                                          } else {
+                                              let yearStr = barChartData.labels[index][0]; 
+                                              if (yearStr === 'ไม่ระบุปี') yearStr = ''; 
+                                              handleChartDrillDown({ year: [yearStr], status: targetStatuses });
+                                          }
                                       }}
                                   />
                               </div>
@@ -3145,8 +3106,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                     {val}
                                                 </div>
                                                 {(isStatus || isTeam || isEquipYear || isRegionRespon) && (
-                                                    {/* 🔥 เพิ่ม isRegionRespon เข้าไปในเงื่อนไข */}
-                                                {(isStatus || isTeam || isEquipYear || isRegionRespon) && (
                                                     <div className="relative w-8 flex-shrink-0 flex items-center justify-center hover:bg-black/10 cursor-pointer border-l border-black/5 z-10">
                                                         <select 
                                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
@@ -3162,7 +3121,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                                 const name = typeof opt === 'string' ? opt : opt.name;
                                                                 return <option key={name} value={name} className="text-black bg-white">{name}</option>
                                                             })}
-                                                            {/* 🔥 ดึงรายชื่อทีม NS มาแสดงใน Dropdown ของ Region_Respon */}
                                                             {isRegionRespon && (masterData.nsTeams || []).map(opt => {
                                                                 const name = typeof opt === 'string' ? opt : opt.name;
                                                                 return <option key={name} value={name} className="text-black bg-white">{name}</option>
