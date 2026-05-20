@@ -3073,11 +3073,6 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                     const isStatusChange = col.toLowerCase().includes('status_change');
                                     const isContact = col === contactJobColMatch;
                                     const isEquip = col === 'รายการอุปกรณ์';
-                                    
-                                    // 🔥 เช็คว่าข้อความในเซลล์นี้มีการกด Enter (ขึ้นบรรทัดใหม่) ซ่อนอยู่หรือไม่
-                                    const hasNewLine = String(val).includes('\n');
-                                    // 🔥 เช็คว่าต้องแสดงผลแบบหลายบรรทัดหรือไม่
-                                    const isMultiLine = hasNewLine || isContact || isEquip || isStatusChange || (task._groupDocs && task._groupDocs.length > 1);
 
                                     const colConfig = (masterData.columnSettings || {})[col] || { mode: 'fixed', width: '150' };
                                     const isPinned = (pinnedColumns || []).includes(col);
@@ -3118,18 +3113,13 @@ ${equipments.map((e, i) => `${i + 1}. ${e.name || 'อุปกรณ์'} [ SN:
                                                 <div 
                                                     contentEditable={isEditing} 
                                                     suppressContentEditableWarning={true} 
-                                                    // 🔥 ปลดล็อคคลาส editable-cell ที่มีคำสั่งซ่อนข้อความ (overflow: hidden) ออก ถ้าเป็นแบบหลายบรรทัด
-                                                    className={`px-3 py-1 outline-none ${isMultiLine ? 'w-full block' : 'editable-cell'} ${isEditing ? 'editing text-slate-800' : ''}`} 
+                                                    className={`px-3 py-1 outline-none editable-cell ${isEditing ? 'editing text-slate-800' : ''}`} 
                                                     style={{ 
                                                         color: styleObj.color, fontWeight: styleObj.fontWeight, display: 'block', width: '100%', minWidth: 0, boxSizing: 'border-box', minHeight: '28px', 
                                                         height: (rowHeights && rowHeights[task.id]) ? `${rowHeights[task.id]}px` : 'auto',
-                                                        whiteSpace: isMultiLine ? 'pre-wrap' : (colConfig.mode === 'auto' ? 'nowrap' : 'normal'), 
-                                                        wordBreak: 'break-word', lineHeight: '1.5', 
-                                                        // 🔥 บังคับให้แสดงข้อความที่ล้นออกมาได้
-                                                        overflow: isMultiLine ? 'visible' : 'hidden', 
-                                                        textOverflow: isMultiLine ? 'clip' : 'ellipsis',
-                                                        textAlign: (isStatus || isTeam || isCid || isOverdue || isEquipYear || isRegionRespon) ? 'center' : 'left'
-                                                    }}
+                                                        whiteSpace: (isContact || isEquip || isStatusChange || (task._groupDocs && task._groupDocs.length > 1)) ? 'pre-wrap' : (colConfig.mode === 'auto' ? 'nowrap' : 'normal'), 
+                                                        wordBreak: 'break-word', lineHeight: '1.5', overflow: 'visible', textAlign: (isStatus || isTeam || isCid || isOverdue || isEquipYear || isRegionRespon) ? 'center' : 'left'
+                                                    }} 
                                                     onDoubleClick={(e) => handleCellDoubleClick(e, cellId)} 
                                                     onBlur={e => { handleCellChangeTable(task, col, e.target.innerText, (tasksSubTab === 'subcontract' ? columns : nsColumns)); setEditingCell(null); }}
                                                 >
